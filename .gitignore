@@ -1,2 +1,5 @@
+__pycache__/
+runs/
+tmp/
 CorpusDimex100
 FeaturesDimex100
