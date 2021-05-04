@@ -134,7 +134,6 @@ def reshape(data, max_frames):
         frames = d.size // n_mfcc
         d = d.reshape((frames, n_mfcc))
         d = padding(d,max_frames)
-        print(d.shape)
         reshaped.append(d)
 
     return np.array(reshaped, dtype=np.float32)
@@ -163,12 +162,12 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
         idx = label_idx[label]
         all_labels[i] = idx
 
-    all_labels = all_labels[:10000]
+    # all_labels = all_labels[:10000]
 
     # Load DIMEX-100 features and labels
     all_data = np.load('Features/feat_X.npy', allow_pickle=True) 
 
-    all_data = all_data[:10000]
+    # all_data = all_data[:10000]
 
     n_frames = max_frames(all_data) 
     all_data = reshape(all_data, n_frames)
@@ -187,7 +186,7 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
 def get_encoder(input_data):
 
     # Recurrent encoder
-    lstm_1 = LSTM(64)(input_data)
+    lstm_1 = LSTM(constants.domain)(input_data)
     drop_1 = Dropout(0.4)(lstm_1)
     norm = LayerNormalization()(drop_1)
 
@@ -251,7 +250,6 @@ def train_networks(training_percentage, filename, experiment):
             training_data = data[j:i]
             training_labels = labels[j:i]
 
-        print(n_frames, n_labels)
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
         classified = get_classifier(encoded)
@@ -267,13 +265,17 @@ def train_networks(training_percentage, filename, experiment):
 
         model.summary()
 
-        history = model.fit(training_data,
-                (training_labels, training_data),
-                batch_size=100,
-                epochs=EPOCHS,
-                validation_data= (testing_data,
-                    {'classification': testing_labels, 'autoencoder': testing_data}),
-                verbose=2)
+        # history = model.fit(training_data,
+        #         (training_labels, training_data),
+        #         batch_size=100,
+        #         epochs=EPOCHS,
+        #         validation_data= (testing_data,
+        #             {'classification': testing_labels, 'autoencoder': testing_data}),
+        #         verbose=2)
+        history = model.fit(training_data, training_labels,
+                batch_size=100, epochs=EPOCHS,
+                validation_data= (testing_data,testing_labels), verbose=2)
+
 
         histories.append(history)
         model.save(constants.model_filename(filename, n))
