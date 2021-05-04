@@ -25,7 +25,7 @@ import png
 
 import constants
 
-n_frames = 28
+n_frames = 0
 n_mfcc = 26
 n_labels = 0
 
@@ -104,17 +104,17 @@ def max_frames(data):
 
     Assumes features come as a flatten matrix of (frames, n_mfcc).
     """
-    max = 0
+    maximum = 0
     for d in data:
-        s = data.size // n_mfcc
-        if s > max:
-            max = s
-    return max
+        s = d.size // n_mfcc
+        if s > maximum:
+            maximum = s
+    return maximum
 
 
 def padding(data, max_frames):
 
-    frames = data.size
+    frames, _  = data.shape
     df = max_frames - frames
     if df == 0:
         return data
@@ -134,6 +134,7 @@ def reshape(data, max_frames):
         frames = d.size // n_mfcc
         d = d.reshape((frames, n_mfcc))
         d = padding(d,max_frames)
+        print(d.shape)
         reshaped.append(d)
 
     return np.array(reshaped, dtype=np.float32)
@@ -141,6 +142,9 @@ def reshape(data, max_frames):
 
 
 def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
+
+    global n_frames
+    global n_labels
 
     # Load dictionary with labels as keys (structured array) 
     label_idx = np.load('Features/media.npy', allow_pickle=True).item()
@@ -159,12 +163,18 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
         idx = label_idx[label]
         all_labels[i] = idx
 
+    all_labels = all_labels[:10000]
+
     # Load DIMEX-100 features and labels
     all_data = np.load('Features/feat_X.npy', allow_pickle=True) 
-    all_data = reshape(all_data, max_frames(all_data))
+
+    all_data = all_data[:10000]
+
+    n_frames = max_frames(all_data) 
+    all_data = reshape(all_data, n_frames)
     # all_data = add_noise(all_data, experiment, occlusion, bars_type)
-    max = all_data.max
-    all_data = all_data.astype('float32') / max
+    maximum = all_data.max()
+    all_data = all_data / maximum
 
     # if one_hot:
     #     # Changes labels to binary rows. Each label correspond to a column, and only
@@ -241,6 +251,7 @@ def train_networks(training_percentage, filename, experiment):
             training_data = data[j:i]
             training_labels = labels[j:i]
 
+        print(n_frames, n_labels)
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
         classified = get_classifier(encoded)
