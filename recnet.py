@@ -17,7 +17,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, LSTM, Dropout, Flatten, Dense, \
+from tensorflow.keras.layers import Input, GRU, Dropout, Flatten, Dense, \
     LayerNormalization, Reshape, Conv2DTranspose
 from tensorflow.keras.utils import to_categorical
 from joblib import Parallel, delayed
@@ -186,7 +186,7 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
 def get_encoder(input_data):
 
     # Recurrent encoder
-    lstm_1 = LSTM(constants.domain)(input_data)
+    lstm_1 = GRU(constants.domain)(input_data)
     drop_1 = Dropout(0.4)(lstm_1)
     norm = LayerNormalization()(drop_1)
 

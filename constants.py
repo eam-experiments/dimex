@@ -179,7 +179,7 @@ am_testing_percent = (100 / training_stages) / 100
 nn_training_percent = 0.57  # 0.10 + 0.57 = 0.67
 am_filling_percent = 0.33   # 0.67 + 0.33 = 1.0
 
-domain = 128
+domain = 64
 
 n_jobs = 4
 n_labels = 10
