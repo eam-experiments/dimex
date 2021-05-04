@@ -6,21 +6,30 @@ import numpy as np
 import csv
 from python_speech_features import mfcc
 
+# Media lenght and lenght standard deviation by phoneme,
+# calculated previously, as ‘structured arrays’
 media=np.load("Features/media.npy", allow_pickle=True)
-media=media.item()
 std=np.load("Features/std.npy", allow_pickle=True)
+
+# Recover the dictionaries.
+media=media.item()
 std=std.item()
 
 #Conversion Force Aligment
-conv={'a':'a','b':'b','d':'d','e':'e','f':'f','g':'g','i':'i','k':'k','l':'l','m':'m','n':'n','n~':'n~','o':'o','p':'p','r':'r','r(':'r(','s':'s','t':'t','tS':'tS','u':'u','x':'x','Z':'Z','a_7':'a','e_7':'e','i_7':'i','o_7':'o','u_7':'u','S_':'s'}
-
+conv={'a':'a','b':'b','d':'d','e':'e','f':'f',
+	'g':'g','i':'i','k':'k','l':'l','m':'m',
+	'n':'n','n~':'n~','o':'o','p':'p','r':'r',
+	'r(':'r(','s':'s','t':'t','tS':'tS','u':'u',
+	'x':'x','Z':'Z','a_7':'a','e_7':'e','i_7':'i',
+	'o_7':'o','u_7':'u','S_':'s'}
 
 feat_X=[]
 feat_Y=[]
 antL=[]
 cont=0
-#Para cada archivo de marcas en el Corpus
-for t22file in glob.iglob('CorpusDimex100/*/T22/*/*.phn',recursive=False):
+
+# For every tag file in corpus.
+for t22file in glob.iglob('Corpus/*/T22/*/*.phn',recursive=False):
 	#Se obtiene el prefijo del archivo
 	split=t22file.split("/")
 	folder=split[1]
@@ -29,7 +38,7 @@ for t22file in glob.iglob('CorpusDimex100/*/T22/*/*.phn',recursive=False):
 	name_split=name.split(".")
 	name=name_split[0]
 	#Se busca por su correspondiente archivo de audio
-	ls=glob.glob('CorpusDimex100/'+folder+'/audio_editado/'+subfolder+'/'+name+'.wav',recursive=False)
+	ls=glob.glob('Corpus/'+folder+'/audio_editado/'+subfolder+'/'+name+'.wav',recursive=False)
 	try:
 		audiofile=ls[0]
 	except:
@@ -74,8 +83,6 @@ for t22file in glob.iglob('CorpusDimex100/*/T22/*/*.phn',recursive=False):
 							#print(percen[0,:]) 
 							#feat=feat.T                            
 							vector=feat.flatten()
-							#print(vector[0:30])  
-							#print(vector.shape)                        
 							antL.append(anterior)
 							feat_X.append(vector)
 							feat_Y.append(row[2])

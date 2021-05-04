@@ -26,7 +26,7 @@ import random
 import json
 
 import constants
-import convnet
+import recnet
 from associative import AssociativeMemory
 
 # Translation
@@ -830,7 +830,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         model_prefix = constants.model_name
         stats_prefix = constants.stats_model_name
 
-        history = convnet.train_networks(training_percentage, model_prefix, action)
+        history = recnet.train_networks(training_percentage, model_prefix, action)
         save_history(history, stats_prefix)
     elif (action == constants.GET_FEATURES):
         # Generates features for the memories using the previously generated
@@ -842,7 +842,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         labels_prefix = constants.labels_name
         data_prefix = constants.data_name
 
-        history = convnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
+        history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
             training_percentage, am_filling_percentage, action)
         save_history(history, features_prefix)
     elif action == constants.CHARACTERIZE:
@@ -855,7 +855,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
     elif (action == constants.EXP_3):
         test_recalling(constants.domain, constants.partial_ideal_memory_size, action)
     elif (action == constants.EXP_4):
-        convnet.remember(action)
+        recnet.remember(action)
     elif (constants.EXP_5 <= action) and (action <= constants.EXP_10):
         # Generates features for the data sections using the previously generate
         # neural network, introducing (background color) occlusion.
@@ -866,13 +866,13 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         labels_prefix = constants.labels_name
         data_prefix = constants.data_name
 
-        history = convnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
+        history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
             training_percentage, am_filling_percentage, action, occlusion, bar_type)
         save_history(history, features_prefix)
         characterize_features(constants.domain, action, occlusion, bar_type)
         test_recalling(constants.domain, constants.partial_ideal_memory_size,
             action, occlusion, bar_type, tolerance)
-        convnet.remember(action, occlusion, bar_type, tolerance)
+        recnet.remember(action, occlusion, bar_type, tolerance)
 
 
 

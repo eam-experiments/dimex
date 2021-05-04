@@ -17,7 +17,7 @@ import sys
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Dropout, Flatten, Dense, \
+from tensorflow.keras.layers import Input, LSTM, Dropout, Flatten, Dense, \
     LayerNormalization, Reshape, Conv2DTranspose
 from tensorflow.keras.utils import to_categorical
 from joblib import Parallel, delayed
@@ -25,8 +25,9 @@ import png
 
 import constants
 
-img_rows = 28
-img_columns = 28
+n_frames = 28
+n_mfcc = 26
+n_labels = 0
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
@@ -40,23 +41,23 @@ def print_error(*s):
 
 def add_side_occlusion(data, side_hidden, occlusion):
     noise_value = 0
-    mid_row = int(round(img_rows*occlusion))
-    mid_col = int(round(img_columns*occlusion))
+    mid_row = int(round(n_frames*occlusion))
+    mid_col = int(round(n_mfcc*occlusion))
     origin = (0, 0)
     end = (0, 0)
 
     if side_hidden == TOP_SIDE:
         origin = (0, 0)
-        end = (mid_row, img_columns)
+        end = (mid_row, n_mfcc)
     elif side_hidden ==  BOTTOM_SIDE:
         origin = (mid_row, 0)
-        end = (img_rows, img_columns)
+        end = (n_frames, n_mfcc)
     elif side_hidden == LEFT_SIDE:
         origin = (0, 0)
-        end = (img_rows, mid_col)
+        end = (n_frames, mid_col)
     elif side_hidden == RIGHT_SIDE:
         origin = (0, mid_col)
-        end = (img_rows, img_columns)
+        end = (n_frames, n_mfcc)
 
     for image in data:
         n, m = origin
@@ -74,11 +75,11 @@ def add_bars_occlusion(data, bars, n):
 
     if bars == VERTICAL_BARS:
         for image in data:
-            for j in range(img_columns):
+            for j in range(n_mfcc):
                 image[:,j] *= pattern[j]     
     else:
         for image in data:
-            for i in range(img_rows):
+            for i in range(n_frames):
                 image[i,:] *= pattern[i]
 
     return data
@@ -98,45 +99,90 @@ def add_noise(data, experiment, occlusion = 0, bars_type = None):
         return add_bars_occlusion(data, bars[experiment], bars_type)
 
 
+def max_frames(data):
+    """ Calculates maximum number of feature frames.
+
+    Assumes features come as a flatten matrix of (frames, n_mfcc).
+    """
+    max = 0
+    for d in data:
+        s = data.size // n_mfcc
+        if s > max:
+            max = s
+    return max
+
+
+def padding(data, max_frames):
+
+    frames = data.size
+    df = max_frames - frames
+    if df == 0:
+        return data
+    else:
+        top_padding = df // 2
+        bottom_padding = df - top_padding
+        return np.pad(data, ((top_padding, bottom_padding),(0,0)),
+            'constant', constant_values=((0,0),(0,0)))
+
+
+def reshape(data, max_frames):
+    """ Restores the flatten matrices (frames, n_mfcc) and pads them vertically.
+    """
+
+    reshaped = []
+    for d in data:
+        frames = d.size // n_mfcc
+        d = d.reshape((frames, n_mfcc))
+        d = padding(d,max_frames)
+        reshaped.append(d)
+
+    return np.array(reshaped, dtype=np.float32)
+
+
+
 def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
 
-   # Load MNIST data, as part of TensorFlow.
-    mnist = tf.keras.datasets.mnist
-    (train_images, train_labels), (test_images, test_labels) = mnist.load_data()
+    # Load dictionary with labels as keys (structured array) 
+    label_idx = np.load('Features/media.npy', allow_pickle=True).item()
+    n_labels = len(label_idx)
 
-    all_data = np.concatenate((train_images, test_images), axis=0)
-    all_labels = np.concatenate((train_labels, test_labels), axis= 0)
+    idx = 0
+    for label in label_idx:
+        label_idx[label] = idx
+        idx += 1
 
-    all_data = add_noise(all_data, experiment, occlusion, bars_type)
+    # Load DIMEX-100 labels
+    labels = np.load('Features/feat_Y.npy')
+    all_labels = np.zeros(labels.shape)
+    for i in range(all_labels.size):
+        label = labels[i]
+        idx = label_idx[label]
+        all_labels[i] = idx
 
-    all_data = all_data.reshape((70000, img_columns, img_rows, 1))
-    all_data = all_data.astype('float32') / 255
+    # Load DIMEX-100 features and labels
+    all_data = np.load('Features/feat_X.npy', allow_pickle=True) 
+    all_data = reshape(all_data, max_frames(all_data))
+    # all_data = add_noise(all_data, experiment, occlusion, bars_type)
+    max = all_data.max
+    all_data = all_data.astype('float32') / max
 
-
-    if one_hot:
-        # Changes labels to binary rows. Each label correspond to a column, and only
-        # the column for the corresponding label is set to one.
-        all_labels = to_categorical(all_labels)
+    # if one_hot:
+    #     # Changes labels to binary rows. Each label correspond to a column, and only
+    #     # the column for the corresponding label is set to one.
+    #     all_labels = to_categorical(all_labels)
 
     return (all_data, all_labels)
 
 
-def get_encoder(input_img):
+def get_encoder(input_data):
 
-    # Convolutional Encoder
-    conv_1 = Conv2D(32,kernel_size=3, activation='relu', padding='same',
-        input_shape=(img_columns, img_rows, 1))(input_img)
-    pool_1 = MaxPooling2D((2, 2))(conv_1)
-    conv_2 = Conv2D(32,kernel_size=3, activation='relu')(pool_1)
-    pool_2 = MaxPooling2D((2, 2))(conv_2)
-    drop_1 = Dropout(0.4)(pool_2)
-    conv_3 = Conv2D(64, kernel_size=5, activation='relu')(drop_1)
-    pool_3 = MaxPooling2D((2, 2))(conv_3)
-    drop_2 = Dropout(0.4)(pool_3)
-    norm = LayerNormalization()(drop_2)
+    # Recurrent encoder
+    lstm_1 = LSTM(64)(input_data)
+    drop_1 = Dropout(0.4)(lstm_1)
+    norm = LayerNormalization()(drop_1)
 
     # Produces an array of size equal to constants.domain.
-    code = Flatten()(norm)
+    code = norm
 
     return code
 
@@ -160,7 +206,7 @@ def get_decoder(encoded):
 def get_classifier(encoded):
     dense_1 = Dense(constants.domain*2, activation='relu')(encoded)
     drop = Dropout(0.4)(dense_1)
-    classification = Dense(10, activation='softmax', name='classification')(drop)
+    classification = Dense(n_labels, activation='softmax', name='classification')(drop)
 
     return classification
 
@@ -170,7 +216,7 @@ def train_networks(training_percentage, filename, experiment):
     EPOCHS = constants.model_epochs
     stages = constants.training_stages
 
-    (data, labels) = get_data(experiment, one_hot=True)
+    (data, labels) = get_data(experiment)
 
     total = len(data)
     step = int(total/stages)
@@ -195,14 +241,17 @@ def train_networks(training_percentage, filename, experiment):
             training_data = data[j:i]
             training_labels = labels[j:i]
 
-        input_img = Input(shape=(img_columns, img_rows, 1))
-        encoded = get_encoder(input_img)
+        input_data = Input(shape=(n_frames, n_mfcc))
+        encoded = get_encoder(input_data)
         classified = get_classifier(encoded)
-        decoded = get_decoder(encoded)
-        model = Model(inputs=input_img, outputs=[classified, decoded])
+        # decoded = get_decoder(encoded)
+        # model = Model(inputs=input_data, outputs=[classified, decoded])
+        model = Model(inputs=input_data, outputs=classified)
 
-        model.compile(loss=['categorical_crossentropy', 'binary_crossentropy'],
-                    optimizer='adam',
+        # model.compile(loss=['categorical_crossentropy', 'binary_crossentropy'],
+        #             optimizer='adam',
+        #             metrics='accuracy')
+        model.compile(loss='SparseCategoricalCrossentropy', optimizer='adam',
                     metrics='accuracy')
 
         model.summary()

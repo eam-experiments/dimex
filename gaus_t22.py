@@ -12,7 +12,7 @@ dic={'fon':[],'dur':[]}
 dF={'a':[],'b':[],'d':[],'e':[],'f':[],'g':[],'i':[],'k':[],'l':[],'m':[],'n':[],'n~':[],'o':[],'p':[],'r':[],'r(':[],'s':[],'t':[],'tS':[],'u':[],'x':[],'Z':[]}
 
 cont=0
-for i,t22file in enumerate(glob.iglob('CorpusDimex100/*/T22/*/*.phn')):
+for i,t22file in enumerate(glob.iglob('Corpus/*/T22/*/*.phn')):
 	#print(t22file)    
 	inicio="0.0"
 	anterior="-"
@@ -114,7 +114,7 @@ time_fon['Z']=dic['dur'][np.where(dic['fon']=='Z')]
 med['Z']=time_fon['Z'].mean()
 std['Z']=np.std(time_fon['Z'])
 
-
+# Numpy saves directories as ‘structured arrays’.
 np.save("Features/media.npy",med)
 np.save("Features/std.npy",std)
 
