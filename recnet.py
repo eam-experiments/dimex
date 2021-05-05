@@ -172,8 +172,9 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     n_frames = max_frames(all_data) 
     all_data = reshape(all_data, n_frames)
     # all_data = add_noise(all_data, experiment, occlusion, bars_type)
+    minimum = all_data.min()
     maximum = all_data.max()
-    all_data = all_data / maximum
+    all_data = (all_data - minimum)/ (maximum - minimum)
 
     # if one_hot:
     #     # Changes labels to binary rows. Each label correspond to a column, and only
