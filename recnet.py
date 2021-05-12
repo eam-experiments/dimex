@@ -27,7 +27,6 @@ import constants
 
 n_frames = 0
 n_mfcc = 26
-n_labels = 0
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
@@ -38,6 +37,10 @@ HORIZONTAL_BARS = 5
 
 def print_error(*s):
     print('Error:', *s, file = sys.stderr)
+
+
+#######################################################################
+# Noise related code.
 
 def add_side_occlusion(data, side_hidden, occlusion):
     noise_value = 0
@@ -99,6 +102,9 @@ def add_noise(data, experiment, occlusion = 0, bars_type = None):
         return add_bars_occlusion(data, bars[experiment], bars_type)
 
 
+#######################################################################
+# Getting data code
+
 def max_frames(data):
     """ Calculates maximum number of feature frames.
 
@@ -143,38 +149,40 @@ def reshape(data, max_frames):
 def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
 
     global n_frames
-    global n_labels
 
     # Load dictionary with labels as keys (structured array) 
     label_idx = np.load('Features/media.npy', allow_pickle=True).item()
-    n_labels = len(label_idx)
+    n, _ = label_idx.shape
 
+    if constants.n_labels != n:
+        print_error("Inconsistent number of labels: ", n)
+        exit(1)
+    
+    # Load DIMEX-100 labels
+    labels = np.load('Features/feat_Y.npy')
+
+    # Replaces actual labels (letter codes for sounds) into
+    # numbers from 0 to N-1, where N is the number of labels.
     idx = 0
     for label in label_idx:
         label_idx[label] = idx
         idx += 1
 
-    # Load DIMEX-100 labels
-    labels = np.load('Features/feat_Y.npy')
     all_labels = np.zeros(labels.shape)
     for i in range(all_labels.size):
         label = labels[i]
         idx = label_idx[label]
         all_labels[i] = idx
 
-    # all_labels = all_labels[:10000]
-
     # Load DIMEX-100 features and labels
     all_data = np.load('Features/feat_X.npy', allow_pickle=True) 
-
-    # all_data = all_data[:10000]
 
     n_frames = max_frames(all_data) 
     all_data = reshape(all_data, n_frames)
     # all_data = add_noise(all_data, experiment, occlusion, bars_type)
     minimum = all_data.min()
     maximum = all_data.max()
-    all_data = (all_data - minimum)/ (maximum - minimum)
+    all_data = (all_data - minimum)/ maximum
 
     # if one_hot:
     #     # Changes labels to binary rows. Each label correspond to a column, and only
@@ -184,12 +192,32 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     return (all_data, all_labels)
 
 
+def get_class_weights(labels):
+    weights = {}
+    for label in labels:
+        if label in weights:
+            weights[label] += 1
+        else:
+            weights[label] = 1
+
+    maximum = 0
+    for label in weights:
+        if maximum < weights[label]:
+            maximum = weights[label]
+
+    for label in weights:
+        weights[label] = maximum*(1.0/weights[label])
+
+    return weights
+
+
 def get_encoder(input_data):
 
     # Recurrent encoder
-    lstm_1 = GRU(constants.domain)(input_data)
-    drop_1 = Dropout(0.4)(lstm_1)
-    norm = LayerNormalization()(drop_1)
+    gru_1 = Bidirectional(GRU(constants.domain, return_sequences=True))(input_data)
+    drop_1 = Dropout(0.4)(gru_1)
+    gru_2 = Bidirectional(GRU(constants.domain // 2))(drop_1) 
+    norm = LayerNormalization()(gru_2)
 
     # Produces an array of size equal to constants.domain.
     code = norm
@@ -216,7 +244,7 @@ def get_decoder(encoded):
 def get_classifier(encoded):
     dense_1 = Dense(constants.domain*2, activation='relu')(encoded)
     drop = Dropout(0.4)(dense_1)
-    classification = Dense(n_labels, activation='softmax', name='classification')(drop)
+    classification = Dense(constants.n_labels, activation='softmax', name='classification')(drop)
 
     return classification
 
@@ -251,6 +279,7 @@ def train_networks(training_percentage, filename, experiment):
             training_data = data[j:i]
             training_labels = labels[j:i]
 
+        class_weights = get_class_weights(training_labels)
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
         classified = get_classifier(encoded)
@@ -274,9 +303,9 @@ def train_networks(training_percentage, filename, experiment):
         #             {'classification': testing_labels, 'autoencoder': testing_data}),
         #         verbose=2)
         history = model.fit(training_data, training_labels,
-                batch_size=100, epochs=EPOCHS,
-                validation_data= (testing_data,testing_labels), verbose=2)
-
+                batch_size=1000, epochs=EPOCHS,
+                validation_data= (testing_data,testing_labels),
+                class_weight=class_weights, verbose=2)
 
         histories.append(history)
         model.save(constants.model_filename(filename, n))
