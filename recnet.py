@@ -18,7 +18,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, GRU, Dropout, Flatten, Dense, \
-    LayerNormalization, Reshape, Conv2DTranspose
+    Bidirectional, LayerNormalization, Reshape, Conv2DTranspose
 from tensorflow.keras.utils import to_categorical
 from joblib import Parallel, delayed
 import png
@@ -152,9 +152,8 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
 
     # Load dictionary with labels as keys (structured array) 
     label_idx = np.load('Features/media.npy', allow_pickle=True).item()
-    n, _ = label_idx.shape
 
-    if constants.n_labels != n:
+    if constants.n_labels != len(label_idx):
         print_error("Inconsistent number of labels: ", n)
         exit(1)
     
