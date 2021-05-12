@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import sys
+import math
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
@@ -192,23 +193,28 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     return (all_data, all_labels)
 
 
-def get_class_weights(labels):
-    weights = {}
+def get_weights_bias(labels):
+    frequency = {}
     for label in labels:
-        if label in weights:
-            weights[label] += 1
+        if label in frequency:
+            frequency[label] += 1
         else:
-            weights[label] = 1
+            frequency[label] = 1
 
+    total = len(labels)
     maximum = 0
-    for label in weights:
-        if maximum < weights[label]:
-            maximum = weights[label]
+    for label in frequency:
+        if maximum < frequency[label]:
+            maximum = frequency[label]
 
-    for label in weights:
-        weights[label] = maximum*(1.0/weights[label])
+    weights = {}
+    bias = np.zeros(len(frequency))
+    for label in frequency:
+        weights[label] = maximum*(1.0/frequency[label])
+        bias[label] = math.log(frequency[label]/total)
 
-    return weights
+
+    return weights, bias
 
 
 def get_encoder(input_data):
@@ -241,10 +247,14 @@ def get_decoder(encoded):
     return output_img
 
 
-def get_classifier(encoded):
+def get_classifier(encoded, output_bias = None):
+    if output_bias is not None:
+        output_bias = tf.keras.initializers.Constant(output_bias)
+
     dense_1 = Dense(constants.domain*2, activation='relu')(encoded)
     drop = Dropout(0.4)(dense_1)
-    classification = Dense(constants.n_labels, activation='softmax', name='classification')(drop)
+    classification = Dense(constants.n_labels, activation='softmax',
+         bias_initializer=output_bias, name='classification')(drop)
 
     return classification
 
@@ -279,10 +289,10 @@ def train_networks(training_percentage, filename, experiment):
             training_data = data[j:i]
             training_labels = labels[j:i]
 
-        class_weights = get_class_weights(training_labels)
+        weights, bias = get_weights_bias(training_labels)
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
-        classified = get_classifier(encoded)
+        classified = get_classifier(encoded, bias)
         # decoded = get_decoder(encoded)
         # model = Model(inputs=input_data, outputs=[classified, decoded])
         model = Model(inputs=input_data, outputs=classified)
