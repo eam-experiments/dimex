@@ -51,7 +51,7 @@ def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
 
     main_step = 100.0/len(xlabels)
     plt.errorbar(np.arange(0, 100, main_step), pre_mean, fmt='r-o', yerr=pre_std, label=_('Precision'))
-    plt.errorbar(np.arange(0, 100, main_step), rec_mean, fmt='b-s', yerr=rec_std, label=_('Recall'))
+    plt.errorbar(np.arange(0, 100, main_step), rec_mean, fmt='b--s', yerr=rec_std, label=_('Recall'))
     plt.xlim(0, 90)
     plt.ylim(0, 102)
     plt.xticks(np.arange(0, 100, main_step), xlabels)
@@ -84,7 +84,7 @@ def plot_size_graph (response_size, size_stdev, action=None):
     main_step = len(constants.memory_sizes)
     plt.errorbar(np.arange(0, 100, main_step), response_size, fmt='g-D', yerr=size_stdev, label=_('Average number of responses'))
     plt.xlim(0, 90)
-    plt.ylim(0, 10)
+    plt.ylim(0, constants.n_labels)
     plt.xticks(np.arange(0, 100, 10), constants.memory_sizes)
 
     plt.xlabel(_('Range Quantization Levels'))
