@@ -86,7 +86,7 @@ def plot_size_graph (response_size, size_stdev, action=None):
     plt.xlim(0, 90)
     plt.ylim(0, constants.n_labels)
     plt.xticks(np.arange(0, 100, 10), constants.memory_sizes)
-    plt.yticks(np.arange(0,constants.n_labels, 1), range(1, constants.n_labels+1))
+    plt.yticks(np.arange(0,constants.n_labels+1, 1), range(constants.n_labels+1))
 
     plt.xlabel(_('Range Quantization Levels'))
     plt.ylabel(_('Size'))
