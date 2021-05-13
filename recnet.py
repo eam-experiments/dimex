@@ -210,7 +210,7 @@ def get_weights_bias(labels):
     bias = np.zeros(len(frequency))
     for label in frequency:
         weights[label] = maximum*(1.0/frequency[label])
-        bias[label] = math.log(frequency[label]/total)
+        bias[int(label)] = math.log(frequency[label]/total)
 
 
     return weights, bias
@@ -312,9 +312,9 @@ def train_networks(training_percentage, filename, experiment):
         #             {'classification': testing_labels, 'autoencoder': testing_data}),
         #         verbose=2)
         history = model.fit(training_data, training_labels,
-                batch_size=1000, epochs=EPOCHS,
+                batch_size=2048, epochs=EPOCHS,
                 validation_data= (testing_data,testing_labels),
-                class_weight=class_weights, verbose=2)
+                class_weight=weights, verbose=2)
 
         histories.append(history)
         model.save(constants.model_filename(filename, n))
