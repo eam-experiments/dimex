@@ -392,7 +392,8 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
         model = tf.keras.models.load_model(constants.model_filename(model_prefix, n))
 
         # Drop the autoencoder and the last layers of the full connected neural network part.
-        classifier = Model(model.input, model.output[0])
+        # classifier = Model(model.input, model.output[0])
+        classifier = model
         no_hot = to_categorical(testing_labels)
         classifier.compile(optimizer='adam', loss='categorical_crossentropy', metrics='accuracy')
         history = classifier.evaluate(testing_data, no_hot, batch_size=100, verbose=1, return_dict=True)
