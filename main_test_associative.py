@@ -277,7 +277,12 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
     behaviour[constants.recall_idx] = all_recall
 
     for i in range(nmems):
-        measures[constants.precision_idx,i] = cms[i][TP] /(cms[i][TP] + cms[i][FP])
+        total_positives = cms[i][TP] + cms[i][FP]
+        if total_positives == 0:
+            print(f'Memory {i} in run {midx} did not respond.')
+            measures[constants.precision_idx,i] = 1
+        else:
+            measures[constants.precision_idx,i] = cms[i][TP] / total_positives
         measures[constants.recall_idx,i] = cms[i][TP] /(cms[i][TP] + cms[i][FN])
    
     return (midx, measures, entropy, behaviour)
@@ -448,28 +453,24 @@ def test_memories(domain, experiment):
     main_behaviours = [main_no_response, main_no_correct_response, \
         main_no_correct_chosen, main_correct_chosen, main_total_responses]
 
-    np.savetxt(constants.csv_filename('main_average_precision--{0}'.format(experiment)), \
-        main_average_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_all_average_precision--{0}'.format(experiment)), \
-        main_all_average_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_average_recall--{0}'.format(experiment)), \
-        main_average_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_all_average_recall--{0}'.format(experiment)), \
-        main_all_average_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_average_entropy--{0}'.format(experiment)), \
-        main_average_entropy, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_average_precision--{0}'.format(experiment)), \
+        average_precision, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_average_recall--{0}'.format(experiment)), \
+        average_recall, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_average_entropy--{0}'.format(experiment)), \
+        average_entropy, delimiter=',')
 
-    np.savetxt(constants.csv_filename('main_stdev_precision--{0}'.format(experiment)), \
-        main_stdev_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_all_stdev_precision--{0}'.format(experiment)), \
-        main_all_stdev_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_stdev_recall--{0}'.format(experiment)), \
-        main_stdev_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_all_stdev_recall--{0}'.format(experiment)), \
-        main_all_stdev_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_stdev_entropy--{0}'.format(experiment)), \
-        main_stdev_entropy, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_stdev_precision--{0}'.format(experiment)), \
+        stdev_precision, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_stdev_recall--{0}'.format(experiment)), \
+        stdev_recall, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_stdev_entropy--{0}'.format(experiment)), \
+        stdev_entropy, delimiter=',')
 
+    np.savetxt(constants.csv_filename('all_precision--{0}'.format(experiment)), \
+        all_precision, delimiter=',')
+    np.savetxt(constants.csv_filename('all_recall--{0}'.format(experiment)), \
+        all_recall, delimiter=',')
     np.savetxt(constants.csv_filename('main_behaviours--{0}'.format(experiment)), \
         main_behaviours, delimiter=',')
 
