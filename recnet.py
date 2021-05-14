@@ -161,7 +161,7 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     # Load DIMEX-100 labels
     labels = np.load('Features/feat_Y.npy')
 
-    # Replaces actual labels (letter codes for sounds) into
+    # Replaces actual labels (letter codes for sounds) by
     # numbers from 0 to N-1, where N is the number of labels.
     idx = 0
     for label in label_idx:
