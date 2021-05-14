@@ -3,21 +3,25 @@ import numpy as np
 
 # Load dictionary with labels as keys (structured array) 
 frequencies = np.load('Features/media.npy', allow_pickle=True).item()
-
 for label in frequencies:
     frequencies[label] = 0
 
 # Load DIMEX-100 labels
 labels = np.load('Features/feat_Y.npy')
+features = np.load('Features/feat_X.npy', allow_pickle=True)
+
 for label in labels:
     frequencies[label] += 1
 
-print(frequencies)
-
-features = np.load('Features/feat_X.npy', allow_pickle=True)
+# Reduce the number of instances of over-represented classes
+average = len(labels)/len(frequencies)
 pairs = []
 for i in range(len(features)):
-    pairs.append((labels[i], features[i]))
+    label = labels[i]
+    if frequencies[label] > average:
+        frequencies[label] -= 1
+    else:
+        pairs.append((label, features[i]))
 
 random.shuffle(pairs)
 
