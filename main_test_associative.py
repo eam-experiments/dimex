@@ -188,8 +188,6 @@ def get_label(memories, entropies = None):
 
 
 def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
-    print('Testing memory size:', msize)
-
 
     # Round the values
     max_value = trf.max()

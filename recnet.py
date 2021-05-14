@@ -119,12 +119,14 @@ def max_frames(data):
     return maximum
 
 
-def padding(data, max_frames):
+def padding_cropping(data, n_frames):
 
     frames, _  = data.shape
-    df = max_frames - frames
+    df = n_frames - frames
     if df == 0:
         return data
+    elif df < 0:
+        return data[:n_frames]
     else:
         top_padding = df // 2
         bottom_padding = df - top_padding
@@ -132,7 +134,7 @@ def padding(data, max_frames):
             'constant', constant_values=((0,0),(0,0)))
 
 
-def reshape(data, max_frames):
+def reshape(data, n_frames):
     """ Restores the flatten matrices (frames, n_mfcc) and pads them vertically.
     """
 
@@ -140,7 +142,7 @@ def reshape(data, max_frames):
     for d in data:
         frames = d.size // n_mfcc
         d = d.reshape((frames, n_mfcc))
-        d = padding(d,max_frames)
+        d = padding_cropping(d,n_frames)
         reshaped.append(d)
 
     return np.array(reshaped, dtype=np.float32)
@@ -177,8 +179,10 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     # Load DIMEX-100 features and labels
     all_data = np.load('Features/feat_X.npy', allow_pickle=True) 
 
-    n_frames = max_frames(all_data) 
+    # n_frames = max_frames(all_data)
+    n_frames = constants.n_frames
     all_data = reshape(all_data, n_frames)
+
     # all_data = add_noise(all_data, experiment, occlusion, bars_type)
     minimum = all_data.min()
     maximum = all_data.max()
