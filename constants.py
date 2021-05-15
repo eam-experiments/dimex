@@ -207,7 +207,7 @@ mean_responses_idx = 6
 
 n_behaviours = 7
 
-memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
 memory_fills = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 100.0]
 partial_ideal_memory_size = 32
 
