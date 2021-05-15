@@ -36,6 +36,8 @@ RIGHT_SIDE = 3
 VERTICAL_BARS = 4
 HORIZONTAL_BARS = 5
 
+truly_training_percentage = 0.80
+
 def print_error(*s):
     print('Error:', *s, file = sys.stderr)
 
@@ -272,25 +274,28 @@ def train_networks(training_percentage, filename, experiment):
     total = len(data)
     step = int(total/stages)
 
-    # Amount of testing data
-    atd = total - int(total*training_percentage)
+    # Amount of training data, from which a percentage is used for
+    # validation.
+    training_size = int(total*training_percentage*)
 
     n = 0
     histories = []
     for i in range(0, total, step):
-        j = (i + atd) % total
+        j = (i + training_size) % total
 
         if j > i:
-            testing_data = data[i:j]
-            testing_labels = labels[i:j]
-
-            training_data = np.concatenate((data[0:i], data[j:total]), axis=0)
-            training_labels = np.concatenate((labels[0:i], labels[j:total]), axis=0)
+            training_data = data[i:j]
+            training_labels = labels[i:j]
         else:
-            testing_data = np.concatenate((data[i:total], data[0:j]), axis=0)
-            testing_labels = np.concatenate((labels[i:total], labels[0:j]), axis=0)
-            training_data = data[j:i]
-            training_labels = labels[j:i]
+            training_data = np.concatenate((data[i:total], data[0:j]), axis=0)
+            training_labels = np.concatenate((labels[i:total], labels[0:j]), axis=0)
+
+        truly_training = int(training_size*truly_training_percentage)
+
+        validation_data = training_data[truly_training:]
+        validation_labels = training_labels[truly_training:]
+        training_data = training_data[:truly_training]
+        training_labels = training_labels[:truly_training]
 
         weights, bias = get_weights_bias(training_labels)
         input_data = Input(shape=(n_frames, n_mfcc))
@@ -317,7 +322,7 @@ def train_networks(training_percentage, filename, experiment):
         #         verbose=2)
         history = model.fit(training_data, training_labels,
                 batch_size=2048, epochs=EPOCHS,
-                validation_data= (testing_data,testing_labels),
+                validation_data= (validation_data,validation_labels),
                 class_weight=weights, verbose=2)
 
         histories.append(history)

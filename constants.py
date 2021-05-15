@@ -173,7 +173,7 @@ testing_suffix = '-testing'
 memory_suffix = '-memories'
 
 training_stages = 10 
-model_epochs = 100
+model_epochs = 75
 
 am_testing_percent = (100 / training_stages) / 100
 nn_training_percent = 0.57  # 0.10 + 0.57 = 0.67
@@ -207,10 +207,9 @@ mean_responses_idx = 6
 
 n_behaviours = 7
 
-memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 memory_fills = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 100.0]
 partial_ideal_memory_size = 32
-full_ideal_memory_size = 64
 
 CHARACTERIZE = -2
 TRAIN_NN = -1

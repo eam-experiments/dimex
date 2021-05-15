@@ -81,11 +81,11 @@ def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
 def plot_size_graph (response_size, size_stdev, action=None):
     plt.clf()
 
-    main_step = len(constants.memory_sizes)
+    main_step = 100.0/len(constants.memory_sizes)
     plt.errorbar(np.arange(0, 100, main_step), response_size, fmt='g-D', yerr=size_stdev, label=_('Average number of responses'))
     plt.xlim(0, 90)
     plt.ylim(0, constants.n_labels)
-    plt.xticks(np.arange(0, 100, 10), constants.memory_sizes)
+    plt.xticks(np.arange(0, 100, main_step), constants.memory_sizes)
     plt.yticks(np.arange(0,constants.n_labels+1, 1), range(constants.n_labels+1))
 
     plt.xlabel(_('Range Quantization Levels'))
@@ -107,7 +107,7 @@ def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None):
         correct[i] /= total
 
     plt.clf()
-    main_step = len(constants.memory_sizes)
+    main_step = 100.0/len(constants.memory_sizes)
     xlocs = np.arange(0, 100, main_step)
     width = 5       # the width of the bars: can also be len(x) sequence
 
@@ -121,7 +121,7 @@ def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None):
 
     plt.xlim(-5, 95)
     plt.ylim(0, 100)
-    plt.xticks(np.arange(0, 100, 10), constants.memory_sizes)
+    plt.xticks(np.arange(0, 100, main_step), constants.memory_sizes)
 
     plt.xlabel(_('Range Quantization Levels'))
     plt.ylabel(_('Labels'))
