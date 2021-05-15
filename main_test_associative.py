@@ -69,7 +69,7 @@ def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
     entropy_labels = [str(e) for e in np.around(ent_mean, decimals=1)]
 
     cbar = plt.colorbar(CS3, orientation='horizontal')
-    cbar.set_ticks(np.arange(0, 100, main_step))
+    cbar.set_ticks(np.arange(0, 101, main_step))
     cbar.ax.set_xticklabels(entropy_labels)
     cbar.set_label(_('Entropy'))
 
@@ -85,7 +85,7 @@ def plot_size_graph (response_size, size_stdev, action=None):
     plt.errorbar(np.arange(0, 100, main_step), response_size, fmt='g-D', yerr=size_stdev, label=_('Average number of responses'))
     plt.xlim(0, 90)
     plt.ylim(0, constants.n_labels)
-    plt.xticks(np.arange(0, 100, main_step), constants.memory_sizes)
+    plt.xticks(np.arange(0, 101, main_step), constants.memory_sizes)
     plt.yticks(np.arange(0,constants.n_labels+1, 1), range(constants.n_labels+1))
 
     plt.xlabel(_('Range Quantization Levels'))
@@ -121,7 +121,7 @@ def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None):
 
     plt.xlim(-5, 95)
     plt.ylim(0, 100)
-    plt.xticks(np.arange(0, 100, main_step), constants.memory_sizes)
+    plt.xticks(np.arange(0, 101, main_step), constants.memory_sizes)
 
     plt.xlabel(_('Range Quantization Levels'))
     plt.ylabel(_('Labels'))
