@@ -173,7 +173,7 @@ testing_suffix = '-testing'
 memory_suffix = '-memories'
 
 training_stages = 10 
-model_epochs = 75
+model_epochs = 50
 
 am_testing_percent = (100 / training_stages) / 100
 nn_training_percent = 0.57  # 0.10 + 0.57 = 0.67

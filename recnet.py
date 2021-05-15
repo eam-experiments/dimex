@@ -276,7 +276,7 @@ def train_networks(training_percentage, filename, experiment):
 
     # Amount of training data, from which a percentage is used for
     # validation.
-    training_size = int(total*training_percentage*)
+    training_size = int(total*training_percentage)
 
     n = 0
     histories = []
