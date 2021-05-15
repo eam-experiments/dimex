@@ -52,7 +52,7 @@ def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
     main_step = 100.0/len(xlabels)
     plt.errorbar(np.arange(0, 100, main_step), pre_mean, fmt='r-o', yerr=pre_std, label=_('Precision'))
     plt.errorbar(np.arange(0, 100, main_step), rec_mean, fmt='b--s', yerr=rec_std, label=_('Recall'))
-    plt.xlim(0, 90)
+    plt.xlim(0, 100)
     plt.ylim(0, 102)
     plt.xticks(np.arange(0, 100, main_step), xlabels)
 
@@ -69,7 +69,7 @@ def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
     entropy_labels = [str(e) for e in np.around(ent_mean, decimals=1)]
 
     cbar = plt.colorbar(CS3, orientation='horizontal')
-    cbar.set_ticks(np.arange(0, 101, main_step))
+    cbar.ax.set_ticks(np.arange(0, 100, main_step))
     cbar.ax.set_xticklabels(entropy_labels)
     cbar.set_label(_('Entropy'))
 
