@@ -43,16 +43,6 @@ def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
     plt.clf()
     plt.figure(figsize=(6.4,4.8))
 
-    if xtitle is None:
-        xtitle = _('Range Quantization Levels')
-    if ytitle is None: 
-        ytitle = _('Percentage')
-
-    plt.xlabel(xtitle)
-    plt.ylabel(ytitle)
-    plt.legend(loc=4)
-    plt.grid(True)
-
     full_length = 100.0
     step = 0.1
     main_step = full_length/len(xlabels)
@@ -71,6 +61,16 @@ def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
     plt.xlim(0, xmax)
     plt.ylim(0, ymax)
     plt.xticks(x, xlabels)
+
+    if xtitle is None:
+        xtitle = _('Range Quantization Levels')
+    if ytitle is None: 
+        ytitle = _('Percentage')
+
+    plt.xlabel(xtitle)
+    plt.ylabel(ytitle)
+    plt.legend(loc=4)
+    plt.grid(True)
 
     entropy_labels = [str(e) for e in np.around(ent_mean, decimals=1)]
 
