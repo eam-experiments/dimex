@@ -180,7 +180,7 @@ nn_training_percent = 0.57  # 0.10 + 0.57 = 0.67
 am_filling_percent = 0.33   # 0.67 + 0.33 = 1.0
 
 n_frames = 9
-domain = 64
+domain = 128
 
 n_jobs = 8
 n_labels = 22
@@ -209,7 +209,7 @@ n_behaviours = 7
 
 memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
 memory_fills = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 100.0]
-partial_ideal_memory_size = 32
+partial_ideal_memory_size = 1024
 
 CHARACTERIZE = -2
 TRAIN_NN = -1
