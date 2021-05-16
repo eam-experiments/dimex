@@ -80,7 +80,7 @@ def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
     CS3 = plt.contourf(Z, levels, cmap=cmap)
 
     cbar = plt.colorbar(CS3, orientation='horizontal')
-    cbar.ax.set_ticks(x)
+    cbar.set_ticks(x)
     cbar.ax.set_xticklabels(entropy_labels)
     cbar.set_label(_('Entropy'))
 
@@ -94,7 +94,7 @@ def plot_size_graph (response_size, size_stdev, action=None):
 
     full_length = 100.0
     step = 0.1
-    main_step = full_length/len(xlabels)
+    main_step = full_length/len(response_size)
     x = np.arange(0, full_length, main_step)
 
     # One main step less because levels go on sticks, not
