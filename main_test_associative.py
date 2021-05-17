@@ -519,14 +519,14 @@ def test_memories(domain, experiment):
     print('Test complete')
 
 
-def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, idx):
+def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, idx, fill):
 
     n_mems = constants.n_labels
 
     # To store precisión and recall per memory
     measures = np.zeros((constants.n_measures, n_mems), dtype=np.float64)
 
-    entropy = np.zeros((n_mems, ), dtype=np.float64)
+    entropy = np.zeros(n_mems, dtype=np.float64)
 
     # Confusion matrix for calculating precision and recall per memory.
     mem_cmatrix = np.zeros((n_mems, 2, 2))
@@ -562,8 +562,8 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
         mismatches += ams[label].mismatches(features)
 
         for k in ams:
+            recognized = ams[k].recognize(features)
             recall = ams[k].recall(features)
-            recognized = not (ams[k].is_undefined(recall))
 
             # For calculation of per memory precision and recall
             if (k == label) and recognized:
@@ -597,7 +597,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
     for i in range(n_mems):
         positives = mem_cmatrix[i][TP] + mem_cmatrix[i][FP]
         if positives == 0:
-            print(f'Memory {i} in run {idx} did not respond.')
+            print(f'Memory {i} filled with {fill} in run {idx} did not respond.')
             measures[constants.precision_idx,i] = 1.0
         else:
             measures[constants.precision_idx,i] = mem_cmatrix[i][TP] / positives
@@ -605,7 +605,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
 
     positives = cmatrix[TP] + cmatrix[FP]
     if positives == 0:
-        print(f'System in run {idx} did not respond.')
+        print(f'System filled with {fill} in run {idx} did not respond.')
         total_precision = 1.0
     else: 
         total_precision = cmatrix[TP] / positives
@@ -666,7 +666,7 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
         labels = filling_labels[start:end]
 
         recalls, measures, entropies, step_precision, step_recall, mis_count = get_recalls(ams, mem_size, domain, \
-            minimum, maximum, features, labels, testing_features, testing_labels, fold)
+            minimum, maximum, features, labels, testing_features, testing_labels, fold, end)
 
         # A list of tuples (position, label, features)
         stage_recalls += recalls
