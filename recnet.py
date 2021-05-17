@@ -159,7 +159,7 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     label_idx = np.load('Features/media.npy', allow_pickle=True).item()
 
     if constants.n_labels != len(label_idx):
-        print_error("Inconsistent number of labels: ", n)
+        print_error("Inconsistent number of labels: ", len(label_idx))
         exit(1)
     
     # Load DIMEX-100 labels

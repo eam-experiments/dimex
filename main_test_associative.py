@@ -519,28 +519,6 @@ def test_memories(domain, experiment):
     print('Test complete')
 
 
-def get_means(d):
-    n = len(d.keys())
-    means = np.zeros((n, ))
-    for k in d:
-        rows = np.array(d[k])
-        mean = rows.mean()
-        means[k] = mean
-
-    return means
-
-
-def get_stdev(d):
-    n = len(d.keys())
-    stdevs = np.zeros((n, ))
-    for k in d:
-        rows = np.array(d[k])
-        std = rows.std()
-        stdevs[k] = std
-
-    return stdevs    
-    
-
 def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, idx):
 
     n_mems = constants.n_labels
@@ -675,16 +653,15 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
     steps = np.round(total*percents/100.0).astype(int)
 
     stage_recalls = []
-    stage_entropies = {}
-    stage_mprecision = {}
-    stage_mrecall = {}
+    stage_entropies = []
+    stage_mprecision = []
+    stage_mrecall = []
     total_precisions = []
     total_recalls = []
     mismatches = []
 
     start = 0
-    for j in range(len(steps)):
-        end = steps[j]
+    for end in steps:
         features = filling_features[start:end]
         labels = filling_labels[start:end]
 
@@ -695,13 +672,13 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
         stage_recalls += recalls
 
         # An array with entropies per memory, per step.
-        stage_entropies[j] = entropies
+        stage_entropies.append(entropies)
 
         # An array with precision per memory, per step
-        stage_mprecision[j] = measures[constants.precision_idx,:]
+        stage_mprecision.append(measures[constants.precision_idx,:])
 
         # An array with recall per memory, per step
-        stage_mrecall[j] = measures[constants.recall_idx,:]
+        stage_mrecall.append(measures[constants.recall_idx,:])
 
         # 
         # Overall recalls and precisions per step
@@ -711,31 +688,37 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
 
         start = end
 
+    stage_entropies = np.array(stage_entropies)
+    stage_mprecision = np.array(stage_mprecision)
+    stage_mrecall = np.array(stage_mrecall)
+    total_precisions = np.array(total_precisions)
+    total_recalls = np.array(total_recalls)
+    mismatches = np.array(mismatches)
 
     return fold, stage_recalls, stage_entropies, stage_mprecision, \
-        stage_mrecall, np.array(total_precisions), np.array(total_recalls), np.array(mismatches)
+        stage_mrecall, total_precisions, total_recalls, mismatches
 
 
 def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = None, tolerance = 0):
     n_memories = constants.n_labels
+    memory_fills = constants.memory_fills
+    training_stages = constants.training_stages
 
     # All recalls, per memory fill and fold.
     all_recalls = {}
 
-    # All entropies, precision, and recall, per memory, and memory fill.
-    all_mfill_entropies = {}
-    all_mfill_precision = {}
-    all_mfill_recall = {}
-
-    for fill_idx in constants.memory_fills:
-        all_mfill_entropies[fill_idx] = [] 
-        all_mfill_precision[fill_idx] = []
-        all_mfill_recall[fill_idx] = []
+    # All entropies, precision, and recall, per fold, fill, and memory.
+    all_mfill_entropies = \
+        np.zeros((training_stages, len(memory_fills), n_memories))
+    all_mfill_precision = \
+        np.zeros((training_stages, len(memory_fills), n_memories))
+    all_mfill_recall = \
+        np.zeros((training_stages, len(memory_fills), n_memories))
 
     # Store the matrix of stages x memory fills.
-    total_precisions = np.zeros((constants.training_stages, len(constants.memory_fills)))
-    total_recalls = np.zeros((constants.training_stages, len(constants.memory_fills)))
-    total_mismatches = np.zeros((constants.training_stages, len(constants.memory_fills)))
+    total_precisions = np.zeros((training_stages, len(memory_fills)))
+    total_recalls = np.zeros((training_stages, len(memory_fills)))
+    total_mismatches = np.zeros((training_stages, len(memory_fills)))
 
     list_results = Parallel(n_jobs=constants.n_jobs, verbose=50)(
         delayed(test_recalling_fold)(n_memories, mem_size, domain, fold, experiment, occlusion, bars_type, tolerance) \
@@ -745,14 +728,13 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
         fold_precision, fold_recall, fold_mismatches in list_results:
 
         all_recalls[fold] = recalls
+        total_precisions[fold] = fold_precision
+        total_recalls[fold] = fold_recall
+        total_mismatches[fold] = fold_mismatches
 
-        for fill_idx in range(len(constants.memory_fills)):
-            all_mfill_entropies[fill_idx] += [fill_mem_entropies[fill_idx]]
-            all_mfill_precision[fill_idx] += [fill_mem_precision[fill_idx]]
-            all_mfill_recall[fill_idx] += [fill_mem_recall[fill_idx]]
-            total_precisions[fold] = fold_precision
-            total_recalls[fold] = fold_recall
-            total_mismatches[fold] = fold_mismatches
+        all_mfill_entropies[fold] = fill_mem_entropies
+        all_mfill_precision[fold] = fill_mem_precision
+        all_mfill_recall[fold] = fill_mem_recall
 
     for fold in all_recalls:
         list_tups = all_recalls[fold]
@@ -771,12 +753,12 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
         tags_filename = constants.data_filename(tags_filename, fold)
         np.save(tags_filename, tags)
     
-    main_avrge_entropies = get_means(all_mfill_entropies)
-    main_stdev_entropies = get_stdev(all_mfill_entropies)
-    main_avrge_mprecision = get_means(all_mfill_precision)
-    main_stdev_mprecision = get_stdev(all_mfill_precision)
-    main_avrge_mrecall = get_means(all_mfill_recall)
-    main_stdev_mrecall = get_stdev(all_mfill_recall)
+    main_avrge_entropies = np.mean(all_mfill_entropies,axis=(0,2))
+    main_stdev_entropies = np.std(all_mfill_entropies,axis=(0,2))
+    main_avrge_mprecision = np.mean(all_mfill_precision,axis=(0,2))
+    main_stdev_mprecision = np.std(all_mfill_precision,axis=(0,2))
+    main_avrge_mrecall = np.mean(all_mfill_recall,axis=(0,2))
+    main_stdev_mrecall = np.std(all_mfill_recall,axis=(0,2))
     
     np.savetxt(constants.csv_filename('main_average_precision',experiment, occlusion, bars_type, tolerance), \
         main_avrge_mprecision, delimiter=',')
