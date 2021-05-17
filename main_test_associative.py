@@ -215,6 +215,10 @@ def get_label(memories, entropies = None):
     return i
 
 
+def msize_features(features, msize, min_value, max_value):
+    return np.round((msize-1)*(features-min_value) / (max_value-min_value)).astype(np.int16)
+    
+
 def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
 
     # Round the values
@@ -226,8 +230,8 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
     other_value = tef.min()
     min_value = min_value if min_value < other_value else other_value
 
-    trf_rounded = np.round((trf-min_value) * (msize - 1) / (max_value-min_value)).astype(np.int16)
-    tef_rounded = np.round((tef-min_value) * (msize - 1) / (max_value-min_value)).astype(np.int16)
+    trf_rounded = msize_features(trf, msize, min_value, max_value)
+    tef_rounded = msize_features(tef, msize, min_value, max_value)
 
     n_labels = constants.n_labels
     nmems = int(n_labels/lpm)
@@ -515,85 +519,6 @@ def test_memories(domain, experiment):
     print('Test complete')
 
 
-def get_recalls(ams, msize, domain, min, max, trf, trl, tef, tel, idx):
-
-    trf_rounded = np.round((trf - min) * (msize - 1) / (max - min)).astype(np.int16)
-    tef_rounded = np.round((tef - min) * (msize - 1) / (max - min)).astype(np.int16)
-
-    n_mems = constants.n_labels
-    measures = np.zeros((constants.n_measures, n_mems), dtype=np.float64)
-    entropy = np.zeros((n_mems, ), dtype=np.float64)
-
-    # Confusion matrix for calculating precision and recall per memory.
-    cms = np.zeros((n_mems, 2, 2))
-    TP = (0,0)
-    FP = (0,1)
-    FN = (1,0)
-    TN = (1,1)
-
-    # Confusion matrix for calculating overall precision and recall.
-    cm = np.zeros((2,2))
-
-    # Registration
-    for features, label in zip(trf_rounded, trl):
-        ams[label].register(features)
-
-    # Calculate entropies
-    for j in ams:
-        entropy[j] = ams[j].entropy
-
-    all_recalls = []
-    mismatches = 0 
-    # Recover memories
-    for n, features, label in zip(range(len(tef_rounded)), tef_rounded, tel):
-        memories = []
-        recalls ={}
-
-        mismatches += ams[label].mismatches(features)
-        for k in ams:
-            recall = ams[k].recall(features)
-            recognized = not (ams[k].is_undefined(recall))
-
-            # For calculation of per memory precision and recall
-            if (k == label) and recognized:
-                cms[k][TP] += 1
-            elif k == label:
-                cms[k][FN] += 1
-            elif recognized:
-                cms[k][FP] += 1
-            else:
-                cms[k][TN] += 1
-
-            if recognized:
-                memories.append(k)
-                recalls[k] = recall
-
-        if (len(memories) == 0):
-            # Register empty case
-            undefined = np.full(domain, ams[0].undefined)
-            all_recalls.append((n, label, undefined))
-            cm[FN] += 1
-        else:
-            l = get_label(memories, entropy)
-            features = recalls[l]*(max-min)*1.0/(msize-1) + min
-            all_recalls.append((n, label, features))
-
-            if l == label:
-                cm[TP] += 1
-            else:
-                cm[FP] += 1
-
-    for i in range(n_mems):
-        positives = cms[i][TP] + cms[i][FP]
-        measures[constants.precision_idx,i] = cms[i][TP] / positives if positives else 1.0
-        measures[constants.recall_idx,i] = cms[i][TP] /(cms[i][TP] + cms[i][FN])    
-
-    positives = cm[TP] + cm[FP]
-    total_precision = cm[TP] / positives if positives else 1.0
-    total_recall = cm[TP] / len(tef_rounded)
-    return all_recalls, measures, entropy, total_precision, total_recall, mismatches
-    
-
 def get_means(d):
     n = len(d.keys())
     means = np.zeros((n, ))
@@ -614,6 +539,92 @@ def get_stdev(d):
         stdevs[k] = std
 
     return stdevs    
+    
+
+def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, idx):
+
+    n_mems = constants.n_labels
+
+    # To store precisión and recall per memory
+    measures = np.zeros((constants.n_measures, n_mems), dtype=np.float64)
+
+    entropy = np.zeros((n_mems, ), dtype=np.float64)
+
+    # Confusion matrix for calculating precision and recall per memory.
+    mem_cmatrix = np.zeros((n_mems, 2, 2))
+    TP = (0,0)
+    FP = (0,1)
+    FN = (1,0)
+    TN = (1,1)
+
+    # Confusion matrix for calculating overall precision and recall.
+    cmatrix = np.zeros((2,2))
+
+    # Registration
+    for features, label in zip(trf, trl):
+        ams[label].register(features)
+
+    # Calculate entropies
+    for j in ams:
+        entropy[j] = ams[j].entropy
+
+    # The list of recalls recovered from memory.
+    all_recalls = []
+
+    # Total number of differences between features and memories.
+    mismatches = 0
+
+    # Recover memories
+    for n, features, label in zip(range(len(tef)), tef, tel):
+        memories = []
+        recalls ={}
+
+        # How much it was needed for the right memory to recognize
+        # the features.
+        mismatches += ams[label].mismatches(features)
+
+        for k in ams:
+            recall = ams[k].recall(features)
+            recognized = not (ams[k].is_undefined(recall))
+
+            # For calculation of per memory precision and recall
+            if (k == label) and recognized:
+                mem_cmatrix[k][TP] += 1
+            elif k == label:
+                mem_cmatrix[k][FN] += 1
+            elif recognized:
+                mem_cmatrix[k][FP] += 1
+            else:
+                mem_cmatrix[k][TN] += 1
+
+            if recognized:
+                memories.append(k)
+                recalls[k] = recall
+
+        if (len(memories) == 0):
+            # Register empty case
+            undefined = np.full(domain, ams[0].undefined)
+            all_recalls.append((n, label, undefined))
+            cmatrix[FN] += 1
+        else:
+            l = get_label(memories, entropy)
+            features = recalls[l]*(max_value-min_value)*1.0/(msize-1) + min_value
+            all_recalls.append((n, label, features))
+
+            if l == label:
+                cmatrix[TP] += 1
+            else:
+                cmatrix[FP] += 1
+
+    for i in range(n_mems):
+        positives = mem_cmatrix[i][TP] + mem_cmatrix[i][FP]
+        measures[constants.precision_idx,i] = mem_cmatrix[i][TP] / positives if positives else 1.0
+        measures[constants.recall_idx,i] = mem_cmatrix[i][TP] /(mem_cmatrix[i][TP] + mem_cmatrix[i][FN])    
+
+    positives = cmatrix[TP] + cmatrix[FP]
+    total_precision = cmatrix[TP] / positives if positives else 1.0
+    total_recall = cmatrix[TP] / len(tef_rounded)
+    return all_recalls, measures, entropy, total_precision, total_recall, mismatches
     
 
 def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusion = None, bars_type = None, tolerance = 0):
@@ -647,6 +658,9 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
     maximum = filling_max if filling_max > testing_max else testing_max
     minimum = fillin_min if fillin_min < testing_min else testing_min
 
+    filling_features = msize_features(filling_features, mem_size, minimum, maximum)
+    testing_features = msize_features(testing_features, mem_size, minimum, maximum)
+
     total = len(filling_features)
     percents = np.array(constants.memory_fills)
     steps = np.round(total*percents/100.0).astype(int)
@@ -659,14 +673,14 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
     total_recalls = []
     mismatches = []
 
-    i = 0
+    start = 0
     for j in range(len(steps)):
-        k = steps[j]
-        features = filling_features[i:k]
-        labels = filling_labels[i:k]
+        end = steps[j]
+        features = filling_features[start:end]
+        labels = filling_labels[start:end]
 
-        recalls, measures, entropies, total_precision, total_recall, mis_count = get_recalls(ams, mem_size, domain, minimum, maximum, \
-            features, labels, testing_features, testing_labels, fold)
+        recalls, measures, entropies, total_precision, total_recall, mis_count = get_recalls(ams, mem_size, domain, \
+            minimum, maximum, features, labels, testing_features, testing_labels, fold)
 
         # A list of tuples (position, label, features)
         stage_recalls += recalls
@@ -684,10 +698,10 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
         # Recalls and precisions per step
         total_recalls.append(total_recall)
         total_precisions.append(total_precision)
-
-        i = k
-
         mismatches.append(mis_count)
+
+        start = end
+
 
     return fold, stage_recalls, stage_entropies, stage_mprecision, \
         stage_mrecall, np.array(total_precisions), np.array(total_recalls), np.array(mismatches)
@@ -697,28 +711,32 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
     n_memories = constants.n_labels
 
     all_recalls = {}
-    all_entropies = {}
-    all_mprecision = {}
-    all_mrecall = {}
+    all_msize_entropies = {}
+    all_msize_precision = {}
+    all_msize_recall = {}
+
+    for msize in constants.memory_fills:
+        all_recalls[msize] = []
+        all_msize_entropies[msize] = [] 
+        all_msize_precision[msize] = []
+        all_msize_recall[msize] = []
+
+    # Store the matrix of stages x memory fills.
     total_precisions = np.zeros((constants.training_stages, len(constants.memory_fills)))
     total_recalls = np.zeros((constants.training_stages, len(constants.memory_fills)))
     total_mismatches = np.zeros((constants.training_stages, len(constants.memory_fills)))
 
-    xlabels = constants.memory_fills
     list_results = Parallel(n_jobs=constants.n_jobs, verbose=50)(
         delayed(test_recalling_fold)(n_memories, mem_size, domain, fold, experiment, occlusion, bars_type, tolerance) \
             for fold in range(constants.training_stages))
 
-    for fold, stage_recalls, stage_entropies, stage_mprecision, stage_mrecall,\
+    for fold, stage_recalls, stage_msize_entropies, stage_msize_precision, stage_msize_recall,\
         total_precision, total_recall, mismatches in list_results:
         all_recalls[fold] = stage_recalls
-        for msize in stage_entropies:
-            all_entropies[msize] = all_entropies[msize] + [stage_entropies[msize]] \
-                if msize in all_entropies.keys() else [stage_entropies[msize]]
-            all_mprecision[msize] = all_mprecision[msize] + [stage_mprecision[msize]] \
-                if msize in all_mprecision.keys() else [stage_mprecision[msize]]
-            all_mrecall[msize] = all_mrecall[msize] + [stage_mrecall[msize]] \
-                if msize in all_mrecall.keys() else [stage_mrecall[msize]]
+        for msize in stage_msize_entropies:
+            all_msize_entropies[msize] += [stage_msize_entropies[msize]]
+            all_msize_precision[msize] += [stage_msize_precision[msize]]
+            all_msize_recall[msize] += [stage_msize_recall[msize]]
             total_precisions[fold] = total_precision
             total_recalls[fold] = total_recall
             total_mismatches[fold] = mismatches
@@ -740,12 +758,12 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
         tags_filename = constants.data_filename(tags_filename, fold)
         np.save(tags_filename, tags)
     
-    main_avrge_entropies = get_means(all_entropies)
-    main_stdev_entropies = get_stdev(all_entropies)
-    main_avrge_mprecision = get_means(all_mprecision)
-    main_stdev_mprecision = get_stdev(all_mprecision)
-    main_avrge_mrecall = get_means(all_mrecall)
-    main_stdev_mrecall = get_stdev(all_mrecall)
+    main_avrge_entropies = get_means(all_msize_entropies)
+    main_stdev_entropies = get_stdev(all_msize_entropies)
+    main_avrge_mprecision = get_means(all_msize_precision)
+    main_stdev_mprecision = get_stdev(all_msize_precision)
+    main_avrge_mrecall = get_means(all_msize_recall)
+    main_stdev_mrecall = get_stdev(all_msize_recall)
     
     np.savetxt(constants.csv_filename('main_average_precision',experiment, occlusion, bars_type, tolerance), \
         main_avrge_mprecision, delimiter=',')
@@ -767,13 +785,13 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
 
     plot_pre_graph(main_avrge_mprecision*100, main_avrge_mrecall*100, main_avrge_entropies,\
         main_stdev_mprecision*100, main_stdev_mrecall*100, main_stdev_entropies, 'recall-', \
-            xlabels = xlabels, xtitle = _('Percentage of memory corpus'), action = experiment,
+            xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'), action = experiment,
             occlusion = occlusion, bars_type = bars_type, tolerance = tolerance)
 
     plot_pre_graph(np.average(total_precisions, axis=0)*100, np.average(total_recalls, axis=0)*100, \
         main_avrge_entropies, np.std(total_precisions, axis=0)*100, np.std(total_recalls, axis=0)*100, \
             main_stdev_entropies, 'total_recall-', \
-            xlabels = xlabels, xtitle = _('Percentage of memory corpus'), action=experiment,
+            xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'), action=experiment,
             occlusion = occlusion, bars_type = bars_type, tolerance = tolerance)
 
     print('Test completed')
@@ -881,7 +899,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         # The domain size, equal to the size of the output layer of the network.
         test_memories(constants.domain, action)
     elif (action == constants.EXP_3):
-        test_recalling(constants.domain, constants.partial_ideal_memory_size, action)
+        test_recalling(constants.domain, constants.ideal_memory_size, action)
     elif (action == constants.EXP_4):
         recnet.remember(action)
     elif (constants.EXP_5 <= action) and (action <= constants.EXP_10):
@@ -898,7 +916,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
             training_percentage, am_filling_percentage, action, occlusion, bar_type)
         save_history(history, features_prefix)
         characterize_features(constants.domain, action, occlusion, bar_type)
-        test_recalling(constants.domain, constants.partial_ideal_memory_size,
+        test_recalling(constants.domain, constants.ideal_memory_size,
             action, occlusion, bar_type, tolerance)
         recnet.remember(action, occlusion, bar_type, tolerance)
 
