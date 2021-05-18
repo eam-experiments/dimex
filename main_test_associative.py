@@ -562,8 +562,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
         mismatches += ams[label].mismatches(features)
 
         for k in ams:
-            recognized = ams[k].recognize(features)
-            recall = ams[k].recall(features)
+            recall, recognized = ams[k].recall(features)
 
             # For calculation of per memory precision and recall
             if (k == label) and recognized:
@@ -601,7 +600,8 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
             measures[constants.precision_idx,i] = 1.0
         else:
             measures[constants.precision_idx,i] = mem_cmatrix[i][TP] / positives
-        measures[constants.recall_idx,i] = mem_cmatrix[i][TP] /(mem_cmatrix[i][TP] + mem_cmatrix[i][FN])    
+        measures[constants.recall_idx,i] = \
+            mem_cmatrix[i][TP] /(mem_cmatrix[i][TP] + mem_cmatrix[i][FN])    
 
     positives = cmatrix[TP] + cmatrix[FP]
     if positives == 0:

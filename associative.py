@@ -217,4 +217,4 @@ class AssociativeMemory(object):
         else:
             r_io = np.full(self.n, self.undefined)
 
-        return r_io
+        return r_io, accept
