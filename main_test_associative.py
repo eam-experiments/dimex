@@ -519,9 +519,13 @@ def test_memories(domain, experiment):
     print('Test complete')
 
 
-def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, idx, fill):
+def get_recalls(n_mems, msize, domain, min_value, max_value, trf, trl, tef, tel, idx, fill):
+ 
+    # Create the required associative memories.
+    ams = dict.fromkeys(range(n_mems))
+    for j in ams:
+        ams[j] = AssociativeMemory(domain, msize)
 
-    n_mems = constants.n_labels
 
     # To store precisión and recall per memory
     measures = np.zeros((constants.n_measures, n_mems), dtype=np.float64)
@@ -615,11 +619,6 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
     
 
 def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusion = None, bars_type = None, tolerance = 0):
-    # Create the required associative memories.
-    ams = dict.fromkeys(range(n_memories))
-    for j in ams:
-        ams[j] = AssociativeMemory(domain, mem_size, tolerance)
-
     suffix = constants.filling_suffix
     filling_features_filename = constants.features_name() + suffix        
     filling_features_filename = constants.data_filename(filling_features_filename, fold)
@@ -665,7 +664,7 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
         features = filling_features[start:end]
         labels = filling_labels[start:end]
 
-        recalls, measures, entropies, step_precision, step_recall, mis_count = get_recalls(ams, mem_size, domain, \
+        recalls, measures, entropies, step_precision, step_recall, mis_count = get_recalls(n_memories, mem_size, domain, \
             minimum, maximum, features, labels, testing_features, testing_labels, fold, end)
 
         # A list of tuples (position, label, features)
@@ -686,7 +685,7 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
         total_precisions.append(step_precision)
         mismatches.append(mis_count)
 
-        start = end
+        # start = end
 
     stage_entropies = np.array(stage_entropies)
     stage_mprecision = np.array(stage_mprecision)
