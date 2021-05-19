@@ -237,8 +237,8 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
     nmems = int(n_labels/lpm)
 
     measures = np.zeros((constants.n_measures, nmems), dtype=np.float64)
-    entropy = np.zeros((nmems, ), dtype=np.float64)
-    behaviour = np.zeros((constants.n_behaviours, ))
+    entropy = np.zeros(nmems, dtype=np.float64)
+    behaviour = np.zeros(constants.n_behaviours, dtype=np.float64)
 
     # Confusion matrix for calculating precision and recall per memory.
     cms = np.zeros((nmems, 2, 2))
@@ -249,17 +249,17 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
 
     # Create the required associative memories.
     ams = dict.fromkeys(range(nmems))
-    for j in ams:
-        ams[j] = AssociativeMemory(domain, msize)
+    for m in ams:
+        ams[m] = AssociativeMemory(domain, msize)
 
     # Registration
     for features, label in zip(trf_rounded, trl):
-        i = int(label/lpm)
-        ams[i].register(features)
+        m = int(label/lpm)
+        ams[m].register(features)
 
     # Calculate entropies
-    for j in ams:
-        entropy[j] = ams[j].entropy
+    for m in ams:
+        entropy[m] = ams[m].entropy
 
     # Recognition
     response_size = 0
@@ -270,6 +270,8 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
         memories = []
         for k in ams:
             recognized = ams[k].recognize(features)
+            if recognized:
+                memories.append(k)
 
             # For calculation of per memory precision and recall
             if (k == correct) and recognized:
@@ -280,10 +282,6 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
                 cms[k][FP] += 1
             else:
                 cms[k][TN] += 1
-
-            # For calculation of behaviours, including overall precision and recall.
-            if recognized:
-                memories.append(k)
  
         response_size += len(memories)
         if len(memories) == 0:
@@ -306,14 +304,14 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
     behaviour[constants.precision_idx] = all_precision
     behaviour[constants.recall_idx] = all_recall
 
-    for i in range(nmems):
-        total_positives = cms[i][TP] + cms[i][FP]
+    for m in range(nmems):
+        total_positives = cms[m][TP] + cms[m][FP]
         if total_positives == 0:
-            print(f'Memory {i} in run {midx} did not respond.')
-            measures[constants.precision_idx,i] = 1
+            print(f'Memory {m} in run {midx} did not respond.')
+            measures[constants.precision_idx,m] = 1
         else:
-            measures[constants.precision_idx,i] = cms[i][TP] / total_positives
-        measures[constants.recall_idx,i] = cms[i][TP] /(cms[i][TP] + cms[i][FN])
+            measures[constants.precision_idx,m] = cms[m][TP] / total_positives
+        measures[constants.recall_idx,m] = cms[m][TP] /(cms[m][TP] + cms[m][FN])
    
     return (midx, measures, entropy, behaviour)
     
@@ -621,7 +619,7 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
         ams[j] = AssociativeMemory(domain, mem_size, tolerance)
 
     suffix = constants.filling_suffix
-    filling_features_filename = constants.features_name() + suffix        
+    filling_features_filename = constants.features_name(experiment) + suffix        
     filling_features_filename = constants.data_filename(filling_features_filename, fold)
     filling_labels_filename = constants.labels_name + suffix        
     filling_labels_filename = constants.data_filename(filling_labels_filename, fold)
@@ -648,7 +646,7 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
     filling_features = msize_features(filling_features, mem_size, minimum, maximum)
     testing_features = msize_features(testing_features, mem_size, minimum, maximum)
 
-    total = len(filling_features)
+    total = len(filling_labels)
     percents = np.array(constants.memory_fills)
     steps = np.round(total*percents/100.0).astype(int)
 
