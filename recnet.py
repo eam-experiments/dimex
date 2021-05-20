@@ -18,16 +18,17 @@ import math
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, GRU, Dropout, Flatten, Dense, \
-    Bidirectional, LayerNormalization, Reshape, Conv2DTranspose
+from tensorflow.keras.layers import Input, GRU, Dropout, Dense, \
+    Bidirectional, LayerNormalization, Reshape, RepeatVector, TimeDistributed
 from tensorflow.keras.utils import to_categorical
 from joblib import Parallel, delayed
 import png
 
 import constants
 
-n_frames = 0
+n_frames = constants.n_frames
 n_mfcc = 26
+batch_size = 2048
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
@@ -153,8 +154,6 @@ def reshape(data, n_frames):
 
 def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
 
-    global n_frames
-
     # Load dictionary with labels as keys (structured array) 
     label_idx = np.load('Features/media.npy', allow_pickle=True).item()
 
@@ -181,19 +180,17 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     # Load DIMEX-100 features and labels
     all_data = np.load('Features/rand_X.npy', allow_pickle=True) 
 
-    # n_frames = max_frames(all_data)
-    n_frames = constants.n_frames
     all_data = reshape(all_data, n_frames)
 
     # all_data = add_noise(all_data, experiment, occlusion, bars_type)
     minimum = all_data.min()
     maximum = all_data.max()
-    all_data = (all_data - minimum)/ maximum
+    all_data = (all_data - minimum)/ (maximum-minimum)
 
-    # if one_hot:
-    #     # Changes labels to binary rows. Each label correspond to a column, and only
-    #     # the column for the corresponding label is set to one.
-    #     all_labels = to_categorical(all_labels)
+    if one_hot:
+        # Changes labels to binary rows. Each label correspond to a column, and only
+        # the column for the corresponding label is set to one.
+        all_labels = to_categorical(all_labels)
 
     return (all_data, all_labels)
 
@@ -237,19 +234,13 @@ def get_encoder(input_data):
 
 
 def get_decoder(encoded):
-    dense = Dense(units=7*7*32, activation='relu', input_shape=(64, ))(encoded)
-    reshape = Reshape((7, 7, 32))(dense)
-    trans_1 = Conv2DTranspose(64, kernel_size=3, strides=2,
-        padding='same', activation='relu')(reshape)
-    drop_1 = Dropout(0.4)(trans_1)
-    trans_2 = Conv2DTranspose(32, kernel_size=3, strides=2,
-        padding='same', activation='relu')(drop_1)
-    drop_2 = Dropout(0.4)(trans_2)
-    output_img = Conv2D(1, kernel_size=3, strides=1,
-        activation='sigmoid', padding='same', name='autoencoder')(drop_2)
+    repeat_1 = RepeatVector(constants.n_frames)(encoded)
+    gru_1 = GRU(constants.domain, activation='relu', return_sequences=True)(repeat_1)
+    drop_1 = Dropout(0.4)(gru_1)
+    output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop_1)
 
     # Produces an image of same size and channels as originals.
-    return output_img
+    return output_mfcc
 
 
 def get_classifier(encoded, output_bias = None):
@@ -298,32 +289,34 @@ def train_networks(training_percentage, filename, experiment):
         training_labels = training_labels[:truly_training]
 
         weights, bias = get_weights_bias(training_labels)
+        training_labels = to_categorical(training_labels)
+        
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
         classified = get_classifier(encoded, bias)
-        # decoded = get_decoder(encoded)
-        # model = Model(inputs=input_data, outputs=[classified, decoded])
-        model = Model(inputs=input_data, outputs=classified)
+        decoded = get_decoder(encoded)
+        model = Model(inputs=input_data, outputs=[classified, decoded])
+        # model = Model(inputs=input_data, outputs=classified)
 
-        # model.compile(loss=['categorical_crossentropy', 'binary_crossentropy'],
-        #             optimizer='adam',
-        #             metrics='accuracy')
-        model.compile(loss='SparseCategoricalCrossentropy', optimizer='adam',
+        model.compile(loss=['categorical_crossentropy', 'binary_crossentropy'],
+                    optimizer='adam',
                     metrics='accuracy')
+        # model.compile(loss='SparseCategoricalCrossentropy', optimizer='adam',
+        #             metrics='accuracy')
 
         model.summary()
 
-        # history = model.fit(training_data,
-        #         (training_labels, training_data),
-        #         batch_size=100,
-        #         epochs=EPOCHS,
-        #         validation_data= (testing_data,
-        #             {'classification': testing_labels, 'autoencoder': testing_data}),
-        #         verbose=2)
-        history = model.fit(training_data, training_labels,
-                batch_size=2048, epochs=EPOCHS,
-                validation_data= (validation_data,validation_labels),
-                class_weight=weights, verbose=2)
+        history = model.fit(training_data,
+            (training_labels, training_data),
+                batch_size=batch_size,
+                epochs=EPOCHS,
+                validation_data= (validation_data,
+                    {'classification': validation_labels, 'autoencoder': validation_data}),
+                verbose=2)
+        # history = model.fit(training_data, training_labels,
+        #         batch_size=2048, epochs=EPOCHS,
+        #         validation_data= (validation_data,validation_labels),
+        #         class_weight=weights, verbose=2)
 
         histories.append(history)
         model.save(constants.model_filename(filename, n))
