@@ -290,6 +290,7 @@ def train_networks(training_percentage, filename, experiment):
 
         weights, bias = get_weights_bias(training_labels)
         training_labels = to_categorical(training_labels)
+        validation_labels = to_categorical(validation_labels)
         
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
@@ -394,8 +395,7 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
         model = tf.keras.models.load_model(constants.model_filename(model_prefix, n))
 
         # Drop the autoencoder and the last layers of the full connected neural network part.
-        # classifier = Model(model.input, model.output[0])
-        classifier = model
+        classifier = Model(model.input, model.output[0])
         no_hot = to_categorical(testing_labels)
         classifier.compile(optimizer='adam', loss='categorical_crossentropy', metrics='accuracy')
         history = classifier.evaluate(testing_data, no_hot, batch_size=100, verbose=1, return_dict=True)
