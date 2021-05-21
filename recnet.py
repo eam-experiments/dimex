@@ -1,5 +1,3 @@
-# Copyright [2020] Luis Alberto Pineda Cortés, Gibrán Fuentes Pineda,
-# Rafael Morales Gamboa.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +16,7 @@ import math
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, GRU, Dropout, Dense, \
+from tensorflow.keras.layers import Input, GRU, Dropout, Dense, AveragePooling1D, \
     Bidirectional, LayerNormalization, Reshape, RepeatVector, TimeDistributed
 from tensorflow.keras.utils import to_categorical
 from joblib import Parallel, delayed
@@ -29,7 +27,7 @@ import constants
 n_frames = constants.n_frames
 n_mfcc = 26
 batch_size = 4096
-epochs = 50
+epochs = 100
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
@@ -224,9 +222,11 @@ def get_encoder(input_data):
 
     # Recurrent encoder
     gru_1 = Bidirectional(GRU(constants.domain, return_sequences=True))(input_data)
-    gru_2 = Bidirectional(GRU(constants.domain // 2))(gru_1) 
-    drop_1 = Dropout(0.4)(gru_2)
-    norm = LayerNormalization()(drop_1)
+    conv_1 = AveragePooling1D(2, padding='same')(gru_1)
+    drop_1 = Dropout(0.4)(conv_1)
+    gru_2 = Bidirectional(GRU(constants.domain // 2))(drop_1)
+    drop_2 = Dropout(0.4)(gru_2)
+    norm = LayerNormalization()(drop_2)
 
     # Produces an array of size equal to constants.domain.
     code = norm

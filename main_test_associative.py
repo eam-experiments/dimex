@@ -307,7 +307,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
     for m in range(nmems):
         total_positives = cms[m][TP] + cms[m][FP]
         if total_positives == 0:
-            print(f'Memory {m} in run {midx} did not respond.')
+            print(f'Memory {m} in run {midx}, memory size {msize}, did not respond.')
             measures[constants.precision_idx,m] = 1
         else:
             measures[constants.precision_idx,m] = cms[m][TP] / total_positives
