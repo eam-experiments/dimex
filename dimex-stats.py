@@ -27,7 +27,7 @@ for i in range(len(features)):
 
 random.shuffle(pairs)
 
-for label, desc in pairs):
+for label, desc in pairs:
     labels[i] = label
     features[i] = desc
 

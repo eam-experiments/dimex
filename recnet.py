@@ -28,7 +28,8 @@ import constants
 
 n_frames = constants.n_frames
 n_mfcc = 26
-batch_size = 2048
+batch_size = 4096
+epochs = 50
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
@@ -223,9 +224,9 @@ def get_encoder(input_data):
 
     # Recurrent encoder
     gru_1 = Bidirectional(GRU(constants.domain, return_sequences=True))(input_data)
-    drop_1 = Dropout(0.4)(gru_1)
-    gru_2 = Bidirectional(GRU(constants.domain // 2))(drop_1) 
-    norm = LayerNormalization()(gru_2)
+    gru_2 = Bidirectional(GRU(constants.domain // 2))(gru_1) 
+    drop_1 = Dropout(0.4)(gru_2)
+    norm = LayerNormalization()(drop_1)
 
     # Produces an array of size equal to constants.domain.
     code = norm
@@ -257,7 +258,6 @@ def get_classifier(encoded, output_bias = None):
 
 def train_networks(training_percentage, filename, experiment):
 
-    EPOCHS = constants.model_epochs
     stages = constants.training_stages
 
     (data, labels) = get_data(experiment)
@@ -310,7 +310,7 @@ def train_networks(training_percentage, filename, experiment):
         history = model.fit(training_data,
             (training_labels, training_data),
                 batch_size=batch_size,
-                epochs=EPOCHS,
+                epochs=epochs,
                 validation_data= (validation_data,
                     {'classification': validation_labels, 'autoencoder': validation_data}),
                 verbose=2)
