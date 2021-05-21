@@ -17,7 +17,7 @@ import sys
 import math
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import Model, losses
+from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, GRU, Dropout, Dense, \
     Bidirectional, LayerNormalization, Reshape, RepeatVector, TimeDistributed
 from tensorflow.keras.utils import to_categorical
@@ -222,9 +222,10 @@ def get_weights_bias(labels):
 def get_encoder(input_data):
 
     # Recurrent encoder
-    gru_1 = GRU(constants.domain)(input_data)
+    gru_1 = Bidirectional(GRU(constants.domain, return_sequences=True))(input_data)
     drop_1 = Dropout(0.4)(gru_1)
-    norm = LayerNormalization()(drop_1)
+    gru_2 = Bidirectional(GRU(constants.domain // 2))(drop_1) 
+    norm = LayerNormalization()(gru_2)
 
     # Produces an array of size equal to constants.domain.
     code = norm
@@ -298,7 +299,7 @@ def train_networks(training_percentage, filename, experiment):
         model = Model(inputs=input_data, outputs=[classified, decoded])
         # model = Model(inputs=input_data, outputs=classified)
 
-        model.compile(loss=['categorical_crossentropy', losses.MeanSquaredError()],
+        model.compile(loss=['categorical_crossentropy', 'binary_crossentropy'],
                     optimizer='adam',
                     metrics='accuracy')
         # model.compile(loss='SparseCategoricalCrossentropy', optimizer='adam',
