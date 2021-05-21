@@ -1,6 +1,9 @@
 import random
 import numpy as np
 
+# Median of data
+cut_point = 7268.5
+
 # Load dictionary with labels as keys (structured array) 
 frequencies = np.load('Features/media.npy', allow_pickle=True).item()
 for label in frequencies:
@@ -14,19 +17,17 @@ for label in labels:
     frequencies[label] += 1
 
 # Reduce the number of instances of over-represented classes
-average = len(labels)/len(frequencies)
 pairs = []
 for i in range(len(features)):
     label = labels[i]
-    if frequencies[label] > average:
+    if frequencies[label] > cut_point:
         frequencies[label] -= 1
     else:
         pairs.append((label, features[i]))
 
 random.shuffle(pairs)
 
-for i in range(len(pairs)):
-    label, desc = pairs[i]
+for label, desc in pairs):
     labels[i] = label
     features[i] = desc
 
