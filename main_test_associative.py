@@ -608,6 +608,8 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
         total_precision = cmatrix[TP] / positives
     total_recall = cmatrix[TP] / len(tef)
 
+    mismatches /= len(tel)
+
     return all_recalls, measures, entropy, total_precision, total_recall, mismatches
     
 
