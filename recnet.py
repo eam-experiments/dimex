@@ -270,7 +270,8 @@ def train_networks(training_percentage, filename, experiment):
 
     n = 0
     histories = []
-    for i in range(0, total, step):
+    for k in range(stages):
+        i = k*step
         j = (i + training_size) % total
 
         if j > i:
@@ -360,7 +361,8 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
     (data, labels) = get_data(experiment, occlusion, bars_type)
 
     total = len(data)
-    step = int(total/constants.training_stages)
+    stages = constants.training_stages
+    step = int(total/stages)
 
     # Amount of data used for training the networks
     trdata = int(total*training_percentage)
@@ -370,7 +372,8 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
 
     n = 0
     histories = []
-    for i in range(0, total, step):
+    for k in range(stages):
+        i = k*step
         j = (i + tedata) % total
 
         if j > i:
