@@ -222,14 +222,10 @@ def get_encoder(input_data):
 
     # Recurrent encoder
     gru_1 = Bidirectional(GRU(constants.domain, return_sequences=True))(input_data)
-    conv_1 = AveragePooling1D(2, padding='same')(gru_1)
-    drop_1 = Dropout(0.2)(conv_1)
-    gru_2 = Bidirectional(GRU(constants.domain, return_sequences=True))(drop_1)
-    conv_2 = AveragePooling1D(2, padding='same')(gru_2)
-    drop_2 = Dropout(0.2)(conv_2)
-    gru_3 = Bidirectional(GRU(constants.domain // 2))(drop_2)
-    drop_2 = Dropout(0.2)(gru_3)
-    norm = LayerNormalization()(drop_2)
+    pool_1 = AveragePooling1D(2, padding='same')(gru_1)
+    gru_2 = Bidirectional(GRU(constants.domain // 2))(pool_1)
+    drop_1 = Dropout(0.2)(gru_2)
+    norm = LayerNormalization()(drop_1)
 
     # Produces an array of size equal to constants.domain.
     code = norm
