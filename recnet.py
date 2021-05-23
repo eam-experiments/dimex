@@ -224,7 +224,7 @@ def get_encoder(input_data):
     gru_1 = Bidirectional(GRU(constants.domain, return_sequences=True))(input_data)
     pool_1 = AveragePooling1D(2, padding='same')(gru_1)
     gru_2 = Bidirectional(GRU(constants.domain // 2))(pool_1)
-    drop_1 = Dropout(0.2)(gru_2)
+    drop_1 = Dropout(0.4)(gru_2)
     norm = LayerNormalization()(drop_1)
 
     # Produces an array of size equal to constants.domain.
@@ -236,7 +236,7 @@ def get_encoder(input_data):
 def get_decoder(encoded):
     repeat_1 = RepeatVector(constants.n_frames)(encoded)
     gru_1 = GRU(constants.domain, activation='relu', return_sequences=True)(repeat_1)
-    drop_1 = Dropout(0.2)(gru_1)
+    drop_1 = Dropout(0.4)(gru_1)
     output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop_1)
 
     # Produces an image of same size and channels as originals.
@@ -248,7 +248,7 @@ def get_classifier(encoded, output_bias = None):
         output_bias = tf.keras.initializers.Constant(output_bias)
 
     dense_1 = Dense(constants.domain*2, activation='relu')(encoded)
-    drop = Dropout(0.2)(dense_1)
+    drop = Dropout(0.4)(dense_1)
     classification = Dense(constants.n_labels, activation='softmax',
          bias_initializer=output_bias, name='classification')(drop)
 
@@ -262,7 +262,7 @@ def train_networks(training_percentage, filename, experiment):
     (data, labels) = get_data(experiment)
 
     total = len(data)
-    step = int(total/stages)
+    step = total/stages
 
     # Amount of training data, from which a percentage is used for
     # validation.
@@ -272,14 +272,19 @@ def train_networks(training_percentage, filename, experiment):
     histories = []
     for k in range(stages):
         i = k*step
-        j = (i + training_size) % total
+        j = int(i + training_size) % total
+        i = int(i)
 
         if j > i:
             training_data = data[i:j]
             training_labels = labels[i:j]
+            testing_data = np.concatenate((data[0:i], data[j:total]), axis=0)
+            testing_labels = np.concatenate((labels[0:i], labels[j:total]), axis=0)
         else:
             training_data = np.concatenate((data[i:total], data[0:j]), axis=0)
             training_labels = np.concatenate((labels[i:total], labels[0:j]), axis=0)
+            testing_data = data[j:i]
+            testing_labels = labels[j,i]
 
         truly_training = int(training_size*truly_training_percentage)
 
@@ -302,8 +307,6 @@ def train_networks(training_percentage, filename, experiment):
         model.compile(loss=['categorical_crossentropy', 'binary_crossentropy'],
                     optimizer='adam',
                     metrics='accuracy')
-        # model.compile(loss='SparseCategoricalCrossentropy', optimizer='adam',
-        #             metrics='accuracy')
 
         model.summary()
 
@@ -314,11 +317,10 @@ def train_networks(training_percentage, filename, experiment):
                 validation_data= (validation_data,
                     {'classification': validation_labels, 'autoencoder': validation_data}),
                 verbose=2)
-        # history = model.fit(training_data, training_labels,
-        #         batch_size=2048, epochs=EPOCHS,
-        #         validation_data= (validation_data,validation_labels),
-        #         class_weight=weights, verbose=2)
 
+        histories.append(history)
+        history = model.evaluate(testing_data,
+            (testing_labels, testing_data),return_dict=True)
         histories.append(history)
         model.save(constants.model_filename(filename, n))
         n += 1
@@ -362,7 +364,7 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
 
     total = len(data)
     stages = constants.training_stages
-    step = int(total/stages)
+    step = total/stages
 
     # Amount of data used for training the networks
     trdata = int(total*training_percentage)
@@ -374,7 +376,8 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
     histories = []
     for k in range(stages):
         i = k*step
-        j = (i + tedata) % total
+        j = int(i + tedata) % total
+        i = int(i)
 
         if j > i:
             testing_data = data[i:j]
@@ -498,12 +501,13 @@ def remember(experiment, occlusion = None, bars_type = None, tolerance = 0):
 
         total = len(memories)
         steps = len(constants.memory_fills)
-        step_size = int(total/steps)
+        step_size = total/steps
 
         for j in range(steps):
             print('Decoding memory size ' + str(j) + ' and stage ' + str(i))
             start = j*step_size
-            end = start + step_size
+            end = int(start + step_size)
+            start = int(start)
             mem_data = memories[start:end]
             mem_labels = labels[start:end]
             produced_images = decoder.predict(mem_data)

@@ -89,7 +89,7 @@ def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
     plt.savefig(graph_filename, dpi=600)
 
 
-def plot_size_graph (response_size, size_stdev, action=None):
+def plot_size_graph (response_size, size_stdev, action=None, tolerance=0):
     plt.clf()
 
     full_length = 100.0
@@ -113,11 +113,11 @@ def plot_size_graph (response_size, size_stdev, action=None):
     plt.legend(loc=1)
     plt.grid(True)
 
-    graph_filename = constants.picture_filename('graph_size_MEAN' + _('-english'), action)
+    graph_filename = constants.picture_filename('graph_size_MEAN' + _('-english'), action, tolerance=tolerance)
     plt.savefig(graph_filename, dpi=600)
 
 
-def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None):
+def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None, tolerance=0):
 
     for i in range(len(no_response)):
         total = (no_response[i] + no_correct[i] + no_chosen[i] + correct[i])/100.0
@@ -157,7 +157,7 @@ def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None):
     plt.legend(loc=0)
     plt.grid(axis='y')
 
-    graph_filename = constants.picture_filename('graph_behaviours_MEAN' + _('-english'), action)
+    graph_filename = constants.picture_filename('graph_behaviours_MEAN' + _('-english'), action, tolerance=tolerance)
     plt.savefig(graph_filename, dpi=600)
 
 
@@ -196,7 +196,6 @@ def plot_features_graph(domain, means, stdevs, experiment, occlusion = None, bar
         plt.savefig(constants.picture_filename(filename), dpi=500)
 
 
-
 def get_label(memories, entropies = None):
 
     # Random selection
@@ -219,7 +218,7 @@ def msize_features(features, msize, min_value, max_value):
     return np.round((msize-1)*(features-min_value) / (max_value-min_value)).astype(np.int16)
     
 
-def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
+def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance=0):
 
     # Round the values
     max_value = trf.max()
@@ -250,7 +249,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
     # Create the required associative memories.
     ams = dict.fromkeys(range(nmems))
     for m in ams:
-        ams[m] = AssociativeMemory(domain, msize)
+        ams[m] = AssociativeMemory(domain, msize, tolerance)
 
     # Registration
     for features, label in zip(trf_rounded, trl):
@@ -316,7 +315,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel):
     return (midx, measures, entropy, behaviour)
     
 
-def test_memories(domain, experiment):
+def test_memories(domain, experiment, tolerance=0):
 
     average_entropy = []
     stdev_entropy = []
@@ -369,7 +368,7 @@ def test_memories(domain, experiment):
         # Processes running in parallel.
         list_measures_entropies = Parallel(n_jobs=constants.n_jobs, verbose=50)(
             delayed(get_ams_results)(midx, msize, domain, labels_x_memory, \
-                training_features, testing_features, training_labels, testing_labels) \
+                training_features, testing_features, training_labels, testing_labels, tolerance) \
                     for midx, msize in enumerate(constants.memory_sizes))
 
         for j, measures, entropy, behaviour in list_measures_entropies:
@@ -480,38 +479,39 @@ def test_memories(domain, experiment):
     main_behaviours = [main_no_response, main_no_correct_response, \
         main_no_correct_chosen, main_correct_chosen, main_total_responses]
 
-    np.savetxt(constants.csv_filename('memory_average_precision--{0}'.format(experiment)), \
-        average_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_average_recall--{0}'.format(experiment)), \
-        average_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_average_entropy--{0}'.format(experiment)), \
-        average_entropy, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_average_precision-{0}'.format(experiment),
+        tolerance=tolerance), average_precision, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_average_recall-{0}'.format(experiment),
+        tolerance=tolerance), average_recall, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_average_entropy-{0}'.format(experiment),
+        tolerance=tolerance), average_entropy, delimiter=',')
 
-    np.savetxt(constants.csv_filename('memory_stdev_precision--{0}'.format(experiment)), \
-        stdev_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_stdev_recall--{0}'.format(experiment)), \
-        stdev_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_stdev_entropy--{0}'.format(experiment)), \
-        stdev_entropy, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_stdev_precision-{0}'.format(experiment),
+        tolerance=tolerance), stdev_precision, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_stdev_recall-{0}'.format(experiment),
+        tolerance=tolerance), stdev_recall, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_stdev_entropy-{0}'.format(experiment),
+        tolerance=tolerance), stdev_entropy, delimiter=',')
 
-    np.savetxt(constants.csv_filename('all_precision--{0}'.format(experiment)), \
-        all_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('all_recall--{0}'.format(experiment)), \
-        all_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_behaviours--{0}'.format(experiment)), \
-        main_behaviours, delimiter=',')
+    np.savetxt(constants.csv_filename('all_precision-{0}'.format(experiment),
+        tolerance=tolerance), all_precision, delimiter=',')
+    np.savetxt(constants.csv_filename('all_recall-{0}'.format(experiment),
+        tolerance=tolerance), all_recall, delimiter=',')
+    np.savetxt(constants.csv_filename('main_behaviours-{0}'.format(experiment),
+        tolerance=tolerance), main_behaviours, delimiter=',')
 
     plot_pre_graph(main_average_precision, main_average_recall, main_average_entropy,\
-        main_stdev_precision, main_stdev_recall, main_stdev_entropy, action=experiment)
+        main_stdev_precision, main_stdev_recall, main_stdev_entropy, action=experiment, \
+        tolerance=tolerance)
 
     plot_pre_graph(main_all_average_precision, main_all_average_recall, \
         main_average_entropy, main_all_stdev_precision, main_all_stdev_recall,\
-            main_stdev_entropy, 'overall', action=experiment)
+            main_stdev_entropy, 'overall', action=experiment, tolerance=tolerance)
 
-    plot_size_graph(main_total_responses, main_total_responses_stdev, action=experiment)
+    plot_size_graph(main_total_responses, main_total_responses_stdev, action=experiment, tolerance=tolerance)
 
     plot_behs_graph(main_no_response, main_no_correct_response, main_no_correct_chosen,\
-        main_correct_chosen, action=experiment)
+        main_correct_chosen, action=experiment, tolerance=tolerance)
 
     print('Test complete')
 
@@ -891,11 +891,11 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         characterize_features(constants.domain, action)
     elif (action == constants.EXP_1) or (action == constants.EXP_2):
         # The domain size, equal to the size of the output layer of the network.
-        test_memories(constants.domain, action)
+        test_memories(constants.domain, tolerance)
     elif (action == constants.EXP_3):
-        test_recalling(constants.domain, constants.ideal_memory_size, action)
+        test_recalling(constants.domain, constants.ideal_memory_size, action, tolerance=tolerance)
     elif (action == constants.EXP_4):
-        recnet.remember(action)
+        recnet.remember(action, tolerance=tolerance)
     elif (constants.EXP_5 <= action) and (action <= constants.EXP_10):
         # Generates features for the data sections using the previously generate
         # neural network, introducing (background color) occlusion.
@@ -983,9 +983,6 @@ if __name__== "__main__" :
             print_error("tolerance needs to be a value between 0 and {0}."
                 .format(constants.domain))
             exit(3)
-    elif (nexp is None) or (nexp < constants.EXP_5):
-        print_error("tolerance is only valid from experiments 5 on")
-        exit(2)
 
     if action is None:
         # An experiment was chosen
