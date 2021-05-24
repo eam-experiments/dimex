@@ -27,7 +27,7 @@ import constants
 n_frames = constants.n_frames
 n_mfcc = 26
 batch_size = 4096
-epochs = 100
+epochs = 500
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
@@ -284,7 +284,7 @@ def train_networks(training_percentage, filename, experiment):
             training_data = np.concatenate((data[i:total], data[0:j]), axis=0)
             training_labels = np.concatenate((labels[i:total], labels[0:j]), axis=0)
             testing_data = data[j:i]
-            testing_labels = labels[j,i]
+            testing_labels = labels[j:i]
 
         truly_training = int(training_size*truly_training_percentage)
 
@@ -296,6 +296,7 @@ def train_networks(training_percentage, filename, experiment):
         weights, bias = get_weights_bias(training_labels)
         training_labels = to_categorical(training_labels)
         validation_labels = to_categorical(validation_labels)
+        testing_labels = to_categorical(testing_labels)
         
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
@@ -304,7 +305,7 @@ def train_networks(training_percentage, filename, experiment):
         model = Model(inputs=input_data, outputs=[classified, decoded])
         # model = Model(inputs=input_data, outputs=classified)
 
-        model.compile(loss=['categorical_crossentropy', 'binary_crossentropy'],
+        model.compile(loss=['categorical_crossentropy', 'mean_squared_error'],
                     optimizer='adam',
                     metrics='accuracy')
 

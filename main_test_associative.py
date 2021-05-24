@@ -891,7 +891,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         characterize_features(constants.domain, action)
     elif (action == constants.EXP_1) or (action == constants.EXP_2):
         # The domain size, equal to the size of the output layer of the network.
-        test_memories(constants.domain, tolerance)
+        test_memories(constants.domain, action, tolerance)
     elif (action == constants.EXP_3):
         test_recalling(constants.domain, constants.ideal_memory_size, action, tolerance=tolerance)
     elif (action == constants.EXP_4):
