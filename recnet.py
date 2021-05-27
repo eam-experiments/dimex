@@ -27,7 +27,7 @@ import constants
 n_frames = constants.n_frames
 n_mfcc = 26
 batch_size = 4096
-epochs = 500
+epochs = 40
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
