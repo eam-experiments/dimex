@@ -17,16 +17,16 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, GRU, Dropout, Dense, AveragePooling1D, \
-    Bidirectional, LayerNormalization, Reshape, RepeatVector, TimeDistributed
+    MaxPool1D, Bidirectional, LayerNormalization, Reshape, RepeatVector, TimeDistributed
 from tensorflow.keras.utils import to_categorical
 from joblib import Parallel, delayed
 import png
 
 import constants
 
-n_frames = constants.n_frames
+n_frames = 8
 n_mfcc = 26
-batch_size = 4096
+batch_size = 2048
 epochs = 40
 
 TOP_SIDE = 0
@@ -221,21 +221,19 @@ def get_weights_bias(labels):
 def get_encoder(input_data):
 
     # Recurrent encoder
-    gru_1 = Bidirectional(GRU(constants.domain, return_sequences=True))(input_data)
-    pool_1 = AveragePooling1D(2, padding='same')(gru_1)
-    gru_2 = Bidirectional(GRU(constants.domain // 2))(pool_1)
-    drop_1 = Dropout(0.4)(gru_2)
+    gru_1 = Bidirectional(GRU(constants.domain // 2))(input_data)
+    # pool_1 = AveragePooling1D(2, padding='same')(gru_1)
+    # gru_2 = Bidirectional(GRU(constants.domain // 2))(pool_1)
+    drop_1 = Dropout(0.4)(gru_1)
     norm = LayerNormalization()(drop_1)
 
     # Produces an array of size equal to constants.domain.
-    code = norm
-
-    return code
+    return norm
 
 
 def get_decoder(encoded):
-    repeat_1 = RepeatVector(constants.n_frames)(encoded)
-    gru_1 = GRU(constants.domain, activation='relu', return_sequences=True)(repeat_1)
+    repeat_1 = RepeatVector(n_frames)(encoded)
+    gru_1 = GRU(constants.domain // 2, activation='relu', return_sequences=True)(repeat_1)
     drop_1 = Dropout(0.4)(gru_1)
     output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop_1)
 
