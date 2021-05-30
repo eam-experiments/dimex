@@ -27,7 +27,7 @@ import constants
 n_frames = 8
 n_mfcc = 26
 batch_size = 2048
-epochs = 40
+epochs = 500
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
@@ -222,8 +222,6 @@ def get_encoder(input_data):
 
     # Recurrent encoder
     gru_1 = Bidirectional(GRU(constants.domain // 2))(input_data)
-    # pool_1 = AveragePooling1D(2, padding='same')(gru_1)
-    # gru_2 = Bidirectional(GRU(constants.domain // 2))(pool_1)
     drop_1 = Dropout(0.4)(gru_1)
     norm = LayerNormalization()(drop_1)
 
@@ -233,9 +231,11 @@ def get_encoder(input_data):
 
 def get_decoder(encoded):
     repeat_1 = RepeatVector(n_frames)(encoded)
-    gru_1 = GRU(constants.domain // 2, activation='relu', return_sequences=True)(repeat_1)
+    gru_1 = GRU(constants.domain, activation='relu', return_sequences=True)(repeat_1)
     drop_1 = Dropout(0.4)(gru_1)
-    output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop_1)
+    gru_2 = GRU(constants.domain // 2, activation='relu', return_sequences=True)(drop_1)
+    drop_2 = Dropout(0.4)(gru_2)
+    output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop_2)
 
     # Produces an image of same size and channels as originals.
     return output_mfcc
@@ -245,7 +245,7 @@ def get_classifier(encoded, output_bias = None):
     if output_bias is not None:
         output_bias = tf.keras.initializers.Constant(output_bias)
 
-    dense_1 = Dense(constants.domain*2, activation='relu')(encoded)
+    dense_1 = Dense(constants.domain, activation='relu')(encoded)
     drop = Dropout(0.4)(dense_1)
     classification = Dense(constants.n_labels, activation='softmax',
          bias_initializer=output_bias, name='classification')(drop)
