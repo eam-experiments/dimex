@@ -28,15 +28,28 @@ VAL = 'val_'
 
 
 
-def plot(a_measure, b_measure, a_label, b_label, nn, epoch):
+def trplot(a_measure, b_measure, a_label, b_label, epoch, nn):
     fig = plt.figure()
     x = np.arange(0,epoch)
     plt.errorbar(x, a_measure[:epoch], fmt='b-.', label=a_label)
     plt.errorbar(x, b_measure[:epoch], fmt='r--,', label=b_label)
     plt.legend(loc=0)
+
     plt.suptitle(f'Neural net No. {nn}')
     plt.show()
     
+
+def teplot(a_measure, b_measure, a_label, b_label):
+    fig = plt.figure()
+    x = np.arange(0,len(a_measure))
+    plt.errorbar(x, a_measure[:epoch], fmt='b-.', label=a_label)
+    plt.errorbar(x, b_measure[:epoch], fmt='r--,', label=b_label)
+    plt.legend(loc=0)
+
+    plt.suptitle(f'Average results')
+    plt.show()
+    
+
 
 def compare_loss(bigger_loss, smaller_loss, epoch):
     if (len(bigger_loss) < epoch) or (len(smaller_loss) < epoch):
@@ -72,27 +85,52 @@ def training_stats(data, epoch):
     n = 0
     for d in data:
         a[LOSS].append(compare_loss(d[LOSS], d[VAL+LOSS], epoch))
-        plot(d[LOSS], d[VAL+LOSS], LOSS, VAL+LOSS,n,epoch)
+        trplot(d[LOSS], d[VAL+LOSS], LOSS, VAL+LOSS,epoch,n)
         a[C_LOSS].append(compare_loss(d[C_LOSS], d[VAL+C_LOSS], epoch))
-        plot(d[C_LOSS], d[VAL+C_LOSS], C_LOSS, VAL+C_LOSS,n,epoch)
+        trplot(d[C_LOSS], d[VAL+C_LOSS], C_LOSS, VAL+C_LOSS,epoch,n)
         a[A_LOSS].append(compare_loss(d[A_LOSS], d[VAL+A_LOSS], epoch))
-        plot(d[A_LOSS], d[VAL+A_LOSS], A_LOSS, VAL+A_LOSS,n,epoch)
+        trplot(d[A_LOSS], d[VAL+A_LOSS], A_LOSS, VAL+A_LOSS,epoch,n)
         a[C_ACCURACY].append(compare_accuracy(d[C_ACCURACY], d[VAL+C_ACCURACY], epoch))
-        plot(d[C_ACCURACY], d[VAL+C_ACCURACY], C_ACCURACY, VAL+C_ACCURACY,n,epoch)
+        trplot(d[C_ACCURACY], d[VAL+C_ACCURACY], C_ACCURACY, VAL+C_ACCURACY,epoch,n)
         a[A_ACCURACY].append(compare_accuracy(d[A_ACCURACY], d[VAL+A_ACCURACY], epoch))
-        plot(d[A_ACCURACY], d[VAL+A_ACCURACY], A_ACCURACY, VAL+A_ACCURACY,n,epoch)
+        trplot(d[A_ACCURACY], d[VAL+A_ACCURACY], A_ACCURACY, VAL+A_ACCURACY,epoch,n)
         n += 1
     return a
 
+
+def testing_stats(data):
+    """ Analyse neural nets testing data. 
+    """
+
+    n = len(data)
+    m = {LOSS: [],
+         C_LOSS: [],
+         A_LOSS: [],
+         C_ACCURACY: [],
+         A_ACCURACY: []}
+    
+    for d in data:
+        m[LOSS].append(d[LOSS])
+        m[C_LOSS].append(d[C_LOSS])
+        m[A_LOSS].append(d[A_LOSS])
+        m[C_ACCURACY].append(d[C_ACCURACY])
+        m[A_ACCURACY].append(d[A_ACCURACY])
+
+    teplot(m[C_LOSS],m[A_LOSS],C_LOSS,A_LOSS)
+    teplot(m[C_ACCURACY],m[A_ACCURACY],C_ACCURACY,A_ACCURACY)
+
+    return m
+
 if __name__== "__main__" :
-    if len(sys.argv) != 2:
-        print('You only need to provide an epoch number.')
+    if len(sys.argv) != 3:
+        print(f'Usage: {sys.argv[0]} file.json epochs.')
         sys.exit(1)
 
-    epoch = int(sys.argv[1])
+    fname = sys.argv[1]
+    epoch = int(sys.argv[2])
     
     history = {}
-    with open('runs/model_stats.json') as json_file:
+    with open(fname) as json_file:
         history = json.load(json_file)
     history = history['history']
 
@@ -111,7 +149,6 @@ if __name__== "__main__" :
             testing.append(s)
         odd = not odd
 
-    ts = training_stats(training, epoch)
-    print(ts)
-    print(testing)
-    # testing_stats(testing)
+    tes = testing_stats(testing)
+    print(tes)
+    trs = training_stats(training, epoch)

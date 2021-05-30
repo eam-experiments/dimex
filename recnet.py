@@ -19,6 +19,7 @@ from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, GRU, Dropout, Dense, AveragePooling1D, \
     MaxPool1D, Bidirectional, LayerNormalization, Reshape, RepeatVector, TimeDistributed
 from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.callbacks import Callback
 from joblib import Parallel, delayed
 import png
 
@@ -27,7 +28,8 @@ import constants
 n_frames = 8
 n_mfcc = 26
 batch_size = 2048
-epochs = 500
+epochs = 300
+patience = 5
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
@@ -253,6 +255,48 @@ def get_classifier(encoded, output_bias = None):
     return classification
 
 
+class EarlyStoppingAtLossCrossing(Callback):
+    """ Stop training when the loss gets lower than val_loss.
+
+        Arguments:
+            patience: Number of epochs to wait after condition has been hit.
+            After this number of no reversal, training stops.
+            It starts working after 10% of epochs have taken place.
+    """
+
+    def __init__(self, patience=0):
+        super(EarlyStoppingAtLossCrossing, self).__init__()
+        self.patience = patience
+        # best_weights to store the weights at which the loss crossing occurs.
+        self.best_weights = None
+        self.start = epochs // 10
+
+    def on_train_begin(self, logs=None):
+        # The number of epoch it has waited since loss crossed val_loss.
+        self.wait = 0
+        # The epoch the training stops at.
+        self.stopped_epoch = 0
+
+    def on_epoch_end(self, epoch, logs=None):
+        loss = logs.get('loss')
+        val_loss = logs.get('val_loss')
+
+        if (epoch < self.start) or (val_loss < loss):
+            self.wait = 0
+            self.best_weights = self.model.get_weights()
+        else:
+            self.wait += 1
+            if self.wait >= self.patience:
+                self.stopped_epoch = epoch
+                self.model.stop_training = True
+                print("Restoring model weights from the end of the best epoch.")
+                self.model.set_weights(self.best_weights)
+
+    def on_train_end(self, logs=None):
+        if self.stopped_epoch > 0:
+            print("Epoch %05d: early stopping" % (self.stopped_epoch + 1))
+
+
 def train_networks(training_percentage, filename, experiment):
 
     stages = constants.training_stages
@@ -315,6 +359,7 @@ def train_networks(training_percentage, filename, experiment):
                 epochs=epochs,
                 validation_data= (validation_data,
                     {'classification': validation_labels, 'autoencoder': validation_data}),
+                callbacks=[EarlyStoppingAtLossCrossing(patience)],
                 verbose=2)
 
         histories.append(history)
