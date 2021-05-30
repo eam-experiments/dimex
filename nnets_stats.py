@@ -31,8 +31,8 @@ VAL = 'val_'
 def plot(a_measure, b_measure, a_label, b_label, nn, epoch):
     fig = plt.figure()
     x = np.arange(0,epoch)
-    plt.errorbar(x, a_measure[:epoch], fmt='b-o', label=a_label)
-    plt.errorbar(x, b_measure[:epoch], fmt='r--s', label=b_label)
+    plt.errorbar(x, a_measure[:epoch], fmt='b-.', label=a_label)
+    plt.errorbar(x, b_measure[:epoch], fmt='r--,', label=b_label)
     plt.legend(loc=0)
     plt.suptitle(f'Neural net No. {nn}')
     plt.show()
