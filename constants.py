@@ -185,7 +185,7 @@ n_labels = 22
 labels_per_memory = [0, 1, 2]
 
 all_labels = list(range(n_labels))
-labels_formats = ['r:v', 'y--d', 'g-.4', 'y-.3', 'k-.8', 'y--^',
+label_formats = ['r:v', 'y--d', 'g-.4', 'y-.3', 'k-.8', 'y--^',
     'c-..', 'm:*', 'c-1', 'b-p', 'm-.D', 'c:D', 'r--s', 'g:d',
     'm:+', 'y-._', 'm:_', 'y--h', 'g--*', 'm:_', 'g-_', 'm:d']
 
