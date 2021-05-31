@@ -169,14 +169,14 @@ def plot_features_graph(domain, means, stdevs, experiment, occlusion = None, bar
     ymin = np.PINF
     ymax = np.NINF
     for i in constants.all_labels:
-        n = (means[i] - stdevs[i]).min()
-        x = (means[i] + stdevs[i]).max()
-        ymin = ymin if ymin < n else n
-        ymax = ymax if ymax > x else x
+        yn = (means[i] - stdevs[i]).min()
+        yx = (means[i] + stdevs[i]).max()
+        ymin = ymin if ymin < yn else yn
+        ymax = ymax if ymax > yx else yx
 
     main_step = 100.0 / domain
     xrange = np.arange(0, 100, main_step)
-    fmts = ['r-h', 'b-*', 'g-s', 'y-x', 'm-d', 'c-h', 'r-*', 'b--s', 'g--x', 'y--d']
+    fmts = constants.label_formats
 
     for i in constants.all_labels:
         plt.clf()
@@ -791,7 +791,7 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
     print('Test completed')
 
 
-def get_all_data(prefix, domain):
+def get_all_data(prefix):
     data = None
 
     for stage in range(constants.training_stages):
@@ -813,8 +813,8 @@ def characterize_features(domain, experiment, occlusion = None, bars_type = None
     labels_prefix = constants.labels_name
     tl_filename = labels_prefix + constants.testing_suffix
 
-    features = get_all_data(tf_filename, domain)
-    labels = get_all_data(tl_filename, 1)
+    features = get_all_data(tf_filename)
+    labels = get_all_data(tl_filename)
 
     d = {}
     for i in constants.all_labels:
