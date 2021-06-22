@@ -14,6 +14,7 @@
 import sys
 import math
 import numpy as np
+from python_speech_features.base import mfcc
 import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, GRU, Dropout, Dense, AveragePooling1D, \
@@ -24,6 +25,7 @@ from joblib import Parallel, delayed
 import png
 
 import constants
+from dimex_sampler import TaggedAudio
 
 n_frames = constants.n_frames
 n_mfcc = 26
@@ -140,27 +142,13 @@ def reshape(data, n_frames):
 
 def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
 
-    # Load dictionary with labels as keys (structured array) 
-    label_idx = np.load('Features/media.npy', allow_pickle=True).item()
-
-    if constants.n_labels != len(label_idx):
-        print_error("Inconsistent number of labels: ", len(label_idx))
-        exit(1)
-    
     # Load DIMEX-100 labels
     labels = np.load('Features/rand_Y.npy')
-
-    # Replaces actual labels (letter codes for sounds) by
-    # numbers from 0 to N-1, where N is the number of labels.
-    idx = 0
-    for label in label_idx:
-        label_idx[label] = idx
-        idx += 1
 
     all_labels = np.zeros(labels.shape)
     for i in range(all_labels.size):
         label = labels[i]
-        idx = label_idx[label]
+        idx = constants.phns_to_labels[label]
         all_labels[i] = idx
 
     # Load DIMEX-100 features and labels
@@ -495,3 +483,28 @@ class SplittedNeuralNetwork:
 
         for from_layer, to_layer in zip(autoencoder.layers[4:], self.decoder.layers[1:]):
             to_layer.set_weights(from_layer.get_weights())
+
+
+def process_sample(sample, snnet):
+    new_segments = []
+    for s in sample.segments:
+        phn = s[0]
+        mfcc = s[1]
+        features = snnet.encoder.predict(mfcc)
+        label = snnet.classifier.predict(features)
+        p_phn = constants.labels_to_phns[label]
+        segment = (phn, mfcc, p_phn, features)
+        new_segments.append(segment)
+    
+    new_sample = TaggedAudio()
+    new_sample.text = sample.text
+    new_sample.segments = new_segments
+    return new_sample
+
+
+def process_samples(samples, snnet):
+    new_samples = []
+    for sample in samples: 
+        new_sample = process_sample(sample, snnet)
+        new_samples.append(new_sample)
+    return new_samples

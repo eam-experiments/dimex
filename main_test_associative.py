@@ -25,9 +25,12 @@ import matplotlib.pyplot as plt
 import random
 import json
 
+from tensorflow.python.framework.tensor_shape import unknown_shape
+
 import constants
 import recnet
-from associative import AssociativeMemory
+from associative import AssociativeMemory, AssociativeMemorySystem
+from dimex_sampler import DimexSampler
 
 # Translation
 gettext.install('ame', localedir=None, codeset=None, names=None)
@@ -853,7 +856,65 @@ def save_history(history, prefix):
     with open(constants.json_filename(prefix), 'w') as outfile:
         json.dump(stats, outfile)
 
+
+def get_phonemes(segments, idx):
+    phonemes = ''
+    for s in segments:
+        phonemes += s[idx]
+    return phonemes
     
+
+def save_recognitions(samples, fold):
+    file_name = constants.recog_filename(constants.recognition_prefix, fold)
+    with open(file_name, 'w') as file:
+        for sample in samples:
+            file.write(sample.text)
+            orig_phonemes = get_phonemes(sample.segments, 0)
+            file.write(orig_phonemes)
+            net_phonemes = get_phonemes(sample.segments, 2)
+            file.write(net_phonemes)
+            mem_phonemes = get_phonemes(sample.segments, 4)
+            file.write(mem_phonemes)
+
+
+def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type = None, tolerance = 0):
+    for fold in range(constants.training_stages)):
+        suffix = constants.filling_suffix
+        filling_features_filename = constants.features_name(experiment) + suffix        
+        filling_features_filename = constants.data_filename(filling_features_filename, fold)
+        filling_labels_filename = constants.labels_name + suffix        
+        filling_labels_filename = constants.data_filename(filling_labels_filename, fold)
+
+        filling_features = np.load(filling_features_filename)
+        filling_labels = np.load(filling_labels_filename)
+        maximum = filling_features.max()
+        minimum = filling_features.min()
+        filling_features = msize_features(filling_features, mem_size, minimum, maximum)
+
+        ds = DimexSampler()
+        snnet = recnet.SplittedNeuralNetwork(fold)
+        samples = ds.get_sample(constants.n_samples)
+        samples = recnet.process_samples(samples, snnet)
+
+        ams = AssociativeMemorySystem(constants.all_labels,domain,mem_size)
+        for label, features in zip(filling_labels, filling_features):
+            ams.register(label,features)
+
+        for sample in samples:
+            new_segments = []
+            for s in sample.segments:
+                label, features = ams.recall(s[3])
+                phn = constants.unknown_phn if not label \
+                    else constants.labels_to_phns[label]
+                new_segments.append(s + (phn, ))
+            sample.segments = new_segments
+
+        save_recognitions(samples, fold)
+        
+
+
+
+
 ##############################################################################
 # Main section
 
@@ -895,7 +956,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
     elif (action == constants.EXP_3):
         test_recalling(constants.domain, constants.ideal_memory_size, action, tolerance=tolerance)
     elif (action == constants.EXP_4):
-        recnet.remember(action, tolerance=tolerance)
+        test_recognition(constants.domain, constants.ideal_memory_size, action, tolerance=tolerance)
     elif (constants.EXP_5 <= action) and (action <= constants.EXP_10):
         # Generates features for the data sections using the previously generate
         # neural network, introducing (background color) occlusion.

@@ -218,3 +218,52 @@ class AssociativeMemory(object):
             r_io = np.full(self.n, self.undefined)
 
         return r_io, accept
+
+
+class AssociativeMemorySystem:
+    def __init__(self, labels: list, n: int, m: int, tolerance = 0):
+        self._memories = {}
+        for label in labels:
+            self._memories[label] = AssociativeMemory(n, m, tolerance)
+
+    @property
+    def num_mems(self):
+        return len(self._memories)
+
+    def register(self, mem, vector):
+        if not (mem in self._memories):
+            raise ValueError(f'There is no memory for {mem}')
+        self._memories[mem].register(vector)
+
+    def recognize(self, vector):
+        for k in self._memories:
+            recognized = self._memories[k].recognize(vector)
+            if recognized:
+                return True
+        return False
+
+    def recall(self, vector):
+        resp_mems = []
+        for k in self._memories:
+            recalled, recognized = self._memories[k].recall(vector)
+            if recognized:
+                entropy = self._memories[k].entropy
+                record = (k, entropy, recalled)
+                resp_mems.append(record)
+        
+        if not resp_mems:
+            return (None, random.choice(self._memories).recall(vector))
+        else:
+            k = None
+            recalled = None
+            entropy = float('inf')
+            for record in resp_mems:
+                if record[1] < entropy:
+                    k = record[0]
+                    entropy = record[1]
+                    recalled = record[2]
+            
+            return (k, recalled)
+        
+
+

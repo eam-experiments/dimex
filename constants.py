@@ -20,6 +20,100 @@ import numpy as np
 run_path = './runs'
 idx_digits = 3
 
+testing_path = 'test'
+memories_path = 'memories'
+
+features_prefix = 'features'
+memories_prefix = 'memories'
+recognition_prefix = 'recognition'
+
+# Categories prefixes.
+model_name = 'model'
+stats_model_name = 'model_stats'
+data_name = 'data'
+labels_name = 'labels'
+
+original_suffix = '-original'
+
+experiment_defaul_suffix = ''
+experiment_suffix = ['', '', '', '', '',
+    '-top_hidden', '-bottom_hidden', '-left_hidden', '-right_hidden',
+    '-ver_bars', '-hor_bars']
+
+# Categories suffixes.
+training_suffix = '-training'
+filling_suffix = '-filling'
+testing_suffix = '-testing'
+memory_suffix = '-memories'
+
+training_stages = 10 
+domain = 64
+n_frames = 8
+n_jobs = 4
+
+am_testing_percent = (100 / training_stages) / 100
+nn_training_percent = 0.57  # 0.10 + 0.57 = 0.67
+am_filling_percent = 0.33   # 0.67 + 0.33 = 1.0
+
+phns_to_labels = {'g': 0, 'n~': 1, 'f': 2, 'd': 3, 'n': 4, 'm': 5, 
+    'r(': 6, 's': 7, 'e': 8, 'tS': 9, 'p': 10, 'l': 11, 'k': 12,
+    't': 13, 'b': 14, 'Z': 15, 'i': 16, 'x': 17, 'o': 18, 'a': 19,
+    'r': 20, 'u': 21}
+labels_to_phns = ['g', 'n~', 'f', 'd', 'n', 'm', 
+    'r(', 's', 'e', 'tS', 'p', 'l', 'k',
+    't', 'b', 'Z', 'i', 'x', 'o', 'a',
+    'r', 'u']
+unknown_phn = '-'
+
+n_labels = len(phns_to_labels)
+labels_per_memory = [0, 1, 2]
+all_labels = list(range(n_labels))
+label_formats = ['r:v', 'y--d', 'g-.4', 'y-.3', 'k-.8', 'y--^',
+    'c-..', 'm:*', 'c-1', 'b-p', 'm-.D', 'c:D', 'r--s', 'g:d',
+    'm:+', 'y-._', 'm:_', 'y--h', 'g--*', 'm:_', 'g-_', 'm:d']
+
+precision_idx = 0
+recall_idx = 1
+n_measures = 2
+
+no_response_idx = 2
+no_correct_response_idx = 3
+no_correct_chosen_idx = 4
+correct_response_idx = 5
+mean_responses_idx = 6
+
+n_behaviours = 7
+
+memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
+memory_fills = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 100.0]
+ideal_memory_size = 512
+
+n_samples = 10
+
+CHARACTERIZE = -2
+TRAIN_NN = -1
+GET_FEATURES = 0
+EXP_1 = 1
+EXP_2 = 2
+EXP_3 = 3
+EXP_4 = 4
+EXP_5 = 5
+EXP_6 = 6
+EXP_7 = 7
+EXP_8 = 8
+EXP_9 = 9
+EXP_10 = 10
+
+MIN_EXPERIMENT = 1
+MAX_EXPERIMENT = 10
+
+bar_patterns = [[1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0],
+            [1,1,1,0,0,0,0,1,1,1,0,0,0,0,1,1,1,0,0,0,0,1,1,1,0,0,0,0],
+            [1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1],
+            [1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1]]
+N_BARS = len(bar_patterns)
+
+
 
 def occlusion_suffix(occlusion):
     return '' if occlusion is None else '-occ_' + str(int(round(occlusion*100))).zfill(3)
@@ -80,6 +174,10 @@ def model_filename(s, idx = None):
     return filename(s, idx)
 
 
+def recog_filename(s, idx = None):
+    return filename(s, idx, extension = '.txt')
+
+
 def image_filename(dir, stage, idx, label, suffix = ''):
     image_path = run_path + '/images/' + dir + '/' + 'stage_' + str(stage) + '/'
 
@@ -90,10 +188,6 @@ def image_filename(dir, stage, idx, label, suffix = ''):
 
     image_path += str(label) + '_' + str(idx).zfill(5)  + suffix + '.png'
     return image_path
-
-
-testing_path = 'test'
-memories_path = 'memories'
 
 
 def testing_directory(i, occlusion = None, bars_type = None):
@@ -122,9 +216,6 @@ def memory_filename(dir, msize, stage, idx, label):
     return image_path
 
 
-original_suffix = '-original'
-
-
 def original_image_filename(dir, stage, idx, label):
     return image_filename(dir, stage, idx, label, original_suffix)
 
@@ -137,13 +228,6 @@ def produced_memory_filename(dir, msize, stage, idx, label):
     return memory_filename(dir, msize, stage, idx, label)
 
 
-features_prefix = 'features'
-experiment_defaul_suffix = ''
-experiment_suffix = ['', '', '', '', '',
-    '-top_hidden', '-bottom_hidden', '-left_hidden', '-right_hidden',
-    '-ver_bars', '-hor_bars']
-
-
 def features_name(i = -1, occlusion = None, bars_type = None):
     if i  < 0:
         return features_prefix
@@ -152,8 +236,6 @@ def features_name(i = -1, occlusion = None, bars_type = None):
             + occlusion_suffix(occlusion) + bars_type_suffix(bars_type)
 
 
-memories_prefix = 'memories'
-
 def memories_name(i = -1, occlusion = None, bars_type = None, tolerance = 0):
     mem_name = memories_prefix
     if i  >= 0:
@@ -161,82 +243,12 @@ def memories_name(i = -1, occlusion = None, bars_type = None, tolerance = 0):
             + bars_type_suffix(bars_type) + tolerance_suffix(tolerance)
     return mem_name
 
-# Categories prefixes.
-model_name = 'model'
-stats_model_name = 'model_stats'
-data_name = 'data'
-labels_name = 'labels'
-
-# Categories suffixes.
-training_suffix = '-training'
-filling_suffix = '-filling'
-testing_suffix = '-testing'
-memory_suffix = '-memories'
-
-training_stages = 10 
-
-am_testing_percent = (100 / training_stages) / 100
-nn_training_percent = 0.57  # 0.10 + 0.57 = 0.67
-am_filling_percent = 0.33   # 0.67 + 0.33 = 1.0
-
-domain = 64
-n_frames = 8
-
-n_jobs = 4
-n_labels = 22
-labels_per_memory = [0, 1, 2]
-
-all_labels = list(range(n_labels))
-label_formats = ['r:v', 'y--d', 'g-.4', 'y-.3', 'k-.8', 'y--^',
-    'c-..', 'm:*', 'c-1', 'b-p', 'm-.D', 'c:D', 'r--s', 'g:d',
-    'm:+', 'y-._', 'm:_', 'y--h', 'g--*', 'm:_', 'g-_', 'm:d']
-
-precision_idx = 0
-recall_idx = 1
-n_measures = 2
-
 
 def mean_idx(m):
     return m
 
 def std_idx(m):
     return m+1
-
-no_response_idx = 2
-no_correct_response_idx = 3
-no_correct_chosen_idx = 4
-correct_response_idx = 5
-mean_responses_idx = 6
-
-n_behaviours = 7
-
-memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
-memory_fills = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 100.0]
-ideal_memory_size = 512
-
-CHARACTERIZE = -2
-TRAIN_NN = -1
-GET_FEATURES = 0
-EXP_1 = 1
-EXP_2 = 2
-EXP_3 = 3
-EXP_4 = 4
-EXP_5 = 5
-EXP_6 = 6
-EXP_7 = 7
-EXP_8 = 8
-EXP_9 = 9
-EXP_10 = 10
-
-
-MIN_EXPERIMENT = 1
-MAX_EXPERIMENT = 10
-
-bar_patterns = [[1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0],
-            [1,1,1,0,0,0,0,1,1,1,0,0,0,0,1,1,1,0,0,0,0,1,1,1,0,0,0,0],
-            [1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1],
-            [1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1]]
-N_BARS = len(bar_patterns)
 
 
 def padding_cropping(data, n_frames):

@@ -24,8 +24,8 @@ import constants
 
 class TaggedAudio:
     def __init__(self):
-        text = ''
-        segments = []
+        self.text = ''
+        self.segments = []
 
 
 class DimexSampler:
@@ -54,14 +54,6 @@ class DimexSampler:
             next(reader, None)
             for row in reader:
                 self._ids.append(tuple(row))
-
-        self._phonemes = []
-        file_name = self._CORPUS_DIR + '/' + self._PHNS_FILE
-        with open(file_name, 'r') as file:
-            reader = csv.reader(file)
-            next(reader, None)
-            for row in reader:
-                self._phonemes.append(row[1])
 
     def get_sample(self, n = 1):
         sample = random.sample(self._ids, n)
