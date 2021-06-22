@@ -490,8 +490,8 @@ class SplittedNeuralNetwork:
         for from_layer, to_layer in zip(classifier.layers[1:4], self.encoder.layers[1:]):
             to_layer.set_weights(from_layer.get_weights())
 
-        for from_layer, to_layer in zip(classifier.layers[5:], self.classifier.layers[1:]):
+        for from_layer, to_layer in zip(classifier.layers[4:], self.classifier.layers[1:]):
             to_layer.set_weights(from_layer.get_weights())
 
-        for from_layer, to_layer in zip(autoencoder.layers[5:], self.decoder.layers[1:]):
+        for from_layer, to_layer in zip(autoencoder.layers[4:], self.decoder.layers[1:]):
             to_layer.set_weights(from_layer.get_weights())
