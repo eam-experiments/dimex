@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import os
+import numpy as np
 
 # Directory where all results are stored.
 run_path = './runs'
@@ -179,6 +180,7 @@ nn_training_percent = 0.57  # 0.10 + 0.57 = 0.67
 am_filling_percent = 0.33   # 0.67 + 0.33 = 1.0
 
 domain = 64
+n_frames = 8
 
 n_jobs = 4
 n_labels = 22
@@ -235,3 +237,20 @@ bar_patterns = [[1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0],
             [1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1],
             [1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1]]
 N_BARS = len(bar_patterns)
+
+
+def padding_cropping(data, n_frames):
+
+    frames, _  = data.shape
+    df = n_frames - frames
+    if df == 0:
+        return data
+    elif df < 0:
+        return data[:n_frames]
+    else:
+        top_padding = df // 2
+        bottom_padding = df - top_padding
+        return np.pad(data, ((top_padding, bottom_padding),(0,0)),
+            'constant', constant_values=((0,0),(0,0)))
+
+

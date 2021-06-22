@@ -889,7 +889,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         # Generates graphs of mean and standard distributions of feature values,
         # per digit class.
         characterize_features(constants.domain, action)
-    elif (action == constants.EXP_1) or (action == constants.EXP_2):
+    elif action == constants.EXP_1 :
         # The domain size, equal to the size of the output layer of the network.
         test_memories(constants.domain, action, tolerance)
     elif (action == constants.EXP_3):

@@ -25,7 +25,7 @@ import png
 
 import constants
 
-n_frames = 8
+n_frames = constants.n_frames
 n_mfcc = 26
 batch_size = 2048
 epochs = 300
@@ -123,21 +123,6 @@ def max_frames(data):
     return maximum
 
 
-def padding_cropping(data, n_frames):
-
-    frames, _  = data.shape
-    df = n_frames - frames
-    if df == 0:
-        return data
-    elif df < 0:
-        return data[:n_frames]
-    else:
-        top_padding = df // 2
-        bottom_padding = df - top_padding
-        return np.pad(data, ((top_padding, bottom_padding),(0,0)),
-            'constant', constant_values=((0,0),(0,0)))
-
-
 def reshape(data, n_frames):
     """ Restores the flatten matrices (frames, n_mfcc) and pads them vertically.
     """
@@ -146,7 +131,7 @@ def reshape(data, n_frames):
     for d in data:
         frames = d.size // n_mfcc
         d = d.reshape((frames, n_mfcc))
-        d = padding_cropping(d,n_frames)
+        d = constants.padding_cropping(d,n_frames)
         reshaped.append(d)
 
     return np.array(reshaped, dtype=np.float32)
@@ -482,80 +467,31 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
     return histories
 
 
-def remember(experiment, occlusion = None, bars_type = None, tolerance = 0):
-    """ Creates images from features.
-    
-    Uses the decoder part of the neural networks to (re)create images from features.
-
-    Parameters
-    ----------
-    experiment : TYPE
-        DESCRIPTION.
-    occlusion : TYPE, optional
-        DESCRIPTION. The default is None.
-    tolerance : TYPE, optional
-        DESCRIPTION. The default is 0.
-
-    Returns
-    -------
-    None.
-
-    """
-
-    for i in range(constants.training_stages):
-        testing_data_filename = constants.data_name + constants.testing_suffix
-        testing_data_filename = constants.data_filename(testing_data_filename, i)
-        testing_features_filename = constants.features_name(experiment, occlusion, bars_type) + constants.testing_suffix
-        testing_features_filename = constants.data_filename(testing_features_filename, i)
-        testing_labels_filename = constants.labels_name + constants.testing_suffix
-        testing_labels_filename = constants.data_filename(testing_labels_filename, i)
-        memories_filename = constants.memories_name(experiment, occlusion, bars_type, tolerance)
-        memories_filename = constants.data_filename(memories_filename, i)
-        labels_filename = constants.labels_name + constants.memory_suffix
-        labels_filename = constants.data_filename(labels_filename, i)
-        model_filename = constants.model_filename(constants.model_name, i)
-
-        testing_data = np.load(testing_data_filename)
-        testing_features = np.load(testing_features_filename)
-        testing_labels = np.load(testing_labels_filename)
-        memories = np.load(memories_filename)
-        labels = np.load(labels_filename)
+class SplittedNeuralNetwork:
+    def __init__ (self, n):
+        model_filename = constants.model_filename(constants.model_name, n)
         model = tf.keras.models.load_model(model_filename)
-
-        # Drop the classifier.
+        classifier = Model(model.input, model.output[0])
+        classifier.summary()
         autoencoder = Model(model.input, model.output[1])
         autoencoder.summary()
 
-        # Drop the encoder
-        input_mem = Input(shape=(constants.domain, ))
-        decoded = get_decoder(input_mem)
-        decoder = Model(inputs=input_mem, outputs=decoded)
-        decoder.summary()
+        input_enc = Input(shape=(n_frames, n_mfcc))
+        input_cla = Input(shape=(constants.domain, ))
+        input_dec = Input(shape=(constants.domain, ))
+        encoded = get_encoder(input_enc)
+        classified = get_classifier(input_cla)
+        decoded = get_decoder(input_dec)
 
-        for dlayer, alayer in zip(decoder.layers[1:], autoencoder.layers[11:]):
-            dlayer.set_weights(alayer.get_weights())
+        self.encoder = Model(inputs = input_enc, outputs = encoded)
+        self.classifier = Model(inputs = input_cla, outputs = classified)
+        self.decoder = Model(inputs=input_dec, outputs=decoded)
 
-        produced_images = decoder.predict(testing_features)
-        n = len(testing_labels)
+        for from_layer, to_layer in zip(classifier.layers[1:4], self.encoder.layers[1:]):
+            to_layer.set_weights(from_layer.get_weights())
 
-        Parallel(n_jobs=constants.n_jobs, verbose=5)( \
-            delayed(store_images)(original, produced, constants.testing_directory(experiment, occlusion, bars_type), i, j, label) \
-                for (j, original, produced, label) in \
-                    zip(range(n), testing_data, produced_images, testing_labels))
+        for from_layer, to_layer in zip(classifier.layers[5:], self.classifier.layers[1:]):
+            to_layer.set_weights(from_layer.get_weights())
 
-        total = len(memories)
-        steps = len(constants.memory_fills)
-        step_size = total/steps
-
-        for j in range(steps):
-            print('Decoding memory size ' + str(j) + ' and stage ' + str(i))
-            start = j*step_size
-            end = int(start + step_size)
-            start = int(start)
-            mem_data = memories[start:end]
-            mem_labels = labels[start:end]
-            produced_images = decoder.predict(mem_data)
-
-            Parallel(n_jobs=constants.n_jobs, verbose=5)( \
-                delayed(store_memories)(label, produced, features, constants.memories_directory(experiment, occlusion, bars_type, tolerance), i, j) \
-                    for (produced, features, label) in zip(produced_images, mem_data, mem_labels))
+        for from_layer, to_layer in zip(autoencoder.layers[5:], self.decoder.layers[1:]):
+            to_layer.set_weights(from_layer.get_weights())
