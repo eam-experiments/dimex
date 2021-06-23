@@ -868,17 +868,17 @@ def save_recognitions(samples, fold):
     file_name = constants.recog_filename(constants.recognition_prefix, fold)
     with open(file_name, 'w') as file:
         for sample in samples:
-            file.write(sample.text)
+            file.write(sample.text+'\n')
             orig_phonemes = get_phonemes(sample.segments, 0)
-            file.write(orig_phonemes)
+            file.write(orig_phonemes+'\n')
             net_phonemes = get_phonemes(sample.segments, 2)
-            file.write(net_phonemes)
+            file.write(net_phonemes+'\n')
             mem_phonemes = get_phonemes(sample.segments, 4)
-            file.write(mem_phonemes)
+            file.write(mem_phonemes+'\n')
 
 
 def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type = None, tolerance = 0):
-    for fold in range(constants.training_stages)):
+    for fold in range(constants.training_stages):
         suffix = constants.filling_suffix
         filling_features_filename = constants.features_name(experiment) + suffix        
         filling_features_filename = constants.data_filename(filling_features_filename, fold)
@@ -890,7 +890,6 @@ def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type =
         maximum = filling_features.max()
         minimum = filling_features.min()
         filling_features = msize_features(filling_features, mem_size, minimum, maximum)
-
         ds = DimexSampler()
         snnet = recnet.SplittedNeuralNetwork(fold)
         samples = ds.get_sample(constants.n_samples)
@@ -903,7 +902,9 @@ def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type =
         for sample in samples:
             new_segments = []
             for s in sample.segments:
-                label, features = ams.recall(s[3])
+                features = s[3][0]
+                features = msize_features(features, mem_size, minimum, maximum)
+                label, features = ams.recall(features)
                 phn = constants.unknown_phn if not label \
                     else constants.labels_to_phns[label]
                 new_segments.append(s + (phn, ))

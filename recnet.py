@@ -157,9 +157,9 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     all_data = reshape(all_data, n_frames)
 
     # all_data = add_noise(all_data, experiment, occlusion, bars_type)
-    minimum = all_data.min()
-    maximum = all_data.max()
-    all_data = (all_data - minimum)/ (maximum-minimum)
+    # minimum = all_data.min()
+    # maximum = all_data.max()
+    # all_data = (all_data - minimum)/ (maximum-minimum)
 
     if one_hot:
         # Changes labels to binary rows. Each label correspond to a column, and only
@@ -460,9 +460,7 @@ class SplittedNeuralNetwork:
         model_filename = constants.model_filename(constants.model_name, n)
         model = tf.keras.models.load_model(model_filename)
         classifier = Model(model.input, model.output[0])
-        classifier.summary()
         autoencoder = Model(model.input, model.output[1])
-        autoencoder.summary()
 
         input_enc = Input(shape=(n_frames, n_mfcc))
         input_cla = Input(shape=(constants.domain, ))
@@ -472,8 +470,11 @@ class SplittedNeuralNetwork:
         decoded = get_decoder(input_dec)
 
         self.encoder = Model(inputs = input_enc, outputs = encoded)
+        self.encoder.summary()
         self.classifier = Model(inputs = input_cla, outputs = classified)
+        self.classifier.summary()
         self.decoder = Model(inputs=input_dec, outputs=decoded)
+        self.decoder.summary()
 
         for from_layer, to_layer in zip(classifier.layers[1:4], self.encoder.layers[1:]):
             to_layer.set_weights(from_layer.get_weights())
@@ -489,9 +490,9 @@ def process_sample(sample, snnet):
     new_segments = []
     for s in sample.segments:
         phn = s[0]
-        mfcc = s[1]
+        mfcc = np.expand_dims(s[1], axis=0)
         features = snnet.encoder.predict(mfcc)
-        label = snnet.classifier.predict(features)
+        label = np.argmax(snnet.classifier.predict(features))
         p_phn = constants.labels_to_phns[label]
         segment = (phn, mfcc, p_phn, features)
         new_segments.append(segment)

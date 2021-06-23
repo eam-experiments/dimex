@@ -73,10 +73,13 @@ class DimexSampler:
     def _get_text(self, modifier, id):
         file_name = self._get_text_filename(modifier, id)
 
-        text = None
-        with open(file_name, 'r', encoding="ISO-8859-1") as file:
-            text = file.readline()
-            text = re.sub(' *\.\n', '', text)
+        text = ''
+        try:
+            with open(file_name, 'r', encoding="ISO-8859-1") as file:
+                text = file.readline()
+                text = re.sub(' *\.\n', '', text)
+        except:
+            pass
         return text
 
     def _get_segments(self, modifier, id):

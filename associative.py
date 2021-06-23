@@ -164,7 +164,6 @@ class AssociativeMemory(object):
         vector = self.validate(vector)
 
         r_io = self.vector_to_relation(vector)
-        print(r_io.shape)
         self.abstract(r_io)
 
 
