@@ -149,15 +149,15 @@ class AssociativeMemory(object):
             if np.isnan(v[i]):
                 print('Got here')
                 v[i] = self.undefined
-            elif (v[i] > self.m) or (vector[i] < 0):
-                constants.print_warning(f'Value {vector[i]} is out of range. Changed to undefined.')
+            elif (v[i] > self.m) or (v[i] < 0):
+                constants.print_warning(f'Value {v[i]} is out of range. Changed to undefined.')
                 v[i] = self.undefined
         return v.astype('int')
         
 
     def revalidate(self, vector):
         v = vector.astype('float')
-        return np.where(v == float(self.m), np.nan, v)
+        return np.where(v == float(self.indefined), np.nan, v)
 
 
     def register(self, vector) -> None:
@@ -171,14 +171,14 @@ class AssociativeMemory(object):
         vector = self.validate(vector)
         r_io = self.vector_to_relation(vector)
         r_io = self.containment(r_io)
-        return np.count_nonzero(r_io == False) <= self._t
+        return np.count_nonzero(r_io[:self.m,:self.n] == False) <= self._t
 
 
     def mismatches(self, vector):
         vector = self.validate(vector)
         r_io = self.vector_to_relation(vector)
         r_io = self.containment(r_io)
-        return np.count_nonzero(r_io == False)
+        return np.count_nonzero(r_io[:self.m,:self.n] == False)
 
 
     def recall(self, vector):
