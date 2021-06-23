@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import os
+import sys
 import numpy as np
 
 # Directory where all results are stored.
@@ -113,6 +114,9 @@ bar_patterns = [[1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0,1,1,0,0],
             [1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1]]
 N_BARS = len(bar_patterns)
 
+
+def print_warning(*s):
+    print('WARNING:', *s, file = sys.stderr)
 
 
 def occlusion_suffix(occlusion):

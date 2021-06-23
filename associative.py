@@ -35,17 +35,17 @@ class AssociativeMemory(object):
         m : int
             The size of the range (of representation).
         """
-        self.n = n
-        self.m = m
-        self.t = tolerance
+        self._n = n
+        self._m = m+1
+        self._t = tolerance
 
         # it is m+1 to handle partial functions.
-        self.relation = np.zeros((self.m, self.n), dtype=np.bool)
+        self._relation = np.zeros((self._m, self._n), dtype=np.bool)
 
     def __str__(self):
         relation = np.zeros((self.m, self.n), dtype=np.unicode)
         relation[:] = 'O'
-        r, c = np.nonzero(self.relation[:self.m,:self.n])
+        r, c = np.nonzero(self.relation)
         for i in zip(r, c):
             relation[i] = 'X'
         return str(relation)
@@ -54,36 +54,13 @@ class AssociativeMemory(object):
     def n(self):
         return self._n
 
-    @n.setter
-    def n(self, value: int):
-        if value > 0:
-            self._n = value
-        else:
-            raise ValueError('Invalid value for n.')
-
     @property
     def m(self):
-        return self._m
-
-    @m.setter
-    def m(self, value: int):
-        if value > 0:
-            self._m = value
-        else:
-            raise ValueError('Invalid value for m.')
+        return self._m-1
 
     @property
     def relation(self):
-        return self._relation
-
-    @relation.setter
-    def relation(self, new_relation: np.ndarray):
-        if (isinstance(new_relation, np.ndarray) and
-                new_relation.dtype == np.bool and
-                new_relation.shape == (self.m, self.n)):
-            self._relation = new_relation
-        else:
-            raise ValueError('Invalid relation assignment.')
+        return self._relation[:self.m,:self.n]
 
     @property
     def entropy(self) -> float:
@@ -96,33 +73,23 @@ class AssociativeMemory(object):
         e *= (-1.0 / self.n)
         return e
 
-    # @classmethod
-    # def from_relation(cls, relation: np.ndarray) -> 'AssociativeMemory':
-    #     associative_mem = cls(relation.shape[1], relation.shape[0])
-    #     associative_mem.relation = relation
-    #     return associative_mem
-
     @property
     def undefined(self):
-        return np.nan
+        return self.m
 
 
     def is_undefined(self, value):
-        return np.all(np.isnan(value))
+        return value == self.undefined
 
 
     def vector_to_relation(self, vector):
-        relation = np.zeros((self.m, self.n), np.bool)
-        try:
-            relation[vector, range(self.n)] = True
-        except:
-            pass
+        relation = np.zeros((self._m, self._n), np.bool)
+        relation[vector, range(self.n)] = True
         return relation
 
 
     # Choose a value for feature i.
     def choose(self, i, v):
-
         if self.is_undefined(v) or not self.relation[v,i]:
             values = []
             for j in range(self.m):
@@ -137,19 +104,16 @@ class AssociativeMemory(object):
         else:
             min = v
             max = v
-
             for j in range(v, -1, -1):
                 if self.relation[j,i]:
                     min = j
                 else:
                     break
-
             for j in range(v, self.m):
                 if self.relation[j,i]:
                     max = j
                 else:
                     break
-
             if min == max:
                 return v
             else:
@@ -158,11 +122,11 @@ class AssociativeMemory(object):
                  
 
     def abstract(self, r_io) -> None:
-        self.relation = self.relation | r_io
+        self._relation = self._relation | r_io
 
 
     def containment(self, r_io):
-        return ~r_io | self.relation
+        return ~r_io[:self.m, :self.n] | self.relation
 
 
     # Reduces a relation to a function
@@ -176,47 +140,58 @@ class AssociativeMemory(object):
 
 
     def validate(self, vector):
-        if vector.size != self.n:
-            raise ValueError('Invalid size of the input data. Expected', self.n, 'and given', vector.size)
+        # Forces it to be a vector.
+        v = np.ravel(vector)
 
-        if vector.max() > self.m or vector.min() < 0:
-            raise ValueError('Values in the input vector are invalid.')
+        if len(v) != self.n:
+            raise ValueError('Invalid size of the input data. Expected', self.n, 'and given', vector.size)
+        for i in range(self.n):
+            if np.isnan(v[i]):
+                print('Got here')
+                v[i] = self.undefined
+            elif (v[i] > self.m) or (vector[i] < 0):
+                constants.print_warning(f'Value {vector[i]} is out of range. Changed to undefined.')
+                v[i] = self.undefined
+        return v.astype('int')
+        
+
+    def revalidate(self, vector):
+        v = vector.astype('float')
+        return np.where(v == float(self.m), np.nan, v)
 
 
     def register(self, vector) -> None:
-        # Forces it to be a vector.
-        vector = np.ravel(vector)
-
-        self.validate(vector)
+        vector = self.validate(vector)
 
         r_io = self.vector_to_relation(vector)
+        print(r_io.shape)
         self.abstract(r_io)
 
 
     def recognize(self, vector):
-        self.validate(vector)
+        vector = self.validate(vector)
         r_io = self.vector_to_relation(vector)
         r_io = self.containment(r_io)
-        return np.count_nonzero(r_io == False) <= self.t
+        return np.count_nonzero(r_io == False) <= self._t
 
 
     def mismatches(self, vector):
-        self.validate(vector)
+        vector = self.validate(vector)
         r_io = self.vector_to_relation(vector)
         r_io = self.containment(r_io)
         return np.count_nonzero(r_io == False)
 
 
     def recall(self, vector):
+        vector = self.validate(vector)
 
-        accept = self.mismatches(vector) <= self.t
+        accept = self.mismatches(vector) <= self._t
 
         if accept:
-            # r_io = self.lreduce(r_io)
             r_io = self.lreduce(vector)
         else:
             r_io = np.full(self.n, self.undefined)
-
+        r_io = self.revalidate(r_io)
         return r_io, accept
 
 
