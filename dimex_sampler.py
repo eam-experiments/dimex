@@ -90,6 +90,7 @@ class DimexSampler:
 
     def _get_features_phonemes(self, audio_fname, phn_fname):
         sample_rate, signal = wav.read(audio_fname)
+        print(f'Reading {phn_fname}')
         with open(phn_fname, 'r') as file:
             reader = csv.reader(file, delimiter = ' ')
             row = next(reader)
@@ -102,6 +103,8 @@ class DimexSampler:
         segments = []
         start = 0.0
         for row in reader:
+            if len(row) < 3:
+                continue
             phn = row[2]
             if (phn == '.sil') or (phn == '.bn'):
                 continue

@@ -157,7 +157,7 @@ class AssociativeMemory(object):
 
     def revalidate(self, vector):
         v = vector.astype('float')
-        return np.where(v == float(self.indefined), np.nan, v)
+        return np.where(v == float(self.undefined), np.nan, v)
 
 
     def register(self, vector) -> None:
