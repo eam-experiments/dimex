@@ -47,6 +47,7 @@ filling_suffix = '-filling'
 testing_suffix = '-testing'
 memory_suffix = '-memories'
 
+mfcc_numceps = 26
 training_stages = 10 
 domain = 64
 n_frames = 8

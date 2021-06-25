@@ -28,7 +28,7 @@ import constants
 from dimex_sampler import TaggedAudio
 
 n_frames = constants.n_frames
-n_mfcc = 26
+n_mfcc = constants.mfcc_numceps
 batch_size = 2048
 epochs = 300
 patience = 5
@@ -487,23 +487,16 @@ class SplittedNeuralNetwork:
 
 
 def process_sample(sample, snnet):
-    new_segments = []
-    for s in sample.segments:
-        phn = s[0]
-        mfcc = np.expand_dims(s[1], axis=0)
-        features = snnet.encoder.predict(mfcc)
-        label = np.argmax(snnet.classifier.predict(features))
-        p_phn = constants.labels_to_phns[label]
-        segment = (phn, mfcc, p_phn, features)
-        new_segments.append(segment)
-    
-    new_sample = TaggedAudio()
-    new_sample.text = sample.text
-    new_sample.segments = new_segments
-    return new_sample
+    features = snnet.encoder.predict(sample.segments)
+    labels = snnet.classifier.predict(features)    
+    sample.features = features
+    sample.net_labels = np.argmax(labels, axis=1)
+    return sample
 
 
-def process_samples(samples, snnet):
+def process_samples(samples, fold):
+    snnet = SplittedNeuralNetwork(fold)
+
     new_samples = []
     for sample in samples: 
         new_sample = process_sample(sample, snnet)

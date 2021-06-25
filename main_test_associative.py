@@ -30,7 +30,7 @@ from tensorflow.python.framework.tensor_shape import unknown_shape
 import constants
 import recnet
 from associative import AssociativeMemory, AssociativeMemorySystem
-from dimex_sampler import DimexSampler
+from dimex_sampler import DimexSampler, TaggedAudio
 
 # Translation
 gettext.install('ame', localedir=None, codeset=None, names=None)
@@ -857,10 +857,10 @@ def save_history(history, prefix):
         json.dump(stats, outfile)
 
 
-def get_phonemes(segments, idx):
+def get_phonemes(labels):
     phonemes = ''
-    for s in segments:
-        phonemes += s[idx]
+    for i in labels:
+        phonemes += constants.labels_to_phns[i]
     return phonemes
     
 
@@ -868,13 +868,13 @@ def save_recognitions(samples, fold):
     file_name = constants.recog_filename(constants.recognition_prefix, fold)
     with open(file_name, 'w') as file:
         for sample in samples:
+            # sample is a Tagged Audio
+            file.write(sample.id+'\n')
             file.write(sample.text+'\n')
-            orig_phonemes = get_phonemes(sample.segments, 0)
-            file.write(orig_phonemes+'\n')
-            net_phonemes = get_phonemes(sample.segments, 2)
+            net_phonemes = get_phonemes(sample.net_labels)
             file.write(net_phonemes+'\n')
-            mem_phonemes = get_phonemes(sample.segments, 4)
-            file.write(mem_phonemes+'\n')
+            ams_phonemes = get_phonemes(sample.ams_labels)
+            file.write(ams_phonemes+'\n\n')
 
 
 def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type = None, tolerance = 0):
@@ -891,24 +891,20 @@ def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type =
         minimum = filling_features.min()
         filling_features = msize_features(filling_features, mem_size, minimum, maximum)
         ds = DimexSampler()
-        snnet = recnet.SplittedNeuralNetwork(fold)
         samples = ds.get_sample(constants.n_samples)
-        samples = recnet.process_samples(samples, snnet)
+        samples = recnet.process_samples(samples, fold)
 
         ams = AssociativeMemorySystem(constants.all_labels,domain,mem_size)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
 
         for sample in samples:
-            new_segments = []
-            for s in sample.segments:
-                features = s[3][0]
-                features = msize_features(features, mem_size, minimum, maximum)
-                label, features = ams.recall(features)
-                phn = constants.unknown_phn if not label \
-                    else constants.labels_to_phns[label]
-                new_segments.append(s + (phn, ))
-            sample.segments = new_segments
+            ams_labels = []
+            for f in sample.features:
+                features = msize_features(f, mem_size, minimum, maximum)
+                label, _ = ams.recall(features)
+                ams_labels.append(label)
+            sample.ams_labels = np.array(ams_labels)
 
         save_recognitions(samples, fold)
         
