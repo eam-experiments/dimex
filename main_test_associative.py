@@ -859,8 +859,11 @@ def save_history(history, prefix):
 
 def get_phonemes(labels):
     phonemes = ''
-    for i in labels:
-        phonemes += constants.labels_to_phns[i]
+    for label in labels:
+        if label is None:
+            phonemes += '-'
+        else:
+            phonemes += constants.labels_to_phns[label]
     return phonemes
     
 
