@@ -23,10 +23,13 @@ import constants
 
 
 class TaggedAudio:
-    def __init__(self):
+    def __init__(self, id):
+        self.id = id
         self.text = ''
         self.segments = []
-
+        self.features = []
+        self.net_labels = []
+        self.ams_labels = []
 
 class DimexSampler:
     _CORPUS_DIR = 'Corpus'
@@ -39,7 +42,7 @@ class DimexSampler:
     _AUDIO_EXT = '.wav'
     _PHN_EXT = '.phn'
     _IDEAL_SRATE = 16000
-    _NUMCEP = 26
+    _SEGMENT_MILLISECONDS = 80
 
     def __init__(self):
         """ Creates the random sampler by reading the identifiers file and storing it
@@ -48,7 +51,7 @@ class DimexSampler:
             It also reads the phonemes and does the same.
         """
         self._ids = []
-        file_name = self._CORPUS_DIR + '/' + self._IDS_FILE
+        file_name = self._IDS_FILE
         with open(file_name, 'r') as file:
             reader = csv.reader(file)
             next(reader, None)
@@ -61,7 +64,7 @@ class DimexSampler:
         for s in sample:
             modifier = s[0]
             id = s[1]
-            audio = TaggedAudio()
+            audio = TaggedAudio(id)
             audio.text = self._get_text(modifier, id)
             audio.segments = self._get_segments(modifier, id)
             audios.append(audio)
@@ -72,7 +75,6 @@ class DimexSampler:
 
     def _get_text(self, modifier, id):
         file_name = self._get_text_filename(modifier, id)
-
         text = ''
         try:
             with open(file_name, 'r', encoding="ISO-8859-1") as file:
@@ -84,41 +86,35 @@ class DimexSampler:
 
     def _get_segments(self, modifier, id):
         audio_fname = self._get_audio_filename(modifier, id)
-        phn_fname = self._get_phonemes_filename(modifier, id)
-        segments = self._get_features_phonemes(audio_fname, phn_fname)
+        segments = self._get_mfcc(audio_fname)
         return segments
 
-    def _get_features_phonemes(self, audio_fname, phn_fname):
+    def _get_mfcc(self, audio_fname):
         sample_rate, signal = wav.read(audio_fname)
-        print(f'Reading {phn_fname}')
-        with open(phn_fname, 'r') as file:
-            reader = csv.reader(file, delimiter = ' ')
-            row = next(reader)
-            while (row[0] != 'END'):
-                row = next(reader, None)  # skip the headers
-            segments = self._generate_feats_per_phoneme(sample_rate, signal, reader)
-            return(segments)
+        if sample_rate != self._IDEAL_SRATE:
+            new_length = int(self._IDEAL_SRATE*len(signal)/sample_rate)
+            new_signal = scipy.signal.resample(signal, new_length)
 
-    def _generate_feats_per_phoneme(self, sample_rate, signal, reader):
+        segments = self._scan_audio(self._IDEAL_SRATE, new_signal)
+        return np.array(segments)
+
+    def _scan_audio(self, sample_rate, signal):
         segments = []
-        start = 0.0
-        for row in reader:
-            if len(row) < 3:
-                continue
-            phn = row[2]
-            if (phn == '.sil') or (phn == '.bn'):
-                continue
-            phn_start = float(row[0])
-            phn_end = float(row[1])
-            duration = phn_end - phn_start
-            segment = signal[int(sample_rate*phn_start/1000)
-                                 :int(sample_rate*phn_end/1000)]
-            if sample_rate != self._IDEAL_SRATE and len(segment) != 0:
-                sampls = int(self._IDEAL_SRATE*duration/1000)
-                segment = scipy.signal.resample(segment, sampls)
-            features = mfcc(segment, self._IDEAL_SRATE, numcep=self._NUMCEP)
+        seg_len = int(self._SEGMENT_MILLISECONDS*sample_rate/1000)
+        step = int(sample_rate/100)
+        i = 0
+        end = len(signal)
+        stop = False
+        while not stop:
+            j = i + seg_len
+            if j > end:
+                j = end
+                stop = True
+            segment = signal[i:j]
+            features = mfcc(segment, sample_rate, numcep=constants.mfcc_numceps)
             features = constants.padding_cropping(features, constants.n_frames)
-            segments.append((phn, features))
+            segments.append(features)
+            i += step
         return segments
 
     def _get_text_filename(self, modifier, id):
