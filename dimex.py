@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from abc import abstractclassmethod
 import csv
 import numpy as np
 import random
@@ -20,6 +21,19 @@ import scipy.io.wavfile as wav
 import scipy.signal
 from python_speech_features import mfcc
 import constants
+
+
+phns_to_labels = {'g': 0, 'n~': 1, 'f': 2, 'd': 3, 'n': 4, 'm': 5, 
+    'r(': 6, 's': 7, 'e': 8, 'tS': 9, 'p': 10, 'l': 11, 'k': 12,
+    't': 13, 'b': 14, 'Z': 15, 'i': 16, 'x': 17, 'o': 18, 'a': 19,
+    'r': 20, 'u': 21}
+labels_to_phns = ['g', 'n~', 'f', 'd', 'n', 'm', 
+    'r(', 's', 'e', 'tS', 'p', 'l', 'k',
+    't', 'b', 'Z', 'i', 'x', 'o', 'a',
+    'r', 'u']
+phonemes = labels_to_phns
+unknown_phn = '-'
+
 
 
 class TaggedAudio:
@@ -32,7 +46,7 @@ class TaggedAudio:
         self.net_labels = []
         self.ams_labels = []
 
-class DimexSampler:
+class Sampler:
     _CORPUS_DIR = 'Corpus'
     _AUDIO_DIR = 'audio_editado'
     _PHONEMES_DIR = 'T22'
@@ -101,7 +115,7 @@ class DimexSampler:
                 phn = row[2]
                 if (phn == '.sil') or (phn == '.bn'):
                     continue
-                label = constants.phns_to_labels[phn]
+                label = phns_to_labels[phn]
                 labels.append(label)
         return labels
  
@@ -152,3 +166,82 @@ class DimexSampler:
         file_name = self._CORPUS_DIR + '/' + sdir + '/' + cls + '/'
         file_name += modifier + '/' + id + extension
         return file_name
+
+
+class PostProcessor:
+    _FEATURES_DIR_NAME = 'Features'
+    _MEANS_FILE_NAME = _FEATURES_DIR_NAME + '/media.npy'
+    _STDEV_FILE_NAME = _FEATURES_DIR_NAME + '/std.npy'
+    _MAX_MISSES = 3
+
+    class Parameters:
+        def __init__(self):
+            self.mean = None
+            self.stdev = None
+
+    class Counter:
+        def __init__(self):
+            self.minimum = None
+            self.mean = None
+            self.maximum = None
+            self.hits = 0
+            self.misses = 0
+            self.prints = 0
+
+    def __init__(self):
+        self.params = [ self.Parameters() for i in range(constants.n_labels)]
+        
+        # Get means per phoneme as a dictionary.
+        phn_means = np.load(self._MEANS_FILE_NAME, allow_pickle=True).item()
+
+        for phn in phn_means:
+            i = phns_to_labels[phn]
+            p = self.params[i]
+            p.mean = phn_means[phn]
+        phn_stdevs = np.load(self._STDEV_FILE_NAME, allow_pickle=True).item()
+        for phn in phn_stdevs:
+            i = phns_to_labels[phn]
+            p = self.params[i]
+            p.stdev = phn_stdevs[phn]
+
+
+    def _get_counters(self):
+        counters = [ self.Counter() for i in range(constants.n_labels)]
+        for i in range(len(self.params)):
+            minimum = (self.params[i].mean - self.params[i].stdev)/10.0
+            minimum = int(minimum) if minimum > 0.0 else 0
+            counters[i].mean = int(self.params[i].mean)
+            counters[i].minimum = minimum
+            counters[i].maximum = int((self.params[i].mean + self.params[i].stdev)/10.0)
+        return counters
+
+    def process(self, labels):
+        phonemes = []
+        c = self._get_counters()
+        for label in labels:
+            # Processes the current label (hit).
+            if not (label is None):
+                if c[label].hits == 0:
+                    c[label].hits = 8
+                else:
+                    c[label].hits += 1
+                c[label].misses = 0
+                if c[label].hits > c[label].maximum:
+                    c[label].hits = 0
+                    c[label].prints = 0
+                elif (c[label].hits > c[label].mean) and (c[label].prints < 2):
+                    phonemes.append(labels_to_phns[label])
+                    c[label].prints += 1
+                elif (c[label].hits > c[label].minimum) and (c[label].prints < 1):
+                    phonemes.append(labels_to_phns[label])   
+                    c[label].prints += 1
+            # Processes other labels (miss).
+            for other in constants.all_labels:
+                if other == label:
+                    continue
+                c[other].misses += 1
+                if c[other].misses == self._MAX_MISSES:
+                    c[other].hits = 0
+                    c[other].misses = 0
+                    c[other].prints = 0
+        return phonemes

@@ -16,6 +16,7 @@
 import os
 import sys
 import numpy as np
+import dimex
 
 # Directory where all results are stored.
 run_path = './runs'
@@ -57,17 +58,7 @@ am_testing_percent = (100 / training_stages) / 100
 nn_training_percent = 0.57  # 0.10 + 0.57 = 0.67
 am_filling_percent = 0.33   # 0.67 + 0.33 = 1.0
 
-phns_to_labels = {'g': 0, 'n~': 1, 'f': 2, 'd': 3, 'n': 4, 'm': 5, 
-    'r(': 6, 's': 7, 'e': 8, 'tS': 9, 'p': 10, 'l': 11, 'k': 12,
-    't': 13, 'b': 14, 'Z': 15, 'i': 16, 'x': 17, 'o': 18, 'a': 19,
-    'r': 20, 'u': 21}
-labels_to_phns = ['g', 'n~', 'f', 'd', 'n', 'm', 
-    'r(', 's', 'e', 'tS', 'p', 'l', 'k',
-    't', 'b', 'Z', 'i', 'x', 'o', 'a',
-    'r', 'u']
-unknown_phn = '-'
-
-n_labels = len(phns_to_labels)
+n_labels = 22
 labels_per_memory = [0, 1, 2]
 all_labels = list(range(n_labels))
 label_formats = ['r:v', 'y--d', 'g-.4', 'y-.3', 'k-.8', 'y--^',
