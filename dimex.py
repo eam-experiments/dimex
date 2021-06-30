@@ -28,6 +28,7 @@ class TaggedAudio:
         self.text = ''
         self.segments = []
         self.features = []
+        self.labels = []
         self.net_labels = []
         self.ams_labels = []
 
@@ -66,6 +67,7 @@ class DimexSampler:
             id = s[1]
             audio = TaggedAudio(id)
             audio.text = self._get_text(modifier, id)
+            audio.labels = self._get_labels(modifier, id)
             audio.segments = self._get_segments(modifier, id)
             audios.append(audio)
         if n == 1:
@@ -84,6 +86,25 @@ class DimexSampler:
             pass
         return text
 
+    def _get_labels(self, modifier, id):
+        labels = []
+        file_name = self._get_phonemes_filename(modifier, id)
+        with open(file_name, 'r') as file:
+            reader = csv.reader(file, delimiter = ' ')
+            row = next(reader)
+            # skip the headers
+            while (row[0] != 'END'):
+                row = next(reader, None)
+            for row in reader:
+                if len(row) < 3:
+                    continue
+                phn = row[2]
+                if (phn == '.sil') or (phn == '.bn'):
+                    continue
+                label = constants.phns_to_labels[phn]
+                labels.append(label)
+        return labels
+ 
     def _get_segments(self, modifier, id):
         audio_fname = self._get_audio_filename(modifier, id)
         segments = self._get_mfcc(audio_fname)
