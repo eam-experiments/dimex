@@ -30,7 +30,7 @@ from tensorflow.python.framework.tensor_shape import unknown_shape
 import constants
 import recnet
 from associative import AssociativeMemory, AssociativeMemorySystem
-from dimex_sampler import DimexSampler, TaggedAudio
+import dimex
 
 # Translation
 gettext.install('ame', localedir=None, codeset=None, names=None)
@@ -861,9 +861,9 @@ def get_phonemes(labels):
     phonemes = ''
     for label in labels:
         if label is None:
-            phonemes += '-'
+            phonemes += dimex.unknown_phn
         else:
-            phonemes += constants.labels_to_phns[label]
+            phonemes += dimex.labels_to_phns[label]
     return phonemes
     
 
@@ -874,10 +874,12 @@ def save_recognitions(samples, fold):
             # sample is a Tagged Audio
             file.write(sample.id+'\n')
             file.write(sample.text+'\n')
-            net_phonemes = get_phonemes(sample.net_labels)
-            file.write(net_phonemes+'\n')
-            ams_phonemes = get_phonemes(sample.ams_labels)
-            file.write(ams_phonemes+'\n\n')
+            phonemes = get_phonemes(sample.labels)
+            file.write(phonemes + '\n')
+            phonemes = get_phonemes(sample.net_labels)
+            file.write(phonemes+'\n')
+            phonemes = get_phonemes(sample.ams_labels)
+            file.write(phonemes+'\n\n')
 
 
 def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type = None, tolerance = 0):
@@ -893,7 +895,7 @@ def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type =
         maximum = filling_features.max()
         minimum = filling_features.min()
         filling_features = msize_features(filling_features, mem_size, minimum, maximum)
-        ds = DimexSampler()
+        ds = dimex.Sampler()
         samples = ds.get_sample(constants.n_samples)
         samples = recnet.process_samples(samples, fold)
 
@@ -901,13 +903,15 @@ def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type =
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
 
+        dp = dimex.PostProcessor()
         for sample in samples:
+            sample.net_labels = dp.process(sample.net_labels)
             ams_labels = []
             for f in sample.features:
                 features = msize_features(f, mem_size, minimum, maximum)
                 label, _ = ams.recall(features)
                 ams_labels.append(label)
-            sample.ams_labels = np.array(ams_labels)
+            sample.ams_labels = dp.process(ams_labels)
 
         save_recognitions(samples, fold)
         

@@ -25,7 +25,7 @@ from joblib import Parallel, delayed
 import png
 
 import constants
-from dimex_sampler import TaggedAudio
+import dimex
 
 n_frames = constants.n_frames
 n_mfcc = constants.mfcc_numceps
@@ -148,7 +148,7 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     all_labels = np.zeros(labels.shape)
     for i in range(all_labels.size):
         label = labels[i]
-        idx = constants.phns_to_labels[label]
+        idx = dimex.phns_to_labels[label]
         all_labels[i] = idx
 
     # Load DIMEX-100 features and labels
@@ -486,7 +486,7 @@ class SplittedNeuralNetwork:
             to_layer.set_weights(from_layer.get_weights())
 
 
-def process_sample(sample, snnet):
+def process_sample(sample: dimex.TaggedAudio, snnet: SplittedNeuralNetwork):
     features = snnet.encoder.predict(sample.segments)
     labels = snnet.classifier.predict(features)    
     sample.features = features
