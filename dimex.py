@@ -172,7 +172,7 @@ class PostProcessor:
     _FEATURES_DIR_NAME = 'Features'
     _MEANS_FILE_NAME = _FEATURES_DIR_NAME + '/media.npy'
     _STDEV_FILE_NAME = _FEATURES_DIR_NAME + '/std.npy'
-    _INITIAL_HITS = 4
+    _INITIAL_HITS = 3
     _MAX_MISSES = 3
 
     class Parameters:
@@ -189,50 +189,66 @@ class PostProcessor:
             self.prints = 0
 
     def __init__(self):
-        self.params = [ self.Parameters() for i in range(constants.n_labels)]
-        
+        # The list of parameters include one extra element to deal with unknown (None).
+        self.params = [ self.Parameters() for i in range(constants.n_labels+1)]
+
         # Get means per phoneme as a dictionary.
         phn_means = np.load(self._MEANS_FILE_NAME, allow_pickle=True).item()
-
+        unknown_mean = 0
         for phn in phn_means:
             i = phns_to_labels[phn]
             p = self.params[i]
             p.mean = phn_means[phn]
+            unknown_mean += p.mean
+
         phn_stdevs = np.load(self._STDEV_FILE_NAME, allow_pickle=True).item()
+        unknown_stdev = 0
         for phn in phn_stdevs:
             i = phns_to_labels[phn]
             p = self.params[i]
             p.stdev = phn_stdevs[phn]
+            unknown_stdev += p.stdev
+
+        unknown_mean /= constants.n_labels
+        unknown_stdev /= constants.n_labels
+        p = self.params[constants.n_labels]
+        p.mean = unknown_mean
+        p.stdev = unknown_stdev
 
 
     def _get_counters(self):
-        counters = [ self.Counter() for i in range(constants.n_labels)]
-        for i in range(len(self.params)):
+        """ Constructs the list of counters for processing the labels.
+        
+            The list of counters includes one extra element to deal with
+            None (unrecognized).
+        """
+        counters = [ self.Counter() for i in range(constants.n_labels+1)]
+        for i in range(constants.n_labels+1):
             minimum = (self.params[i].mean - self.params[i].stdev)/10.0
             minimum = int(minimum) if minimum > 0.0 else 0
             counters[i].minimum = minimum
             counters[i].maximum = int((self.params[i].mean + self.params[i].stdev)/10.0)
         return counters
 
+
     def process(self, labels):
+        lbls = [constants.n_labels if label is None else label for label in labels]
         phonemes = []
         c = self._get_counters()
-        for label in labels:
-            # Processes the current label (hit).
-            if not (label is None):
-                if c[label].hits == 0:
-                    c[label].hits = self._INITIAL_HITS
-                else:
-                    c[label].hits += 1
-                c[label].misses = 0
-                if c[label].hits > c[label].maximum:
-                    c[label].hits = 0
-                    c[label].prints = 0
-                elif (c[label].hits > c[label].minimum) and (c[label].prints < 1):
-                    phonemes.append(label)   
-                    c[label].prints += 1
+        for label in lbls:
+            if c[label].hits == 0:
+                c[label].hits = self._INITIAL_HITS
+            else:
+                c[label].hits += 1
+            c[label].misses = 0
+            if c[label].hits > c[label].maximum:
+                c[label].hits = 0
+                c[label].prints = 0
+            elif (c[label].hits > c[label].minimum) and (c[label].prints < 1):
+                phonemes.append(label)   
+                c[label].prints += 1
             # Processes other labels (miss).
-            for other in constants.all_labels:
+            for other in range(constants.n_labels+1):
                 if other == label:
                     continue
                 c[other].misses += 1
@@ -241,3 +257,13 @@ class PostProcessor:
                     c[other].misses = 0
                     c[other].prints = 0
         return phonemes
+
+    def get_phonemes(self, labels):
+        phonemes = ''
+        for label in labels:
+            if (label is None) or (labels == constants.n_labels):
+                phonemes += unknown_phn
+            else:
+                phonemes += labels_to_phns[label]
+        return phonemes
+  

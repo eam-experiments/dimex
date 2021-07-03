@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import csv
 import sys
 import gc
 import argparse
@@ -24,6 +25,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import random
 import json
+from numpy.core.defchararray import array
 
 from tensorflow.python.framework.tensor_shape import unknown_shape
 
@@ -844,7 +846,6 @@ def save_history(history, prefix):
     Neural networks stats may come either as a History object, that includes
     a History.history dictionary with stats, or directly as a dictionary.
     """
-
     stats = {}
     stats['history'] = []
     for h in history:
@@ -857,29 +858,51 @@ def save_history(history, prefix):
         json.dump(stats, outfile)
 
 
-def get_phonemes(labels):
-    phonemes = ''
-    for label in labels:
-        if label is None:
-            phonemes += dimex.unknown_phn
-        else:
-            phonemes += dimex.labels_to_phns[label]
-    return phonemes
-    
+def lev(a, b, m):
+    if m[len(a), len(b)] >= 0:
+        return m[len(a),len(b)]
+    elif len(a) == 0:
+        return len(b)
+    elif len(b) == 0:
+        return len(a)
+    elif a[0] == b[0]:
+        d = lev(a[1:], b[1:], m)
+        m[len(a), len(b)] = d
+        return d
+    else:
+        deletion = lev(a[1:], b, m)
+        insertion = lev(a, b[1:], m)
+        replacement = lev(a[1:], b[1:], m)
+        d = min(deletion, insertion, replacement) + 1
+        m[len(a), len(b)] = d
+        return d
 
-def save_recognitions(samples, fold):
+
+def levenshtein(a: list, b: list):
+    m = np.full((len(a)+1, len(b)+1), -1, dtype=int)
+    d = lev(a, b, m)
+    print(m)
+    return d
+
+
+def save_recognitions(samples: list, dp: dimex.PostProcessor, fold: int):
     file_name = constants.recog_filename(constants.recognition_prefix, fold)
+
     with open(file_name, 'w') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Id', 'Text', 'Correct', 'Network','Memories',
+            'Cor2Net', 'Cor2Mem', 'Net2Mem'])
         for sample in samples:
             # sample is a Tagged Audio
-            file.write(sample.id+'\n')
-            file.write(sample.text+'\n')
-            phonemes = get_phonemes(sample.labels)
-            file.write(phonemes + '\n')
-            phonemes = get_phonemes(sample.net_labels)
-            file.write(phonemes+'\n')
-            phonemes = get_phonemes(sample.ams_labels)
-            file.write(phonemes+'\n\n')
+            correct_phns = dp.get_phonemes(sample.labels)
+            nnet_phns = dp.get_phonemes(sample.net_labels)
+            ams_phns = dp.get_phonemes(sample.ams_labels)
+            cor_net = levenshtein(sample.labels, sample.net_labels)
+            cor_mem = levenshtein(sample.labels, sample.ams_labels)
+            net_mem = levenshtein(sample.net_labels, sample.ams_labels)
+            row = [sample.id, sample.text, correct_phns, nnet_phns, ams_phns]
+            row += [cor_net, cor_mem, net_mem]
+            writer.writerow(row)
 
 
 def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type = None, tolerance = 0):
@@ -913,7 +936,7 @@ def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type =
                 ams_labels.append(label)
             sample.ams_labels = dp.process(ams_labels)
 
-        save_recognitions(samples, fold)
+        save_recognitions(samples, dp, fold)
         
 
 
