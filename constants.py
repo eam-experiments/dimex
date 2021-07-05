@@ -171,7 +171,7 @@ def model_filename(s, idx = None):
 
 
 def recog_filename(s, idx = None):
-    return filename(s, idx, extension = '.txt')
+    return csv_filename(s, idx)
 
 
 def image_filename(dir, stage, idx, label, suffix = ''):

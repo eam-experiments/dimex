@@ -107,7 +107,7 @@ class Sampler:
             reader = csv.reader(file, delimiter = ' ')
             row = next(reader)
             # skip the headers
-            while (row[0] != 'END'):
+            while (len(row) == 0) or (row[0] != 'END'):
                 row = next(reader, None)
             for row in reader:
                 if len(row) < 3:
@@ -261,7 +261,7 @@ class PostProcessor:
     def get_phonemes(self, labels):
         phonemes = ''
         for label in labels:
-            if (label is None) or (labels == constants.n_labels):
+            if (label is None) or (label == constants.n_labels):
                 phonemes += unknown_phn
             else:
                 phonemes += labels_to_phns[label]
