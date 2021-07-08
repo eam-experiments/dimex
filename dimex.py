@@ -57,8 +57,9 @@ class Sampler:
     _AUDIO_EXT = '.wav'
     _PHN_EXT = '.phn'
     _IDEAL_SRATE = 16000
-    _SEGMENT_MILLISECONDS = 80
-
+    _SEGMENT_MILLISECONDS = 90
+    _IDEAL_NPERSEG = 64
+    
     def __init__(self):
         """ Creates the random sampler by reading the identifiers file and storing it
             in memory.
@@ -84,11 +85,17 @@ class Sampler:
             audio.labels = self._get_labels(modifier, id)
             audio.segments = self._get_segments(modifier, id)
             audios.append(audio)
-        if n == 1:
-            return audios[0]
-        else:
-            return audios
+        return audios[0] if n == 1 else audios
 
+    def get_data(self):
+        data = []
+        for modifier, id in self._ids:
+            id_data = self._get_audio_data(modifier, id)
+            data += id_data
+        random.shuffle(data)
+        return zip(*data)       
+
+        
     def _get_text(self, modifier, id):
         file_name = self._get_text_filename(modifier, id)
         text = ''
@@ -124,6 +131,60 @@ class Sampler:
         segments = self._get_mfcc(audio_fname)
         return segments
 
+    def _get_audio_data(self, modifier, id):
+        audio_data = []
+        audio_fname = self._get_audio_filename(modifier, id)
+        phns_fname = self._get_phonemes_filename(modifier, id)
+
+        try:
+            waveform = self._get_waveform(audio_fname)
+        except:
+            constants.print_warning(f'Error reading audio file for {id}, {modifier}.')
+            return audio_data
+        try:
+            file = open(phns_fname, 'r')
+        except:
+            constants.print_warning(f'Error reading phns file for {id}, {modifier}.')
+            return audio_data
+
+        spms = self._IDEAL_SRATE/1000
+        step = int(self._SEGMENT_MILLISECONDS*spms)
+        reader = csv.reader(file, delimiter = ' ')
+        row = next(reader)
+        while (len(row) == 0) or (row[0] != 'END'): # skip the headers
+            row = next(reader, None)
+        for row in reader:
+            if len(row) < 3:
+                continue
+            phn = row[2]
+            if (phn == '.sil') or (phn == '.bn'):
+                continue
+            # Start and stop are given in milliseconds
+            start = int(float(row[0])*spms)
+            stop = int(float(row[1])*spms)
+            wf = None
+            if stop - start >= step:
+                wf = waveform[start:start+step]
+            else:
+                wf = waveform[start:stop]
+                padding = step - stop + start
+                wf = np.pad(wf, (0,padding), 'constant', constant_values=(0, 0))
+            _, _, spectrogram = \
+                scipy.signal.spectrogram(wf, nperseg = self._IDEAL_NPERSEG, mode = 'magnitude')
+            label = phns_to_labels[phn]
+            audio_data.append((spectrogram,label))
+        file.close()        
+        return audio_data
+
+    def _get_waveform(self, file_name):
+        sample_rate, waveform = wav.read(file_name)
+        scale = self._IDEAL_SRATE/sample_rate
+        if sample_rate != self._IDEAL_SRATE:
+            new_length = int(len(waveform)*scale)
+            waveform = scipy.signal.resample(waveform, new_length)
+        return waveform
+        
+
     def _get_mfcc(self, audio_fname):
         sample_rate, signal = wav.read(audio_fname)
         if sample_rate != self._IDEAL_SRATE:
@@ -147,6 +208,7 @@ class Sampler:
                 stop = True
             segment = signal[i:j]
             features = mfcc(segment, sample_rate, numcep=constants.mfcc_numceps)
+            print(features.shape)
             features = constants.padding_cropping(features, constants.n_frames)
             segments.append(features)
             i += step
