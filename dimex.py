@@ -57,7 +57,7 @@ class Sampler:
     _AUDIO_EXT = '.wav'
     _PHN_EXT = '.phn'
     _IDEAL_SRATE = 16000
-    _SEGMENT_MILLISECONDS = 80
+    _SEGMENT_MILLISECONDS = 90
 
     def __init__(self):
         """ Creates the random sampler by reading the identifiers file and storing it
