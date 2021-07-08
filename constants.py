@@ -111,6 +111,10 @@ def print_warning(*s):
     print('WARNING:', *s, file = sys.stderr)
 
 
+def print_error(*s):
+    print('ERROR:', *s, file = sys.stderr)
+
+
 def occlusion_suffix(occlusion):
     return '' if occlusion is None else '-occ_' + str(int(round(occlusion*100))).zfill(3)
 

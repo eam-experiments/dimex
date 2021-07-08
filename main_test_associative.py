@@ -30,7 +30,7 @@ from numpy.core.defchararray import array
 from tensorflow.python.framework.tensor_shape import unknown_shape
 
 import constants
-import recnet
+import neunet
 from associative import AssociativeMemory, AssociativeMemorySystem
 import dimex
 
@@ -920,7 +920,7 @@ def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type =
         filling_features = msize_features(filling_features, mem_size, minimum, maximum)
         ds = dimex.Sampler()
         samples = ds.get_sample(constants.n_samples)
-        samples = recnet.process_samples(samples, fold)
+        samples = neunet.process_samples(samples, fold)
 
         ams = AssociativeMemorySystem(constants.all_labels,domain,mem_size)
         for label, features in zip(filling_labels, filling_features):
@@ -958,7 +958,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         model_prefix = constants.model_name
         stats_prefix = constants.stats_model_name
 
-        history = recnet.train_networks(training_percentage, model_prefix, action)
+        history = neunet.train_networks(training_percentage, model_prefix, action)
         save_history(history, stats_prefix)
     elif (action == constants.GET_FEATURES):
         # Generates features for the memories using the previously generated
@@ -970,7 +970,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         labels_prefix = constants.labels_name
         data_prefix = constants.data_name
 
-        history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
+        history = neunet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
             training_percentage, am_filling_percentage, action)
         save_history(history, features_prefix)
     elif action == constants.CHARACTERIZE:
@@ -994,13 +994,13 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         labels_prefix = constants.labels_name
         data_prefix = constants.data_name
 
-        history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
+        history = neunet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
             training_percentage, am_filling_percentage, action, occlusion, bar_type)
         save_history(history, features_prefix)
         characterize_features(constants.domain, action, occlusion, bar_type)
         test_recalling(constants.domain, constants.ideal_memory_size,
             action, occlusion, bar_type, tolerance)
-        recnet.remember(action, occlusion, bar_type, tolerance)
+        neunet.remember(action, occlusion, bar_type, tolerance)
 
 
 

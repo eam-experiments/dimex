@@ -17,8 +17,8 @@ import numpy as np
 from python_speech_features.base import mfcc
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, GRU, Dropout, Dense, AveragePooling1D, \
-    MaxPool1D, Bidirectional, LayerNormalization, Reshape, RepeatVector, TimeDistributed
+from tensorflow.keras.layers import Input, Conv2D, Conv2DTranspose, Dropout, Dense, AveragePooling2D, \
+    Flatten, LayerNormalization, Reshape, RepeatVector, TimeDistributed
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import Callback
 from joblib import Parallel, delayed
@@ -27,147 +27,29 @@ import png
 import constants
 import dimex
 
+img_rows = 32
+img_columns = 24
+img_colors = 1
 n_frames = constants.n_frames
-n_mfcc = constants.mfcc_numceps
 batch_size = 2048
 epochs = 300
 patience = 5
-
-TOP_SIDE = 0
-BOTTOM_SIDE = 1
-LEFT_SIDE = 2
-RIGHT_SIDE = 3
-VERTICAL_BARS = 4
-HORIZONTAL_BARS = 5
-
 truly_training_percentage = 0.80
-
-def print_error(*s):
-    print('Error:', *s, file = sys.stderr)
-
-
-#######################################################################
-# Noise related code.
-
-def add_side_occlusion(data, side_hidden, occlusion):
-    noise_value = 0
-    mid_row = int(round(n_frames*occlusion))
-    mid_col = int(round(n_mfcc*occlusion))
-    origin = (0, 0)
-    end = (0, 0)
-
-    if side_hidden == TOP_SIDE:
-        origin = (0, 0)
-        end = (mid_row, n_mfcc)
-    elif side_hidden ==  BOTTOM_SIDE:
-        origin = (mid_row, 0)
-        end = (n_frames, n_mfcc)
-    elif side_hidden == LEFT_SIDE:
-        origin = (0, 0)
-        end = (n_frames, mid_col)
-    elif side_hidden == RIGHT_SIDE:
-        origin = (0, mid_col)
-        end = (n_frames, n_mfcc)
-
-    for image in data:
-        n, m = origin
-        end_n, end_m = end
-
-        for i in range(n, end_n):
-            for j in range(m, end_m):
-                image[i,j] = noise_value
-
-    return data
-
-
-def add_bars_occlusion(data, bars, n):
-    pattern = constants.bar_patterns[n]
-
-    if bars == VERTICAL_BARS:
-        for image in data:
-            for j in range(n_mfcc):
-                image[:,j] *= pattern[j]     
-    else:
-        for image in data:
-            for i in range(n_frames):
-                image[i,:] *= pattern[i]
-
-    return data
-
-
-def add_noise(data, experiment, occlusion = 0, bars_type = None):
-    # data is assumed to be a numpy array of shape (N, img_rows, img_columns)
-
-    if experiment < constants.EXP_5:
-        return data
-    elif experiment < constants.EXP_9:
-        sides = {constants.EXP_5: TOP_SIDE,  constants.EXP_6: BOTTOM_SIDE,
-                 constants.EXP_7: LEFT_SIDE, constants.EXP_8: RIGHT_SIDE }
-        return add_side_occlusion(data, sides[experiment], occlusion)
-    else:
-        bars = {constants.EXP_9: VERTICAL_BARS,  constants.EXP_10: HORIZONTAL_BARS}
-        return add_bars_occlusion(data, bars[experiment], bars_type)
 
 
 #######################################################################
 # Getting data code
 
-def max_frames(data):
-    """ Calculates maximum number of feature frames.
-
-    Assumes features come as a flatten matrix of (frames, n_mfcc).
-    """
-    maximum = 0
-    for d in data:
-        s = d.size // n_mfcc
-        if s > maximum:
-            maximum = s
-    return maximum
-
-
-def reshape(data, n_frames):
-    """ Restores the flatten matrices (frames, n_mfcc) and pads them vertically.
-    """
-
-    reshaped = []
-    for d in data:
-        frames = d.size // n_mfcc
-        d = d.reshape((frames, n_mfcc))
-        d = constants.padding_cropping(d,n_frames)
-        reshaped.append(d)
-
-    return np.array(reshaped, dtype=np.float32)
-
-
-
-def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
-
+def get_data(experiment, one_hot = False):
     # Load DIMEX-100 labels
-    labels = np.load('Features/rand_Y.npy')
-
-    all_labels = np.zeros(labels.shape)
-    for i in range(all_labels.size):
-        label = labels[i]
-        idx = dimex.phns_to_labels[label]
-        all_labels[i] = idx
-
+    all_labels = np.load('Features/labels.npy')
     # Load DIMEX-100 features and labels
-    all_data = np.load('Features/rand_X.npy', allow_pickle=True) 
-
-    all_data = reshape(all_data, n_frames)
-
-    # all_data = add_noise(all_data, experiment, occlusion, bars_type)
-    # minimum = all_data.min()
-    # maximum = all_data.max()
-    # all_data = (all_data - minimum)/ (maximum-minimum)
-
+    all_data = np.load('Features/data.npy') 
     if one_hot:
         # Changes labels to binary rows. Each label correspond to a column, and only
         # the column for the corresponding label is set to one.
         all_labels = to_categorical(all_labels)
-
     return (all_data, all_labels)
-
 
 def get_weights_bias(labels):
     frequency = {}
@@ -176,55 +58,82 @@ def get_weights_bias(labels):
             frequency[label] += 1
         else:
             frequency[label] = 1
-
     total = len(labels)
     maximum = 0
     for label in frequency:
         if maximum < frequency[label]:
             maximum = frequency[label]
-
     weights = {}
     bias = np.zeros(len(frequency))
     for label in frequency:
         weights[label] = maximum*(1.0/frequency[label])
         bias[int(label)] = math.log(frequency[label]/total)
-
-
     return weights, bias
 
+def conv_block(input_layer, dropout=0.4, first = False):
+    conv_1 = None
+    if first:
+        conv_1 = Conv2D(img_colors,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
+            padding='same', input_shape=(img_columns, img_rows, img_colors))(input_layer)
+    else:
+        conv_1 = Conv2D(img_colors,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
+            padding='same')(input_layer)
+    conv_2 = Conv2D(img_colors,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
+        padding='same')(conv_1)
+    return conv_2
+    
+def vgg_block(parameters, input_layer, dropout=0.4, first = False):
+    conv_1 = None
+    if first:
+        conv_1 = Conv2D(parameters,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
+            padding='same', input_shape=(img_columns, img_rows, img_colors))(input_layer)
+    else:
+        conv_1 = Conv2D(parameters,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
+            padding='same')(input_layer)
+    # conv_2 = Conv2D(parameters,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
+    #    padding='same')(conv_1)
+    pool = AveragePooling2D((2, 2))(conv_1)
+    drop = Dropout(dropout)(pool)
+    return drop
 
-def get_encoder(input_data):
-
-    # Recurrent encoder
-    gru_1 = Bidirectional(GRU(constants.domain // 2))(input_data)
-    drop_1 = Dropout(0.4)(gru_1)
-    norm = LayerNormalization()(drop_1)
-
+def get_encoder(input_img):
+    domain = constants.domain
+    conv = conv_block(input_img, first = True)
+    vgg_1 = vgg_block(domain//16, conv)
+    vgg_2 = vgg_block(domain//8, vgg_1)
+    vgg_3 = vgg_block(domain//4, vgg_2)
+    vgg_4 = vgg_block(domain//2, vgg_3)
+    norm = LayerNormalization()(vgg_4)
     # Produces an array of size equal to constants.domain.
-    return norm
+    code = Flatten()(norm)
+    return code
 
 
 def get_decoder(encoded):
-    repeat_1 = RepeatVector(n_frames)(encoded)
-    gru_1 = GRU(constants.domain, activation='relu', return_sequences=True)(repeat_1)
-    drop_1 = Dropout(0.4)(gru_1)
-    gru_2 = GRU(constants.domain // 2, activation='relu', return_sequences=True)(drop_1)
-    drop_2 = Dropout(0.4)(gru_2)
-    output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop_2)
-
+    ini_rows = img_rows//8
+    ini_cols = img_columns//8
+    dense = Dense(units=ini_rows*ini_cols*constants.domain//2, activation='relu')(encoded)
+    reshape = Reshape((ini_rows, ini_cols, constants.domain//2))(dense)
+    drop_0 = Dropout(0.4)(reshape)
+    trans_1 = Conv2DTranspose(constants.domain//4, kernel_size=3, strides=2,
+        padding='same', activation='relu')(drop_0)
+    drop_1 = Dropout(0.4)(trans_1)
+    trans_2 = Conv2DTranspose(constants.domain//8, kernel_size=3, strides=2,
+        padding='same', activation='relu')(drop_1)
+    drop_2 = Dropout(0.4)(trans_2)
+    output_img = Conv2DTranspose(img_colors, kernel_size=3, strides=2,
+        activation='sigmoid', padding='same', name='autoencoder')(drop_2)
     # Produces an image of same size and channels as originals.
-    return output_mfcc
+    return output_img
 
 
 def get_classifier(encoded, output_bias = None):
     if output_bias is not None:
         output_bias = tf.keras.initializers.Constant(output_bias)
-
     dense_1 = Dense(constants.domain, activation='relu')(encoded)
     drop = Dropout(0.4)(dense_1)
     classification = Dense(constants.n_labels, activation='softmax',
          bias_initializer=output_bias, name='classification')(drop)
-
     return classification
 
 
@@ -253,7 +162,6 @@ class EarlyStoppingAtLossCrossing(Callback):
     def on_epoch_end(self, epoch, logs=None):
         loss = logs.get('loss')
         val_loss = logs.get('val_loss')
-
         if (epoch < self.start) or (val_loss < loss):
             self.wait = 0
             self.best_weights = self.model.get_weights()
@@ -313,18 +221,18 @@ def train_networks(training_percentage, filename, experiment):
         validation_labels = to_categorical(validation_labels)
         testing_labels = to_categorical(testing_labels)
         
-        input_data = Input(shape=(n_frames, n_mfcc))
+        input_data = Input(shape=(img_rows, img_columns, img_colors))
         encoded = get_encoder(input_data)
         classified = get_classifier(encoded, bias)
         decoded = get_decoder(encoded)
         model = Model(inputs=input_data, outputs=[classified, decoded])
         # model = Model(inputs=input_data, outputs=classified)
+        model.summary()
 
         model.compile(loss=['categorical_crossentropy', 'mean_squared_error'],
                     optimizer='adam',
                     metrics='accuracy')
 
-        model.summary()
 
         history = model.fit(training_data,
             (training_labels, training_data),
