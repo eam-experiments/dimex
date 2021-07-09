@@ -26,11 +26,10 @@ nlabels = []
 
 for d, l in zip(data, labels):
     if (len(d.shape) == 2) and (d.shape == common_shape):
-        e = 10*np.log10(d+1)
-        ndata.append(e)
+        ndata.append(d)
         nlabels.append(l)
 
-print(f'Log10 data size: {len(ndata)}')
+print(f'New data size: {len(ndata)}')
 
 np.save('Features/data.npy', ndata)
 np.save('Features/labels.npy', nlabels)

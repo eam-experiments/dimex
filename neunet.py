@@ -1,5 +1,5 @@
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
+# Licensed under the Apache License 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -17,8 +17,9 @@ import numpy as np
 from python_speech_features.base import mfcc
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, Conv2D, Conv2DTranspose, Dropout, Dense, AveragePooling2D, \
+from tensorflow.keras.layers import Input, Conv2D, Conv2DTranspose, Dropout, Dense, MaxPooling2D, \
     Flatten, LayerNormalization, Reshape, RepeatVector, TimeDistributed
+from tensorflow.keras.layers.experimental.preprocessing import Resizing
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import Callback
 from joblib import Parallel, delayed
@@ -27,12 +28,14 @@ import png
 import constants
 import dimex
 
-img_rows = 32
-img_columns = 24
+img_rows = 33
+fit_img_rows = 32
+img_columns = 25
+fit_img_columns = 32
 img_colors = 1
 n_frames = constants.n_frames
 batch_size = 2048
-epochs = 300
+epochs = 1000
 patience = 5
 truly_training_percentage = 0.80
 
@@ -70,42 +73,23 @@ def get_weights_bias(labels):
         bias[int(label)] = math.log(frequency[label]/total)
     return weights, bias
 
-def conv_block(input_layer, dropout=0.4, first = False):
-    conv_1 = None
+def vgg_block(n_conv, parameters, input_layer, k_size=3, dropout=0.4, pool_size=(2,2), first = False):
+    input = input_layer
     if first:
-        conv_1 = Conv2D(img_colors,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
-            padding='same', input_shape=(img_columns, img_rows, img_colors))(input_layer)
-    else:
-        conv_1 = Conv2D(img_colors,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
-            padding='same')(input_layer)
-    conv_2 = Conv2D(img_colors,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
-        padding='same')(conv_1)
-    return conv_2
-    
-def vgg_block(parameters, input_layer, dropout=0.4, first = False):
-    conv_1 = None
-    if first:
-        conv_1 = Conv2D(parameters,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
-            padding='same', input_shape=(img_columns, img_rows, img_colors))(input_layer)
-    else:
-        conv_1 = Conv2D(parameters,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
-            padding='same')(input_layer)
-    # conv_2 = Conv2D(parameters,kernel_size=3, activation='relu', kernel_initializer='he_uniform', 
-    #    padding='same')(conv_1)
-    pool = AveragePooling2D((2, 2))(conv_1)
+        input = Resizing(fit_img_rows,fit_img_rows)(input_layer)
+        # input = LayerNormalization()(input)
+    for i in range(n_conv):
+        input = Conv2D(parameters,kernel_size=k_size, activation='relu', kernel_initializer='he_uniform', padding='same')(input)
+    pool = MaxPooling2D(pool_size)(input)
     drop = Dropout(dropout)(pool)
     return drop
 
 def get_encoder(input_img):
     domain = constants.domain
-    conv = conv_block(input_img, first = True)
-    vgg_1 = vgg_block(domain//16, conv)
-    vgg_2 = vgg_block(domain//8, vgg_1)
-    vgg_3 = vgg_block(domain//4, vgg_2)
-    vgg_4 = vgg_block(domain//2, vgg_3)
-    norm = LayerNormalization()(vgg_4)
-    # Produces an array of size equal to constants.domain.
-    code = Flatten()(norm)
+    vgg_0 = vgg_block(2, img_colors, input_img, first = True)
+    vgg_1 = vgg_block(2, domain//32, vgg_0)
+    vgg_2 = vgg_block(2, domain//16, vgg_1)
+    code = Flatten()(vgg_2)
     return code
 
 
@@ -225,27 +209,30 @@ def train_networks(training_percentage, filename, experiment):
         encoded = get_encoder(input_data)
         classified = get_classifier(encoded, bias)
         decoded = get_decoder(encoded)
-        model = Model(inputs=input_data, outputs=[classified, decoded])
-        # model = Model(inputs=input_data, outputs=classified)
+        # model = Model(inputs=input_data, outputs=[classified, decoded])
+        model = Model(inputs=input_data, outputs=classified)
         model.summary()
 
-        model.compile(loss=['categorical_crossentropy', 'mean_squared_error'],
+        # model.compile(loss=['categorical_crossentropy', 'mean_squared_error'],
+        #             optimizer='adam',
+        #             metrics='accuracy')
+        model.compile(loss='categorical_crossentropy',
                     optimizer='adam',
                     metrics='accuracy')
 
 
         history = model.fit(training_data,
-            (training_labels, training_data),
+            training_labels,
                 batch_size=batch_size,
                 epochs=epochs,
-                validation_data= (validation_data,
-                    {'classification': validation_labels, 'autoencoder': validation_data}),
+                validation_data=(validation_data,
+                    validation_labels),
                 callbacks=[EarlyStoppingAtLossCrossing(patience)],
                 verbose=2)
 
         histories.append(history)
         history = model.evaluate(testing_data,
-            (testing_labels, testing_data),return_dict=True)
+            testing_labels,return_dict=True)
         histories.append(history)
         model.save(constants.model_filename(filename, n))
         n += 1
