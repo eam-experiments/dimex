@@ -1,3 +1,5 @@
+# Copyright [2020] Luis Alberto Pineda Cortés, Gibrán Fuentes Pineda,
+# Rafael Morales Gamboa.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,24 +16,19 @@
 import sys
 import math
 import numpy as np
-from python_speech_features.base import mfcc
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, GRU, Dropout, Dense, AveragePooling1D, \
-    MaxPool1D, Bidirectional, LayerNormalization, Reshape, RepeatVector, TimeDistributed
+from tensorflow.keras.layers import Input, GRU, Dropout, Dense, \
+    Bidirectional, LayerNormalization, Reshape, RepeatVector, TimeDistributed
 from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.callbacks import Callback
 from joblib import Parallel, delayed
 import png
 
 import constants
-import dimex
 
 n_frames = constants.n_frames
-n_mfcc = constants.mfcc_numceps
-batch_size = 2048
-epochs = 300
-patience = 5
+
+n_mfcc = 26
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
@@ -125,6 +122,21 @@ def max_frames(data):
     return maximum
 
 
+def padding_cropping(data, n_frames):
+
+    frames, _  = data.shape
+    df = n_frames - frames
+    if df == 0:
+        return data
+    elif df < 0:
+        return data[:n_frames]
+    else:
+        top_padding = df // 2
+        bottom_padding = df - top_padding
+        return np.pad(data, ((top_padding, bottom_padding),(0,0)),
+            'constant', constant_values=((0,0),(0,0)))
+
+
 def reshape(data, n_frames):
     """ Restores the flatten matrices (frames, n_mfcc) and pads them vertically.
     """
@@ -133,7 +145,7 @@ def reshape(data, n_frames):
     for d in data:
         frames = d.size // n_mfcc
         d = d.reshape((frames, n_mfcc))
-        d = constants.padding_cropping(d,n_frames)
+        d = padding_cropping(d,n_frames)
         reshaped.append(d)
 
     return np.array(reshaped, dtype=np.float32)
@@ -142,13 +154,27 @@ def reshape(data, n_frames):
 
 def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
 
+    # Load dictionary with labels as keys (structured array) 
+    label_idx = np.load('Features/media.npy', allow_pickle=True).item()
+
+    if constants.n_labels != len(label_idx):
+        print_error("Inconsistent number of labels: ", len(label_idx))
+        exit(1)
+    
     # Load DIMEX-100 labels
     labels = np.load('Features/rand_Y.npy')
+
+    # Replaces actual labels (letter codes for sounds) by
+    # numbers from 0 to N-1, where N is the number of labels.
+    idx = 0
+    for label in label_idx:
+        label_idx[label] = idx
+        idx += 1
 
     all_labels = np.zeros(labels.shape)
     for i in range(all_labels.size):
         label = labels[i]
-        idx = dimex.phns_to_labels[label]
+        idx = label_idx[label]
         all_labels[i] = idx
 
     # Load DIMEX-100 features and labels
@@ -157,14 +183,14 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     all_data = reshape(all_data, n_frames)
 
     # all_data = add_noise(all_data, experiment, occlusion, bars_type)
-    # minimum = all_data.min()
-    # maximum = all_data.max()
-    # all_data = (all_data - minimum)/ (maximum-minimum)
+    minimum = all_data.min()
+    maximum = all_data.max()
+    all_data = (all_data - minimum)/ (maximum-minimum)
 
-    if one_hot:
-        # Changes labels to binary rows. Each label correspond to a column, and only
-        # the column for the corresponding label is set to one.
-        all_labels = to_categorical(all_labels)
+    # if one_hot:
+    #     # Changes labels to binary rows. Each label correspond to a column, and only
+    #     # the column for the corresponding label is set to one.
+    #     all_labels = to_categorical(all_labels)
 
     return (all_data, all_labels)
 
@@ -196,21 +222,22 @@ def get_weights_bias(labels):
 def get_encoder(input_data):
 
     # Recurrent encoder
-    gru_1 = Bidirectional(GRU(constants.domain // 2))(input_data)
+    gru_1 = Bidirectional(GRU(constants.domain, return_sequences=True))(input_data)
     drop_1 = Dropout(0.4)(gru_1)
-    norm = LayerNormalization()(drop_1)
+    gru_2 = Bidirectional(GRU(constants.domain // 2))(drop_1) 
+    norm = LayerNormalization()(gru_2)
 
     # Produces an array of size equal to constants.domain.
-    return norm
+    code = norm
+
+    return code
 
 
 def get_decoder(encoded):
-    repeat_1 = RepeatVector(n_frames)(encoded)
+    repeat_1 = RepeatVector(constants.n_frames)(encoded)
     gru_1 = GRU(constants.domain, activation='relu', return_sequences=True)(repeat_1)
     drop_1 = Dropout(0.4)(gru_1)
-    gru_2 = GRU(constants.domain // 2, activation='relu', return_sequences=True)(drop_1)
-    drop_2 = Dropout(0.4)(gru_2)
-    output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop_2)
+    output_mfcc = TimeDistributed(Dense(n_mfcc))(drop_1)
 
     # Produces an image of same size and channels as originals.
     return output_mfcc
@@ -220,7 +247,7 @@ def get_classifier(encoded, output_bias = None):
     if output_bias is not None:
         output_bias = tf.keras.initializers.Constant(output_bias)
 
-    dense_1 = Dense(constants.domain, activation='relu')(encoded)
+    dense_1 = Dense(constants.domain*2, activation='relu')(encoded)
     drop = Dropout(0.4)(dense_1)
     classification = Dense(constants.n_labels, activation='softmax',
          bias_initializer=output_bias, name='classification')(drop)
@@ -228,56 +255,15 @@ def get_classifier(encoded, output_bias = None):
     return classification
 
 
-class EarlyStoppingAtLossCrossing(Callback):
-    """ Stop training when the loss gets lower than val_loss.
-
-        Arguments:
-            patience: Number of epochs to wait after condition has been hit.
-            After this number of no reversal, training stops.
-            It starts working after 10% of epochs have taken place.
-    """
-
-    def __init__(self, patience=0):
-        super(EarlyStoppingAtLossCrossing, self).__init__()
-        self.patience = patience
-        # best_weights to store the weights at which the loss crossing occurs.
-        self.best_weights = None
-        self.start = epochs // 10
-
-    def on_train_begin(self, logs=None):
-        # The number of epoch it has waited since loss crossed val_loss.
-        self.wait = 0
-        # The epoch the training stops at.
-        self.stopped_epoch = 0
-
-    def on_epoch_end(self, epoch, logs=None):
-        loss = logs.get('loss')
-        val_loss = logs.get('val_loss')
-
-        if (epoch < self.start) or (val_loss < loss):
-            self.wait = 0
-            self.best_weights = self.model.get_weights()
-        else:
-            self.wait += 1
-            if self.wait >= self.patience:
-                self.stopped_epoch = epoch
-                self.model.stop_training = True
-                print("Restoring model weights from the end of the best epoch.")
-                self.model.set_weights(self.best_weights)
-
-    def on_train_end(self, logs=None):
-        if self.stopped_epoch > 0:
-            print("Epoch %05d: early stopping" % (self.stopped_epoch + 1))
-
-
 def train_networks(training_percentage, filename, experiment):
 
+    EPOCHS = constants.model_epochs
     stages = constants.training_stages
 
     (data, labels) = get_data(experiment)
 
     total = len(data)
-    step = total/stages
+    step = int(total/stages)
 
     # Amount of training data, from which a percentage is used for
     # validation.
@@ -285,21 +271,15 @@ def train_networks(training_percentage, filename, experiment):
 
     n = 0
     histories = []
-    for k in range(stages):
-        i = k*step
-        j = int(i + training_size) % total
-        i = int(i)
+    for i in range(0, total, step):
+        j = (i + training_size) % total
 
         if j > i:
             training_data = data[i:j]
             training_labels = labels[i:j]
-            testing_data = np.concatenate((data[0:i], data[j:total]), axis=0)
-            testing_labels = np.concatenate((labels[0:i], labels[j:total]), axis=0)
         else:
             training_data = np.concatenate((data[i:total], data[0:j]), axis=0)
             training_labels = np.concatenate((labels[i:total], labels[0:j]), axis=0)
-            testing_data = data[j:i]
-            testing_labels = labels[j:i]
 
         truly_training = int(training_size*truly_training_percentage)
 
@@ -309,10 +289,6 @@ def train_networks(training_percentage, filename, experiment):
         training_labels = training_labels[:truly_training]
 
         weights, bias = get_weights_bias(training_labels)
-        training_labels = to_categorical(training_labels)
-        validation_labels = to_categorical(validation_labels)
-        testing_labels = to_categorical(testing_labels)
-        
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
         classified = get_classifier(encoded, bias)
@@ -320,24 +296,26 @@ def train_networks(training_percentage, filename, experiment):
         model = Model(inputs=input_data, outputs=[classified, decoded])
         # model = Model(inputs=input_data, outputs=classified)
 
-        model.compile(loss=['categorical_crossentropy', 'mean_squared_error'],
+        model.compile(loss=['categorical_crossentropy', 'binary_crossentropy'],
                     optimizer='adam',
                     metrics='accuracy')
+        # model.compile(loss='SparseCategoricalCrossentropy', optimizer='adam',
+        #             metrics='accuracy')
 
         model.summary()
 
-        history = model.fit(training_data,
-            (training_labels, training_data),
-                batch_size=batch_size,
-                epochs=epochs,
-                validation_data= (validation_data,
-                    {'classification': validation_labels, 'autoencoder': validation_data}),
-                callbacks=[EarlyStoppingAtLossCrossing(patience)],
-                verbose=2)
+        # history = model.fit(training_data,
+        #         (training_labels, training_data),
+        #         batch_size=100,
+        #         epochs=EPOCHS,
+        #         validation_data= (testing_data,
+        #             {'classification': testing_labels, 'autoencoder': testing_data}),
+        #         verbose=2)
+        history = model.fit(training_data, training_labels,
+                batch_size=2048, epochs=EPOCHS,
+                validation_data= (validation_data,validation_labels),
+                class_weight=weights, verbose=2)
 
-        histories.append(history)
-        history = model.evaluate(testing_data,
-            (testing_labels, testing_data),return_dict=True)
         histories.append(history)
         model.save(constants.model_filename(filename, n))
         n += 1
@@ -380,8 +358,7 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
     (data, labels) = get_data(experiment, occlusion, bars_type)
 
     total = len(data)
-    stages = constants.training_stages
-    step = total/stages
+    step = int(total/constants.training_stages)
 
     # Amount of data used for training the networks
     trdata = int(total*training_percentage)
@@ -391,10 +368,8 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
 
     n = 0
     histories = []
-    for k in range(stages):
-        i = k*step
-        j = int(i + tedata) % total
-        i = int(i)
+    for i in range(0, total, step):
+        j = (i + tedata) % total
 
         if j > i:
             testing_data = data[i:j]
@@ -417,7 +392,8 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
         model = tf.keras.models.load_model(constants.model_filename(model_prefix, n))
 
         # Drop the autoencoder and the last layers of the full connected neural network part.
-        classifier = Model(model.input, model.output[0])
+        # classifier = Model(model.input, model.output[0])
+        classifier = model
         no_hot = to_categorical(testing_labels)
         classifier.compile(optimizer='adam', loss='categorical_crossentropy', metrics='accuracy')
         history = classifier.evaluate(testing_data, no_hot, batch_size=100, verbose=1, return_dict=True)
@@ -455,50 +431,79 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
     return histories
 
 
-class SplittedNeuralNetwork:
-    def __init__ (self, n):
-        model_filename = constants.model_filename(constants.model_name, n)
+def remember(experiment, occlusion = None, bars_type = None, tolerance = 0):
+    """ Creates images from features.
+    
+    Uses the decoder part of the neural networks to (re)create images from features.
+
+    Parameters
+    ----------
+    experiment : TYPE
+        DESCRIPTION.
+    occlusion : TYPE, optional
+        DESCRIPTION. The default is None.
+    tolerance : TYPE, optional
+        DESCRIPTION. The default is 0.
+
+    Returns
+    -------
+    None.
+
+    """
+
+    for i in range(constants.training_stages):
+        testing_data_filename = constants.data_name + constants.testing_suffix
+        testing_data_filename = constants.data_filename(testing_data_filename, i)
+        testing_features_filename = constants.features_name(experiment, occlusion, bars_type) + constants.testing_suffix
+        testing_features_filename = constants.data_filename(testing_features_filename, i)
+        testing_labels_filename = constants.labels_name + constants.testing_suffix
+        testing_labels_filename = constants.data_filename(testing_labels_filename, i)
+        memories_filename = constants.memories_name(experiment, occlusion, bars_type, tolerance)
+        memories_filename = constants.data_filename(memories_filename, i)
+        labels_filename = constants.labels_name + constants.memory_suffix
+        labels_filename = constants.data_filename(labels_filename, i)
+        model_filename = constants.model_filename(constants.model_name, i)
+
+        testing_data = np.load(testing_data_filename)
+        testing_features = np.load(testing_features_filename)
+        testing_labels = np.load(testing_labels_filename)
+        memories = np.load(memories_filename)
+        labels = np.load(labels_filename)
         model = tf.keras.models.load_model(model_filename)
-        classifier = Model(model.input, model.output[0])
+
+        # Drop the classifier.
         autoencoder = Model(model.input, model.output[1])
+        autoencoder.summary()
 
-        input_enc = Input(shape=(n_frames, n_mfcc))
-        input_cla = Input(shape=(constants.domain, ))
-        input_dec = Input(shape=(constants.domain, ))
-        encoded = get_encoder(input_enc)
-        classified = get_classifier(input_cla)
-        decoded = get_decoder(input_dec)
+        # Drop the encoder
+        input_mem = Input(shape=(constants.domain, ))
+        decoded = get_decoder(input_mem)
+        decoder = Model(inputs=input_mem, outputs=decoded)
+        decoder.summary()
 
-        self.encoder = Model(inputs = input_enc, outputs = encoded)
-        self.encoder.summary()
-        self.classifier = Model(inputs = input_cla, outputs = classified)
-        self.classifier.summary()
-        self.decoder = Model(inputs=input_dec, outputs=decoded)
-        self.decoder.summary()
+        for dlayer, alayer in zip(decoder.layers[1:], autoencoder.layers[11:]):
+            dlayer.set_weights(alayer.get_weights())
 
-        for from_layer, to_layer in zip(classifier.layers[1:4], self.encoder.layers[1:]):
-            to_layer.set_weights(from_layer.get_weights())
+        produced_images = decoder.predict(testing_features)
+        n = len(testing_labels)
 
-        for from_layer, to_layer in zip(classifier.layers[4:], self.classifier.layers[1:]):
-            to_layer.set_weights(from_layer.get_weights())
+        Parallel(n_jobs=constants.n_jobs, verbose=5)( \
+            delayed(store_images)(original, produced, constants.testing_directory(experiment, occlusion, bars_type), i, j, label) \
+                for (j, original, produced, label) in \
+                    zip(range(n), testing_data, produced_images, testing_labels))
 
-        for from_layer, to_layer in zip(autoencoder.layers[4:], self.decoder.layers[1:]):
-            to_layer.set_weights(from_layer.get_weights())
+        total = len(memories)
+        steps = len(constants.memory_fills)
+        step_size = int(total/steps)
 
+        for j in range(steps):
+            print('Decoding memory size ' + str(j) + ' and stage ' + str(i))
+            start = j*step_size
+            end = start + step_size
+            mem_data = memories[start:end]
+            mem_labels = labels[start:end]
+            produced_images = decoder.predict(mem_data)
 
-def process_sample(sample: dimex.TaggedAudio, snnet: SplittedNeuralNetwork):
-    features = snnet.encoder.predict(sample.segments)
-    labels = snnet.classifier.predict(features)    
-    sample.features = features
-    sample.net_labels = np.argmax(labels, axis=1)
-    return sample
-
-
-def process_samples(samples, fold):
-    snnet = SplittedNeuralNetwork(fold)
-
-    new_samples = []
-    for sample in samples: 
-        new_sample = process_sample(sample, snnet)
-        new_samples.append(new_sample)
-    return new_samples
+            Parallel(n_jobs=constants.n_jobs, verbose=5)( \
+                delayed(store_memories)(label, produced, features, constants.memories_directory(experiment, occlusion, bars_type, tolerance), i, j) \
+                    for (produced, features, label) in zip(produced_images, mem_data, mem_labels))
