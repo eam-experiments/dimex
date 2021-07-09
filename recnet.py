@@ -196,7 +196,9 @@ def get_weights_bias(labels):
 def get_encoder(input_data):
 
     # Recurrent encoder
-    gru_1 = Bidirectional(GRU(constants.domain // 2))(input_data)
+    gru_0 = GRU(constants.domain, return_sequences=True))(input_data)
+    drop_0 = Dropout(0.4)(gru_0)
+    gru_1 = GRU(constants.domain)(drop_0)
     drop_1 = Dropout(0.4)(gru_1)
     norm = LayerNormalization()(drop_1)
 
