@@ -69,7 +69,7 @@ class AssociativeMemory(object):
         v = self.relation.sum(axis=0)  # number of marked cells in the columns
         for vi in v:
             if vi != 0:
-                e += np.log2(1.0 / vi)
+                e -= np.log2(vi)
         e *= (-1.0 / self.n)
         return e
 
