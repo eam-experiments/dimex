@@ -30,7 +30,7 @@ import dimex
 n_frames = constants.n_frames
 n_mfcc = constants.mfcc_numceps
 batch_size = 2048
-epochs = 300
+epochs = 150
 patience = 5
 
 TOP_SIDE = 0
@@ -196,13 +196,9 @@ def get_weights_bias(labels):
 def get_encoder(input_data):
 
     # Recurrent encoder
-    gru_0 = GRU(constants.domain, return_sequences=True))(input_data)
+    gru_0 = GRU(constants.domain)(input_data)
     drop_0 = Dropout(0.4)(gru_0)
-    gru_1 = GRU(constants.domain)(drop_0)
-    drop_1 = Dropout(0.4)(gru_1)
-    norm = LayerNormalization()(drop_1)
-
-    # Produces an array of size equal to constants.domain.
+    norm = LayerNormalization()(drop_0)
     return norm
 
 
