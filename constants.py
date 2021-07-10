@@ -67,8 +67,9 @@ label_formats = ['r:v', 'y--d', 'g-.4', 'y-.3', 'k-.8', 'y--^',
 
 precision_idx = 0
 recall_idx = 1
-entropy_idx = 2
-n_measures = 3
+entropy_avg_idx = 2
+entropy_std_idx = 3
+n_measures = 4
 
 no_response_idx = 2
 no_correct_response_idx = 3
