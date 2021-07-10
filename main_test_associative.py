@@ -178,31 +178,25 @@ def plot_features_graph(domain, means, stdevs, experiment, occlusion = None, bar
         yx = (means[i] + stdevs[i]).max()
         ymin = ymin if ymin < yn else yn
         ymax = ymax if ymax > yx else yx
-
     main_step = 100.0 / domain
     xrange = np.arange(0, 100, main_step)
     fmts = constants.label_formats
-
     for i in constants.all_labels:
         plt.clf()
         plt.figure(figsize=(12,5))
-
         plt.errorbar(xrange, means[i], fmt=fmts[i], yerr=stdevs[i], label=str(i))
         plt.xlim(0, 100)
         plt.ylim(ymin, ymax)
         plt.xticks(xrange, labels='')
-
         plt.xlabel(_('Features'))
         plt.ylabel(_('Values'))
         plt.legend(loc='right')
         plt.grid(True)
-
         filename = constants.features_name(experiment, occlusion, bars_type) + '-' + str(i) + _('-english')
         plt.savefig(constants.picture_filename(filename), dpi=500)
 
 
 def get_label(memories, entropies = None):
-
     # Random selection
     if entropies is None:
         i = random.atddrange(len(memories))
@@ -215,16 +209,18 @@ def get_label(memories, entropies = None):
             if entropy > entropies[j]:
                 i = j
                 entropy = entropies[i]
-    
     return i
 
 
 def msize_features(features, msize, min_value, max_value):
     return np.round((msize-1)*(features-min_value) / (max_value-min_value)).astype(np.int16)
-    
+
+
+def conf_sum(cms, t):
+    return np.sum([cms[i][t] for i in range(len(cms))])
+
 
 def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance=0):
-
     # Round the values
     max_value = trf.max()
     other_value = tef.max()
@@ -238,21 +234,21 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance=0):
     tef_rounded = msize_features(tef, msize, min_value, max_value)
 
     n_labels = constants.n_labels
-    nmems = int(n_labels/lpm)
+    n_mems = int(n_labels/lpm)
 
     measures = np.zeros(constants.n_measures, dtype=np.float64)
-    entropy = np.zeros(nmems, dtype=np.float64)
+    entropy = np.zeros(n_mems, dtype=np.float64)
     behaviour = np.zeros(constants.n_behaviours, dtype=np.float64)
 
     # Confusion matrix for calculating precision and recall per memory.
-    cms = np.zeros((nmems, 2, 2))
+    cms = np.zeros((n_mems, 2, 2), dtype='int')
     TP = (0,0)
     FP = (0,1)
     FN = (1,0)
     TN = (1,1)
 
     # Create the required associative memories.
-    ams = dict.fromkeys(range(nmems))
+    ams = dict.fromkeys(range(n_mems))
     for m in ams:
         ams[m] = AssociativeMemory(domain, msize, tolerance)
 
@@ -308,20 +304,27 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance=0):
     behaviour[constants.precision_idx] = all_precision
     behaviour[constants.recall_idx] = all_recall
 
-    measures[constants.precision_idx] = np.sum(cms[:,TP])/np.sum(cms[:,TP] + cms[:,FP])
-    measures[constants.recall_idx] = np.sum(cms[:,TP])/np.sum(cms[:,TP] + cms[:,FN])
+    positives = conf_sum(cms, TP) + conf_sum(cms, FP)
+    details = True
+    if positives == 0:
+        print('No memory responded')
+        measures[constants.precision_idx] = 1.0
+        details = False
+    else:
+        measures[constants.precision_idx] = conf_sum(cms, TP)/positives
+    measures[constants.recall_idx] = conf_sum(cms, TP)/(conf_sum(cms, TP) + conf_sum(cms, FN))
     measures[constants.entropy_avg_idx] = np.mean(entropy)
     measures[constants.entropy_std_idx] = np.std(entropy)
-    for m in range(nmems):
-        total_positives = cms[m][TP] + cms[m][FP]
-        if total_positives == 0:
-            print(f'Memory {m} in run {midx}, memory size {msize}, did not respond.')
-   
+ 
+    if details:
+        for i in range(n_mems):
+            positives = cms[i][TP] + cms[i][FP]
+            if positives == 0:
+                print(f'Memory {i} filled with {fill} in run {idx} did not respond.')
     return (midx, measures, behaviour)
     
 
 def test_memories(domain, experiment, tolerance=0):
-
     average_entropy = []
     stdev_entropy = []
     precision = []
@@ -552,15 +555,15 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
             else:
                 cmatrix[FP] += 1
 
-    positives = np.sum(cms[:,TP] + cms[:,FP])
+    positives = conf_sum(cms, TP) + conf_sum(cms, FP)
     details = True
     if positives == 0:
         print('No memory responded')
         measures[constants.precision_idx] = 1.0
         details = False
     else:
-        measures[constants.precision_idx] = np.sum(cms[:,TP])/np.sum(cms[:,TP] + cms[:,FP])
-    measures[constants.recall_idx] = np.sum(cms[:,TP])/np.sum(cms[:,TP] + cms[:,FN])
+        measures[constants.precision_idx] = conf_sum(cms, TP)/positives
+    measures[constants.recall_idx] = conf_sum(cms, TP)/(conf_sum(cms, TP) + conf_sum(cms, FN))
     measures[constants.entropy_avg_idx] = np.mean(entropy)
     measures[constants.entropy_std_idx] = np.std(entropy)
  
