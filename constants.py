@@ -50,7 +50,7 @@ memory_suffix = '-memories'
 
 mfcc_numceps = 26
 training_stages = 10 
-domain = 64
+domain = 256
 n_frames = 8
 n_jobs = 4
 
