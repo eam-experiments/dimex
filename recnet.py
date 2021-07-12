@@ -171,23 +171,18 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
 
 def get_weights_bias(labels):
     frequency = {}
+    for label in constants.all_labels:
+        frequency[label] = 0.0
     for label in labels:
-        if label in frequency:
-            frequency[label] += 1
-        else:
-            frequency[label] = 1
-
-    total = len(labels)
-    maximum = 0
+        frequency[label] += 1.0
+    total = 1.0*len(labels)
     for label in frequency:
-        if maximum < frequency[label]:
-            maximum = frequency[label]
-
+        frequency[label] = frequency[label]/total if frequency[label] > 0 else 1.0/total
     weights = {}
-    bias = np.zeros(len(frequency))
+    bias = np.zeros(constants.n_labels)
     for label in frequency:
-        weights[label] = maximum*(1.0/frequency[label])
-        bias[int(label)] = math.log(frequency[label]/total)
+        weights[label] = 1.0 - frequency[label]
+        bias[label] = math.log(frequency[label])
 
 
     return weights, bias
@@ -328,6 +323,7 @@ def train_networks(training_percentage, filename, experiment):
             (training_labels, training_data),
                 batch_size=batch_size,
                 epochs=epochs,
+            #    class_weight=weights, # Only supported for single output models.
                 validation_data= (validation_data,
                     {'classification': validation_labels, 'autoencoder': validation_data}),
                 callbacks=[EarlyStoppingAtLossCrossing(patience)],
