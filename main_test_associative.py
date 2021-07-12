@@ -320,7 +320,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance=0):
         for i in range(n_mems):
             positives = cms[i][TP] + cms[i][FP]
             if positives == 0:
-                print(f'Memory {i} filled with {fill} in run {idx} did not respond.')
+                print(f'Memory {i} of size {msize} in run did not respond.')
     return (midx, measures, behaviour)
     
 
