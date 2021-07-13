@@ -30,7 +30,7 @@ import dimex
 n_frames = constants.n_frames
 n_mfcc = constants.mfcc_numceps
 batch_size = 2048
-epochs = 150
+epochs = 50
 patience = 5
 
 TOP_SIDE = 0
@@ -191,9 +191,13 @@ def get_weights_bias(labels):
 def get_encoder(input_data):
 
     # Recurrent encoder
-    gru_0 = GRU(constants.domain)(input_data)
-    drop_0 = Dropout(0.4)(gru_0)
-    norm = LayerNormalization()(drop_0)
+    gru = GRU(constants.domain, return_sequences=True)(input_data)
+    drop = Dropout(0.4)(gru)
+    gru = GRU(constants.domain, return_sequences=True)(drop)
+    drop = Dropout(0.4)(gru)
+    gru = GRU(constants.domain)(drop)
+    drop = Dropout(0.4)(gru)
+    norm = LayerNormalization()(drop)
     return norm
 
 
@@ -310,24 +314,34 @@ def train_networks(training_percentage, filename, experiment):
         encoded = get_encoder(input_data)
         classified = get_classifier(encoded, bias)
         decoded = get_decoder(encoded)
-        model = Model(inputs=input_data, outputs=[classified, decoded])
-        # model = Model(inputs=input_data, outputs=classified)
-
-        model.compile(loss=['categorical_crossentropy', 'mean_squared_error'],
+        # model = Model(inputs=input_data, outputs=[classified, decoded])
+        model = Model(inputs=input_data, outputs=classified)
+        # model.compile(loss=['categorical_crossentropy', 'mean_squared_error'],
+        #             optimizer='adam',
+        #             metrics='accuracy')
+        model.compile(loss='categorical_crossentropy',
                     optimizer='adam',
                     metrics='accuracy')
-
         model.summary()
 
+        # history = model.fit(training_data,
+        #     (training_labels, training_data),
+        #         batch_size=batch_size,
+        #         epochs=epochs,
+        #     #    class_weight=weights, # Only supported for single output models.
+        #         validation_data= (validation_data,
+        #             {'classification': validation_labels, 'autoencoder': validation_data}),
+        #         callbacks=[EarlyStoppingAtLossCrossing(patience)],
+        #         verbose=2)
         history = model.fit(training_data,
-            (training_labels, training_data),
+                training_labels,
                 batch_size=batch_size,
                 epochs=epochs,
-            #    class_weight=weights, # Only supported for single output models.
-                validation_data= (validation_data,
-                    {'classification': validation_labels, 'autoencoder': validation_data}),
+                class_weight=weights, # Only supported for single output models.
+                validation_data= (validation_data, validation_labels),
                 callbacks=[EarlyStoppingAtLossCrossing(patience)],
                 verbose=2)
+
 
         histories.append(history)
         history = model.evaluate(testing_data,
@@ -411,7 +425,8 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
         model = tf.keras.models.load_model(constants.model_filename(model_prefix, n))
 
         # Drop the autoencoder and the last layers of the full connected neural network part.
-        classifier = Model(model.input, model.output[0])
+        # classifier = Model(model.input, model.output[0])
+        classifier = Model(model.input, model.output)
         no_hot = to_categorical(testing_labels)
         classifier.compile(optimizer='adam', loss='categorical_crossentropy', metrics='accuracy')
         history = classifier.evaluate(testing_data, no_hot, batch_size=100, verbose=1, return_dict=True)
