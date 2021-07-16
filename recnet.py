@@ -30,7 +30,7 @@ import dimex
 n_frames = constants.n_frames
 n_mfcc = constants.mfcc_numceps
 batch_size = 2048
-epochs = 50
+epochs = 100
 patience = 5
 
 TOP_SIDE = 0
@@ -189,14 +189,17 @@ def get_weights_bias(labels):
 
 
 def get_encoder(input_data):
-
+    in_dropout=0.0
+    out_dropout=0.4
     # Recurrent encoder
-    gru = GRU(constants.domain, return_sequences=True)(input_data)
-    drop = Dropout(0.4)(gru)
-    gru = GRU(constants.domain, return_sequences=True)(drop)
-    drop = Dropout(0.4)(gru)
-    gru = GRU(constants.domain)(drop)
-    drop = Dropout(0.4)(gru)
+    gru = GRU(constants.domain, dropout=in_dropout, return_sequences=True)(input_data)
+    drop = Dropout(out_dropout)(gru)
+    # gru = GRU(constants.domain, dropout=in_dropout, return_sequences=True)(drop)
+    # drop = Dropout(out_dropout)(gru)
+    # gru = GRU(constants.domain, dropout=in_dropout, return_sequences=True)(drop)
+    # drop = Dropout(out_dropout)(gru)
+    gru = GRU(constants.domain, dropout=in_dropout)(drop)
+    drop = Dropout(out_dropout)(gru)
     norm = LayerNormalization()(drop)
     return norm
 
@@ -237,9 +240,11 @@ class EarlyStoppingAtLossCrossing(Callback):
     def __init__(self, patience=0):
         super(EarlyStoppingAtLossCrossing, self).__init__()
         self.patience = patience
+        self.prev_loss = float('inf')
         # best_weights to store the weights at which the loss crossing occurs.
         self.best_weights = None
         self.start = epochs // 10
+        self.wait = 0
 
     def on_train_begin(self, logs=None):
         # The number of epoch it has waited since loss crossed val_loss.
@@ -251,8 +256,9 @@ class EarlyStoppingAtLossCrossing(Callback):
         loss = logs.get('loss')
         val_loss = logs.get('val_loss')
 
-        if (epoch < self.start) or (val_loss < loss):
+        if (epoch < self.start) or (val_loss < self.prev_loss):
             self.wait = 0
+            self.prev_loss = val_loss
             self.best_weights = self.model.get_weights()
         else:
             self.wait += 1
