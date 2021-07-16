@@ -907,13 +907,18 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
     command line.
     """
 
-    if (action == constants.TRAIN_NN):
-        # Trains the neural networks.
+    if (action == constants.TRAIN_CLASSIFIER):
+        # Trains the classifier.
         training_percentage = constants.nn_training_percent
-        model_prefix = constants.model_name
-        stats_prefix = constants.stats_model_name
-
-        history = recnet.train_networks(training_percentage, model_prefix, action)
+        model_prefix = constants.model_name + constants.classifier_suffix
+        stats_prefix = constants.stats_model_name + constants.classifier_suffix
+        history = recnet.train_classifier(training_percentage, model_prefix, action)
+        save_history(history, stats_prefix)
+    elif (action == constants.TRAIN_AUTOENCODER):
+        # Trains the autoencoder.
+        model_prefix = constants.model_name + constants.autoencoder_suffix
+        stats_prefix = constants.stats_model_name + constants.autoencoder_suffix
+        history = recnet.train_decoder(model_prefix, action)
         save_history(history, stats_prefix)
     elif (action == constants.GET_FEATURES):
         # Generates features for the memories using the previously generated
@@ -980,10 +985,12 @@ if __name__== "__main__" :
                         help='run the experiment with chosen bars type (only experiments 5 to 12).')
     
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-n', action='store_const', const=constants.TRAIN_NN, dest='action',
-                        help='train the neural networks, separating NN and AM training data (Separate Data NN).')
+    group.add_argument('-n', action='store_const', const=constants.TRAIN_CLASSIFIER, dest='action',
+                        help='train the classifier, separating NN and AM training data (Separate Data NN).')
     group.add_argument('-f', action='store_const', const=constants.GET_FEATURES, dest='action',
                         help='get data features using the separate data neural networks.')
+    group.add_argument('-a', action='store_const', const=constants.TRAIN_AUTOENCODER, dest='action',
+                        help='train the autoencoder using the features generated previously as data.')
     group.add_argument('-c', action='store_const', const=constants.CHARACTERIZE, dest='action',
                         help='characterize the features from partial data neural networks by class.')
     group.add_argument('-e', nargs='?', dest='nexp', type=int, 

@@ -48,15 +48,19 @@ filling_suffix = '-filling'
 testing_suffix = '-testing'
 memory_suffix = '-memories'
 
+# Model suffixes.
+classifier_suffix = '-classifier'
+autoencoder_suffix = '-autoencoder'
+
 mfcc_numceps = 26
 training_stages = 10 
 domain = 64
 n_frames = 8
 n_jobs = 4
 
-am_testing_percent = (100 / training_stages) / 100
-nn_training_percent = 0.57  # 0.10 + 0.57 = 0.67
-am_filling_percent = 0.33   # 0.67 + 0.33 = 1.0
+nn_training_percent = 0.57
+am_filling_percent = 0.33
+am_testing_percent = 0.10
 
 n_labels = 22
 labels_per_memory = [0, 1, 2]
@@ -85,8 +89,9 @@ ideal_memory_size = 1024
 
 n_samples = 10
 
-CHARACTERIZE = -2
-TRAIN_NN = -1
+CHARACTERIZE = -3
+TRAIN_AUTOENCODER = -2
+TRAIN_CLASSIFIER = -1
 GET_FEATURES = 0
 EXP_1 = 1
 EXP_2 = 2
@@ -167,10 +172,8 @@ def picture_filename(s, idx = None, occlusion = None, bars_type = None, toleranc
     """
     return filename(s, idx, occlusion, bars_type, tolerance, '.svg')
 
-
 def model_filename(s, idx = None):
     return filename(s, idx)
-
 
 def recog_filename(s, idx = None):
     return csv_filename(s, idx)

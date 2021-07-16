@@ -141,11 +141,10 @@ def reshape(data, n_frames):
 
 
 def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
-
     # Load DIMEX-100 labels
     labels = np.load('Features/rand_Y.npy')
-
     all_labels = np.zeros(labels.shape)
+
     for i in range(all_labels.size):
         label = labels[i]
         idx = dimex.phns_to_labels[label]
@@ -153,20 +152,22 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
 
     # Load DIMEX-100 features and labels
     all_data = np.load('Features/rand_X.npy', allow_pickle=True) 
-
     all_data = reshape(all_data, n_frames)
-
-    # all_data = add_noise(all_data, experiment, occlusion, bars_type)
-    # minimum = all_data.min()
-    # maximum = all_data.max()
-    # all_data = (all_data - minimum)/ (maximum-minimum)
-
     if one_hot:
         # Changes labels to binary rows. Each label correspond to a column, and only
         # the column for the corresponding label is set to one.
         all_labels = to_categorical(all_labels)
-
     return (all_data, all_labels)
+
+
+def get_data_in_range(data, i, j):
+    total = len(data)
+    if j >= i:
+        return data[i:j]
+    else:
+        return np.concatenate((data[i:total], data[0:j]), axis=0)
+
+
 
 
 def get_weights_bias(labels):
@@ -273,36 +274,28 @@ class EarlyStoppingAtLossCrossing(Callback):
             print("Epoch %05d: early stopping" % (self.stopped_epoch + 1))
 
 
-def train_networks(training_percentage, filename, experiment):
-
-    stages = constants.training_stages
+def train_classifier(training_percentage, filename, experiment):
 
     (data, labels) = get_data(experiment)
 
+    stages = constants.training_stages
     total = len(data)
     step = total/stages
 
     # Amount of training data, from which a percentage is used for
     # validation.
+   # Amount of data used for training the networks
     training_size = int(total*training_percentage)
 
-    n = 0
     histories = []
-    for k in range(stages):
-        i = k*step
-        j = int(i + training_size) % total
-        i = int(i)
+    for n in range(stages):
+        i = int(n*step)
+        j = (i + training_size) % total
 
-        if j > i:
-            training_data = data[i:j]
-            training_labels = labels[i:j]
-            testing_data = np.concatenate((data[0:i], data[j:total]), axis=0)
-            testing_labels = np.concatenate((labels[0:i], labels[j:total]), axis=0)
-        else:
-            training_data = np.concatenate((data[i:total], data[0:j]), axis=0)
-            training_labels = np.concatenate((labels[i:total], labels[0:j]), axis=0)
-            testing_data = data[j:i]
-            testing_labels = labels[j:i]
+        training_data = get_data_in_range(data, i, j)
+        training_labels = get_data_in_range(labels, i, j)
+        testing_data = get_data_in_range(data, j, i)
+        testing_labels = get_data_in_range(labels, j, i)
 
         truly_training = int(training_size*truly_training_percentage)
 
@@ -319,26 +312,11 @@ def train_networks(training_percentage, filename, experiment):
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
         classified = get_classifier(encoded, bias)
-        decoded = get_decoder(encoded)
-        # model = Model(inputs=input_data, outputs=[classified, decoded])
         model = Model(inputs=input_data, outputs=classified)
-        # model.compile(loss=['categorical_crossentropy', 'mean_squared_error'],
-        #             optimizer='adam',
-        #             metrics='accuracy')
         model.compile(loss='categorical_crossentropy',
                     optimizer='adam',
                     metrics='accuracy')
         model.summary()
-
-        # history = model.fit(training_data,
-        #     (training_labels, training_data),
-        #         batch_size=batch_size,
-        #         epochs=epochs,
-        #     #    class_weight=weights, # Only supported for single output models.
-        #         validation_data= (validation_data,
-        #             {'classification': validation_labels, 'autoencoder': validation_data}),
-        #         callbacks=[EarlyStoppingAtLossCrossing(patience)],
-        #         verbose=2)
         history = model.fit(training_data,
                 training_labels,
                 batch_size=batch_size,
@@ -347,15 +325,11 @@ def train_networks(training_percentage, filename, experiment):
                 validation_data= (validation_data, validation_labels),
                 callbacks=[EarlyStoppingAtLossCrossing(patience)],
                 verbose=2)
-
-
         histories.append(history)
         history = model.evaluate(testing_data,
             (testing_labels, testing_data),return_dict=True)
         histories.append(history)
         model.save(constants.model_filename(filename, n))
-        n += 1
-
     return histories
 
 
@@ -398,34 +372,24 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
     step = total/stages
 
     # Amount of data used for training the networks
-    trdata = int(total*training_percentage)
+    training_size = int(total*training_percentage)
+    filling_size = int(total*am_filling_percentage)
+    testing_size = total - training_size - filling_size
 
-    # Amount of data used for testing memories
-    tedata = step
-
-    n = 0
     histories = []
-    for k in range(stages):
-        i = k*step
-        j = int(i + tedata) % total
-        i = int(i)
+    for n in range(stages):
+        i = int(n*step)
+        j = (i+training_size) % total
+        training_data = get_data_in_range(data, i, j)
+        training_labels = get_data_in_range(labels, i, j)
 
-        if j > i:
-            testing_data = data[i:j]
-            testing_labels = labels[i:j]
-            other_data = np.concatenate((data[0:i], data[j:total]), axis=0)
-            other_labels = np.concatenate((labels[0:i], labels[j:total]), axis=0)
-            training_data = other_data[:trdata]
-            training_labels = other_labels[:trdata]
-            filling_data = other_data[trdata:]
-            filling_labels = other_labels[trdata:]
-        else:
-            testing_data = np.concatenate((data[0:j], data[i:total]), axis=0)
-            testing_labels = np.concatenate((labels[0:j], labels[i:total]), axis=0)
-            training_data = data[j:j+trdata]
-            training_labels = labels[j:j+trdata]
-            filling_data = data[j+trdata:i]
-            filling_labels = labels[j+trdata:i]
+        k = (j+filling_size) % total
+        filling_data = get_data_in_range(data, j, k)
+        filling_labels = get_data_in_range(labels, j, k)
+
+        l = (k+testing_size) % total
+        testing_data = get_data_in_range(data, k, l)
+        testing_labels = get_data_in_range(labels, k, l)
 
         # Recreate the exact same model, including its weights and the optimizer
         model = tf.keras.models.load_model(constants.model_filename(model_prefix, n))
@@ -463,10 +427,64 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
             d, f, l = dict[suffix]
             np.save(data_fn, d)
             np.save(features_fn, f)
-            np.save(labels_fn, l)
+            np.save(labels_fn, l)    
+    return histories
 
-        n += 1
-    
+def train_decoder(filename, experiment):
+    (labels, _) = get_data(experiment)
+    total = len(labels)
+    step = total/constants.training_stages
+
+
+    histories = []
+    for n in range(constants.training_stages):
+        suffix = constants.training_suffix
+        training_features_filename = constants.features_name(experiment) + suffix        
+        training_features_filename = constants.data_filename(training_features_filename, n)
+
+        suffix = constants.filling_suffix
+        filling_features_filename = constants.features_name(experiment) + suffix        
+        filling_features_filename = constants.data_filename(training_features_filename, n)
+
+        suffix = constants.testing_suffix
+        testing_features_filename = constants.features_name(experiment) + suffix        
+        testing_features_filename = constants.data_filename(testing_features_filename, n)
+
+        training_features = np.load(training_features_filename)
+        filling_features = np.load(filling_features_filename)
+        testing_features = np.load(testing_features_filename)
+        testing_features = np.concatenate((filling_features, testing_features), axis=0)
+
+        truly_training = int(len(training_features)*truly_training_percentage)
+        validation_data = training_features[truly_training:]
+        training_data = training_features[:truly_training]
+        testing_data = testing_features
+
+        i = int(n*step)
+        j = (i+len(training_data)) % total
+        training_labels = get_data_in_range(labels,i, j)
+        k = (j+len(validation_data)) % total
+        validation_labels = get_data_in_range(labels,j, k)
+        l = (k+len(testing_data)) % total
+        testing_labels = get_data_in_range(labels, k, l)
+
+        input_data = Input(shape=(constants.domain))
+        decoded = get_decoder(input_data)
+        model = Model(inputs=input_data, outputs=decoded)
+        model.compile(loss='mean_squared_error', optimizer='adam', metrics='accuracy')
+        model.summary()
+        history = model.fit(training_data,
+                training_labels,
+                batch_size=batch_size,
+                epochs=epochs,
+                validation_data= (validation_data, validation_labels),
+                callbacks=[EarlyStoppingAtLossCrossing(patience)],
+                verbose=2)
+        histories.append(history)
+        history = model.evaluate(testing_data,
+            (testing_labels, testing_data),return_dict=True)
+        histories.append(history)
+        model.save(constants.model_filename(filename, n))
     return histories
 
 
