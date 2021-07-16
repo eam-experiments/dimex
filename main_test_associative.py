@@ -910,14 +910,14 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
     if (action == constants.TRAIN_CLASSIFIER):
         # Trains the classifier.
         training_percentage = constants.nn_training_percent
-        model_prefix = constants.model_name + constants.classifier_suffix
-        stats_prefix = constants.stats_model_name + constants.classifier_suffix
+        model_prefix = constants.model_name
+        stats_prefix = constants.stats_model_name
         history = recnet.train_classifier(training_percentage, model_prefix, action)
         save_history(history, stats_prefix)
     elif (action == constants.TRAIN_AUTOENCODER):
         # Trains the autoencoder.
-        model_prefix = constants.model_name + constants.autoencoder_suffix
-        stats_prefix = constants.stats_model_name + constants.autoencoder_suffix
+        model_prefix = constants.model_name
+        stats_prefix = constants.stats_model_name
         history = recnet.train_decoder(model_prefix, action)
         save_history(history, stats_prefix)
     elif (action == constants.GET_FEATURES):
@@ -925,7 +925,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         # neural networks.
         training_percentage = constants.nn_training_percent
         am_filling_percentage = constants.am_filling_percent
-        model_prefix = constants.model_name + constants.classifier_suffix
+        model_prefix = constants.model_name
         features_prefix = constants.features_name(action)
         labels_prefix = constants.labels_name
         data_prefix = constants.data_name

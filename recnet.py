@@ -11,6 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from json import decoder
 import sys
 import math
 import numpy as np
@@ -29,6 +30,7 @@ import dimex
 
 n_frames = constants.n_frames
 n_mfcc = constants.mfcc_numceps
+encoder_nlayers = 5     # The number of layers defined in get_encoder.
 batch_size = 2048
 epochs = 100
 patience = 5
@@ -195,10 +197,6 @@ def get_encoder(input_data):
     # Recurrent encoder
     gru = GRU(constants.domain, dropout=in_dropout, return_sequences=True)(input_data)
     drop = Dropout(out_dropout)(gru)
-    # gru = GRU(constants.domain, dropout=in_dropout, return_sequences=True)(drop)
-    # drop = Dropout(out_dropout)(gru)
-    # gru = GRU(constants.domain, dropout=in_dropout, return_sequences=True)(drop)
-    # drop = Dropout(out_dropout)(gru)
     gru = GRU(constants.domain, dropout=in_dropout)(drop)
     drop = Dropout(out_dropout)(gru)
     norm = LayerNormalization()(drop)
@@ -329,7 +327,7 @@ def train_classifier(training_percentage, filename, experiment):
         history = model.evaluate(testing_data,
             (testing_labels, testing_data),return_dict=True)
         histories.append(history)
-        model.save(constants.model_filename(filename, n))
+        model.save(constants.classifier_filename(filename, n))
     return histories
 
 
@@ -392,7 +390,7 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
         testing_labels = get_data_in_range(labels, k, l)
 
         # Recreate the exact same model, including its weights and the optimizer
-        model = tf.keras.models.load_model(constants.model_filename(model_prefix, n))
+        model = tf.keras.models.load_model(constants.classifier_filename(model_prefix, n))
 
         # Drop the autoencoder and the last layers of the full connected neural network part.
         # classifier = Model(model.input, model.output[0])
@@ -484,38 +482,32 @@ def train_decoder(filename, experiment):
         history = model.evaluate(testing_data,
             (testing_labels, testing_data),return_dict=True)
         histories.append(history)
-        model.save(constants.model_filename(filename, n))
+        model.save(constants.decoder_filename(filename, n))
     return histories
 
 
 class SplittedNeuralNetwork:
     def __init__ (self, n):
-        model_filename = constants.model_filename(constants.model_name, n)
-        model = tf.keras.models.load_model(model_filename)
-        classifier = Model(model.input, model.output[0])
-        autoencoder = Model(model.input, model.output[1])
+        model_filename = constants.classifier_filename(constants.model_name, n)
+        classifier = tf.keras.models.load_model(model_filename)
+        model_filename = constants.decoder_filename(constants.model_name, n)
+        self.decoder = tf.keras.models.load_model(model_filename)
 
         input_enc = Input(shape=(n_frames, n_mfcc))
-        input_cla = Input(shape=(constants.domain, ))
-        input_dec = Input(shape=(constants.domain, ))
+        input_cla = Input(shape=(constants.domain))
         encoded = get_encoder(input_enc)
         classified = get_classifier(input_cla)
-        decoded = get_decoder(input_dec)
 
         self.encoder = Model(inputs = input_enc, outputs = encoded)
         self.encoder.summary()
         self.classifier = Model(inputs = input_cla, outputs = classified)
         self.classifier.summary()
-        self.decoder = Model(inputs=input_dec, outputs=decoded)
         self.decoder.summary()
 
-        for from_layer, to_layer in zip(classifier.layers[1:4], self.encoder.layers[1:]):
+        for from_layer, to_layer in zip(classifier.layers[1:encoder_nlayers+1], self.encoder.layers[1:]):
             to_layer.set_weights(from_layer.get_weights())
 
-        for from_layer, to_layer in zip(classifier.layers[4:], self.classifier.layers[1:]):
-            to_layer.set_weights(from_layer.get_weights())
-
-        for from_layer, to_layer in zip(autoencoder.layers[4:], self.decoder.layers[1:]):
+        for from_layer, to_layer in zip(classifier.layers[encoder_nlayers+1:], self.classifier.layers[1:]):
             to_layer.set_weights(from_layer.get_weights())
 
 
@@ -529,7 +521,6 @@ def process_sample(sample: dimex.TaggedAudio, snnet: SplittedNeuralNetwork):
 
 def process_samples(samples, fold):
     snnet = SplittedNeuralNetwork(fold)
-
     new_samples = []
     for sample in samples: 
         new_sample = process_sample(sample, snnet)

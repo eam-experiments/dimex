@@ -50,7 +50,7 @@ memory_suffix = '-memories'
 
 # Model suffixes.
 classifier_suffix = '-classifier'
-autoencoder_suffix = '-autoencoder'
+decoder_suffix = '-autoencoder'
 
 mfcc_numceps = 26
 training_stages = 10 
@@ -172,8 +172,11 @@ def picture_filename(s, idx = None, occlusion = None, bars_type = None, toleranc
     """
     return filename(s, idx, occlusion, bars_type, tolerance, '.svg')
 
-def model_filename(s, idx = None):
-    return filename(s, idx)
+def classifier_filename(s, idx = None):
+    return filename(s + classifier_suffix, idx)
+
+def decoder_filename(s, idx = None):
+    return filename(s + decoder_suffix, idx)
 
 def recog_filename(s, idx = None):
     return csv_filename(s, idx)
