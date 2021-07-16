@@ -444,7 +444,7 @@ def train_decoder(filename, experiment):
 
         suffix = constants.filling_suffix
         filling_features_filename = constants.features_name(experiment) + suffix        
-        filling_features_filename = constants.data_filename(training_features_filename, n)
+        filling_features_filename = constants.data_filename(filling_features_filename, n)
 
         suffix = constants.testing_suffix
         testing_features_filename = constants.features_name(experiment) + suffix        

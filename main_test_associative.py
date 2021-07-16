@@ -925,7 +925,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         # neural networks.
         training_percentage = constants.nn_training_percent
         am_filling_percentage = constants.am_filling_percent
-        model_prefix = constants.model_name
+        model_prefix = constants.model_name + constants.classifier_suffix
         features_prefix = constants.features_name(action)
         labels_prefix = constants.labels_name
         data_prefix = constants.data_name
