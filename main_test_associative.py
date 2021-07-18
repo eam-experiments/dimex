@@ -680,6 +680,8 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
     total_std_entropies = np.zeros((training_stages, len(memory_fills)))
     total_precisions = np.zeros((training_stages, len(memory_fills)))
     total_recalls = np.zeros((training_stages, len(memory_fills)))
+    sys_precisions = np.zeros((training_stages, len(memory_fills)))
+    sys_recalls = np.zeros((training_stages, len(memory_fills)))
     total_mismatches = np.zeros((training_stages, len(memory_fills)))
 
     list_results = Parallel(n_jobs=constants.n_jobs, verbose=50)(
@@ -690,13 +692,13 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
         sys_precision, sys_recall, mismatches in list_results:
 
         all_memories[fold] = memories
-        total_precisions[fold] = sys_precision
-        total_recalls[fold] = sys_recall
+        total_precisions[fold] = precision
+        total_recalls[fold] = recall
         total_mismatches[fold] = mismatches
         total_avg_entropies[fold] = avg_entropy
         total_std_entropies[fold] = std_entropy
-        total_precisions[fold] = precision
-        total_recalls[fold] = recall
+        sys_precisions[fold] = sys_precision
+        sys_recalls[fold] = sys_recall
 
     for fold in all_memories:
         list_tups = all_memories[fold]
@@ -720,6 +722,11 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
     main_stdev_mprecision = np.std(total_precisions,axis=0)
     main_avrge_mrecall = np.mean(total_recalls,axis=0)
     main_stdev_mrecall = np.std(total_recalls,axis=0)
+    main_avrge_sys_precision = np.mean(sys_precisions,axis=0)
+    main_stdev_sys_precision = np.std(sys_precisions,axis=0)
+    main_avrge_sys_recall = np.mean(sys_recalls,axis=0)
+    main_stdev_sys_recall = np.std(sys_recalls,axis=0)
+    
     
     np.savetxt(constants.csv_filename('main_average_precision',experiment, occlusion, bars_type, tolerance), \
         main_avrge_mprecision, delimiter=',')
@@ -734,7 +741,9 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
     np.savetxt(constants.csv_filename('main_stdev_entropy',experiment, occlusion, bars_type, tolerance), \
         main_stdev_entropies, delimiter=',')
     np.savetxt(constants.csv_filename('main_total_recalls',experiment, occlusion, bars_type, tolerance), \
-        total_recalls, delimiter=',')
+        main_avrge_sys_recall, delimiter=',')
+    np.savetxt(constants.csv_filename('main_total_precision',experiment, occlusion, bars_type, tolerance), \
+        main_avrge_sys_precision, delimiter=',')
     np.savetxt(constants.csv_filename('main_total_mismatches',experiment, occlusion, bars_type, tolerance), \
         total_mismatches, delimiter=',')
 
@@ -742,9 +751,8 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
         main_stdev_mprecision*100, main_stdev_mrecall*100, main_stdev_entropies, 'recall-', \
             xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'), action = experiment,
             occlusion = occlusion, bars_type = bars_type, tolerance = tolerance)
-    plot_pre_graph(np.average(total_precisions, axis=0)*100, np.average(total_recalls, axis=0)*100, \
-        main_avrge_entropies, np.std(total_precisions, axis=0)*100, np.std(total_recalls, axis=0)*100, \
-            main_stdev_entropies, 'total_recall-', \
+    plot_pre_graph(main_avrge_sys_precision*100, main_avrge_sys_recall, main_avrge_entropies, \
+        main_stdev_sys_precision*100, main_stdev_sys_recall*100, main_stdev_entropies, 'total_recall-', \
             xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'), action=experiment,
             occlusion = occlusion, bars_type = bars_type, tolerance = tolerance)
 
@@ -836,7 +844,6 @@ def lev(a, b, m):
 def levenshtein(a: list, b: list):
     m = np.full((len(a)+1, len(b)+1), -1, dtype=int)
     d = lev(a, b, m)
-    print(m)
     return d
 
 
@@ -892,10 +899,9 @@ def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type =
             sample.ams_labels = dp.process(ams_labels)
 
         save_recognitions(samples, dp, fold)
+    print(f'Experiment {experiment} completed!')
+
         
-
-
-
 
 ##############################################################################
 # Main section

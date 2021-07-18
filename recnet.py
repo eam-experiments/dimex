@@ -145,9 +145,9 @@ def reshape(data, n_frames):
 def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     # Load DIMEX-100 labels
     labels = np.load('Features/rand_Y.npy')
-    all_labels = np.zeros(labels.shape)
+    all_labels = np.zeros(labels.shape, dtype='int')
 
-    for i in range(all_labels.size):
+    for i in range(len(labels)):
         label = labels[i]
         idx = dimex.phns_to_labels[label]
         all_labels[i] = idx
@@ -170,24 +170,24 @@ def get_data_in_range(data, i, j):
         return np.concatenate((data[i:total], data[0:j]), axis=0)
 
 
-
-
 def get_weights_bias(labels):
-    frequency = {}
-    for label in constants.all_labels:
-        frequency[label] = 0.0
+    n_labels = constants.n_labels
+    frequency = np.zeros(n_labels)
     for label in labels:
-        frequency[label] += 1.0
+        frequency[label] = frequency[label] + 1
     total = 1.0*len(labels)
-    for label in frequency:
+    for label in range(n_labels):
         frequency[label] = frequency[label]/total if frequency[label] > 0 else 1.0/total
+    max_freq = np.max(frequency)
+    weighted_freqs = np.zeros(n_labels)
+    for label in range(n_labels):
+        weighted_freqs[label] = max_freq/frequency[label]
+    # weighted_freqs = weighted_freqs/np.sum(weighted_freqs)
     weights = {}
-    bias = np.zeros(constants.n_labels)
-    for label in frequency:
-        weights[label] = 1.0 - frequency[label]
+    bias = np.zeros(n_labels)
+    for label in range(n_labels):
+        weights[label] = weighted_freqs[label]
         bias[label] = math.log(frequency[label])
-
-
     return weights, bias
 
 
@@ -400,7 +400,6 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
         no_hot = to_categorical(testing_labels)
         classifier.compile(optimizer='adam', loss='categorical_crossentropy', metrics='accuracy')
         history = classifier.evaluate(testing_data, no_hot, batch_size=100, verbose=1, return_dict=True)
-        print(history)
         histories.append(history)
         model = Model(classifier.input, classifier.layers[-4].output)
         model.summary()
