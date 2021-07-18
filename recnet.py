@@ -242,7 +242,7 @@ class EarlyStoppingAtLossCrossing(Callback):
         self.prev_loss = float('inf')
         # best_weights to store the weights at which the loss crossing occurs.
         self.best_weights = None
-        self.start = epochs // 10
+        self.start = max(epochs // 20, 3)
         self.wait = 0
 
     def on_train_begin(self, logs=None):
@@ -254,8 +254,10 @@ class EarlyStoppingAtLossCrossing(Callback):
     def on_epoch_end(self, epoch, logs=None):
         loss = logs.get('loss')
         val_loss = logs.get('val_loss')
+        accuracy = logs.get('accuracy')
+        val_accuracy = logs.get('val_accuracy')
 
-        if (epoch < self.start) or (val_loss < self.prev_loss):
+        if (epoch < self.start) or ((val_loss < self.prev_loss) and (val_loss < loss) and (accuracy < val_accuracy)) :
             self.wait = 0
             self.prev_loss = val_loss
             self.best_weights = self.model.get_weights()
