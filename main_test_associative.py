@@ -751,7 +751,7 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
         main_stdev_mprecision*100, main_stdev_mrecall*100, main_stdev_entropies, 'recall-', \
             xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'), action = experiment,
             occlusion = occlusion, bars_type = bars_type, tolerance = tolerance)
-    plot_pre_graph(main_avrge_sys_precision*100, main_avrge_sys_recall, main_avrge_entropies, \
+    plot_pre_graph(main_avrge_sys_precision*100, main_avrge_sys_recall*100, main_avrge_entropies, \
         main_stdev_sys_precision*100, main_stdev_sys_recall*100, main_stdev_entropies, 'total_recall-', \
             xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'), action=experiment,
             occlusion = occlusion, bars_type = bars_type, tolerance = tolerance)

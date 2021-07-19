@@ -16,6 +16,7 @@ import sys
 import math
 import numpy as np
 from python_speech_features.base import mfcc
+from sklearn.utils.class_weight import compute_class_weight
 import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Input, GRU, Dropout, Dense, AveragePooling1D, \
@@ -158,7 +159,7 @@ def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     if one_hot:
         # Changes labels to binary rows. Each label correspond to a column, and only
         # the column for the corresponding label is set to one.
-        all_labels = to_categorical(all_labels)
+        all_labels = to_categorical(all_labels, constants.n_labels, dtype='int')
     return (all_data, all_labels)
 
 
@@ -170,25 +171,9 @@ def get_data_in_range(data, i, j):
         return np.concatenate((data[i:total], data[0:j]), axis=0)
 
 
-def get_weights_bias(labels):
-    n_labels = constants.n_labels
-    frequency = np.zeros(n_labels)
-    for label in labels:
-        frequency[label] = frequency[label] + 1
-    total = 1.0*len(labels)
-    for label in range(n_labels):
-        frequency[label] = frequency[label]/total if frequency[label] > 0 else 1.0/total
-    max_freq = np.max(frequency)
-    weighted_freqs = np.zeros(n_labels)
-    for label in range(n_labels):
-        weighted_freqs[label] = max_freq/frequency[label]
-    # weighted_freqs = weighted_freqs/np.sum(weighted_freqs)
-    weights = {}
-    bias = np.zeros(n_labels)
-    for label in range(n_labels):
-        weights[label] = weighted_freqs[label]
-        bias[label] = math.log(frequency[label])
-    return weights, bias
+def get_weights(labels):
+    class_weights = compute_class_weight('balanced', classes=constants.all_labels, y=labels)
+    return dict(enumerate(class_weights))
 
 
 def get_encoder(input_data):
@@ -304,14 +289,14 @@ def train_classifier(training_percentage, filename, experiment):
         training_data = training_data[:truly_training]
         training_labels = training_labels[:truly_training]
 
-        weights, bias = get_weights_bias(training_labels)
-        training_labels = to_categorical(training_labels)
-        validation_labels = to_categorical(validation_labels)
-        testing_labels = to_categorical(testing_labels)
+        weights = get_weights(training_labels)
+        training_labels = to_categorical(training_labels, constants.n_labels, dtype='int')
+        validation_labels = to_categorical(validation_labels, constants.n_labels, dtype='int')
+        testing_labels = to_categorical(testing_labels, constants.n_labels, dtype='int')
         
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
-        classified = get_classifier(encoded, bias)
+        classified = get_classifier(encoded)
         model = Model(inputs=input_data, outputs=classified)
         model.compile(loss='categorical_crossentropy',
                     optimizer='adam',
