@@ -26,8 +26,10 @@ import matplotlib.pyplot as plt
 import random
 import json
 from numpy.core.defchararray import array
+import seaborn
 
 from tensorflow.python.framework.tensor_shape import unknown_shape
+from tensorflow.python.ops.gen_parsing_ops import parse_single_sequence_example_eager_fallback
 
 import constants
 import recnet
@@ -193,7 +195,18 @@ def plot_features_graph(domain, means, stdevs, experiment, occlusion = None, bar
         plt.legend(loc='right')
         plt.grid(True)
         filename = constants.features_name(experiment, occlusion, bars_type) + '-' + str(i) + _('-english')
-        plt.savefig(constants.picture_filename(filename), dpi=500)
+        plt.savefig(constants.picture_filename(filename), dpi=600)
+
+
+def plot_conf_matrix(matrix, tags, prefix):
+    plt.clf()
+    plt.figure(figsize=(6.4,4.8))
+    seaborn.heatmap(matrix, xticklabels=tags, yticklabels=tags, annot=True, fmt='g')
+    plt.xlabel(_('Prediction'))
+    plt.ylabel(_('Label'))
+    filename = constants.picture_filename(prefix)
+    plt.savefig(filename, dpi=600)
+
 
 
 def get_label(memories, entropies = None):
@@ -821,6 +834,13 @@ def save_history(history, prefix):
         json.dump(stats, outfile)
 
 
+def save_conf_matrix(matrix, prefix):
+    prefix += constants.matrix_suffix
+    plot_conf_matrix(matrix, dimex.phonemes, prefix)
+    file_name = constants.data_filename(prefix)
+    np.save(file_name, matrix)
+
+
 def lev(a, b, m):
     if m[len(a), len(b)] >= 0:
         return m[len(a),len(b)]
@@ -918,8 +938,9 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         training_percentage = constants.nn_training_percent
         model_prefix = constants.model_name
         stats_prefix = constants.stats_model_name
-        history = recnet.train_classifier(training_percentage, model_prefix, action)
+        history, conf_matrix = recnet.train_classifier(training_percentage, model_prefix, action)
         save_history(history, stats_prefix)
+        save_conf_matrix(conf_matrix, stats_prefix)
     elif (action == constants.TRAIN_AUTOENCODER):
         # Trains the autoencoder.
         model_prefix = constants.model_name

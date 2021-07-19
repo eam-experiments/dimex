@@ -267,11 +267,9 @@ def train_classifier(training_percentage, filename, experiment):
     total = len(data)
     step = total/stages
 
-    # Amount of training data, from which a percentage is used for
-    # validation.
    # Amount of data used for training the networks
     training_size = int(total*training_percentage)
-
+    confusion_matrix = np.zeros((constants.n_labels, constants.n_labels))
     histories = []
     for n in range(stages):
         i = int(n*step)
@@ -311,11 +309,14 @@ def train_classifier(training_percentage, filename, experiment):
                 callbacks=[EarlyStoppingAtLossCrossing(patience)],
                 verbose=2)
         histories.append(history)
-        history = model.evaluate(testing_data,
-            (testing_labels, testing_data),return_dict=True)
+        history = model.evaluate(testing_data, testing_labels, return_dict=True)
+        predicted_labels = model.predict(testing_data)
+        confusion_matrix += tf.math.confusion_matrix(testing_labels, predicted_labels, 
+            num_classes=constants.n_labels)
         histories.append(history)
         model.save(constants.classifier_filename(filename, n))
-    return histories
+    confusion_matrix /= stages
+    return histories, confusion_matrix
 
 
 def store_images(original, produced, directory, stage, idx, label):
