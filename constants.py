@@ -52,6 +52,9 @@ memory_suffix = '-memories'
 classifier_suffix = '-classifier'
 decoder_suffix = '-autoencoder'
 
+# Other suffixes.
+matrix_suffix = '-matrix'
+
 mfcc_numceps = 26
 training_stages = 10 
 domain = 64
