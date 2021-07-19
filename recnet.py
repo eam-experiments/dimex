@@ -19,7 +19,7 @@ from python_speech_features.base import mfcc
 from sklearn.utils.class_weight import compute_class_weight
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Input, GRU, Dropout, Dense, AveragePooling1D, \
+from tensorflow.keras.layers import Input, GRU, LSTM, SimpleRNN, Dropout, Dense, AveragePooling1D, \
     MaxPool1D, Bidirectional, LayerNormalization, Reshape, RepeatVector, TimeDistributed
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import Callback
@@ -33,8 +33,8 @@ n_frames = constants.n_frames
 n_mfcc = constants.mfcc_numceps
 encoder_nlayers = 5     # The number of layers defined in get_encoder.
 batch_size = 2048
-epochs = 100
-patience = 5
+epochs = 300
+patience = 10
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
@@ -180,10 +180,10 @@ def get_encoder(input_data):
     in_dropout=0.0
     out_dropout=0.4
     # Recurrent encoder
-    gru = GRU(constants.domain, dropout=in_dropout, return_sequences=True)(input_data)
-    drop = Dropout(out_dropout)(gru)
-    gru = GRU(constants.domain, dropout=in_dropout)(drop)
-    drop = Dropout(out_dropout)(gru)
+    rnn = Bidirectional(GRU(constants.domain // 2, dropout=in_dropout, return_sequences=True))(input_data)
+    drop = Dropout(out_dropout)(rnn)
+    rnn = Bidirectional(GRU(constants.domain // 2, dropout=in_dropout))(drop)
+    drop = Dropout(out_dropout)(rnn)
     norm = LayerNormalization()(drop)
     return norm
 
