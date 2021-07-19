@@ -135,7 +135,7 @@ def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None, to
 
     full_length = 100.0
     step = 0.1
-    main_step = full_length/len(constants.memory_sizes)
+    main_step = full_length/(len(constants.memory_sizes)-1)
     x = np.arange(0.0, full_length, main_step)
 
     # One main step less because levels go on sticks, not
