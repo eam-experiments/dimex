@@ -137,7 +137,7 @@ def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None, to
 
     full_length = 100.0
     step = 0.1
-    main_step = full_length/(len(constants.memory_sizes)-1)
+    main_step = full_length/len(constants.memory_sizes)
     x = np.arange(0.0, full_length, main_step)
 
     # One main step less because levels go on sticks, not
@@ -154,8 +154,8 @@ def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None, to
     cumm += np.array(no_correct)
     plt.bar(x, no_response, width, bottom=cumm, label=_('No responses'))
 
-    plt.xlim(-width, full_length + width)
-    plt.ylim(0.0, full_length)
+    plt.xlim(-width, xmax + width)
+    plt.ylim(0.0, ymax)
     plt.xticks(x, constants.memory_sizes)
 
     plt.xlabel(_('Range Quantization Levels'))
@@ -201,7 +201,7 @@ def plot_features_graph(domain, means, stdevs, experiment, occlusion = None, bar
 def plot_conf_matrix(matrix, tags, prefix):
     plt.clf()
     plt.figure(figsize=(6.4,4.8))
-    seaborn.heatmap(matrix, xticklabels=tags, yticklabels=tags, annot=True, fmt='g')
+    seaborn.heatmap(matrix, xticklabels=tags, yticklabels=tags, vmin = 0.0, vmax=1.0, annot=False, cmap='Blues')
     plt.xlabel(_('Prediction'))
     plt.ylabel(_('Label'))
     filename = constants.picture_filename(prefix)

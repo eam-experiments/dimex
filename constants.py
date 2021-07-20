@@ -57,7 +57,7 @@ matrix_suffix = '-matrix'
 
 mfcc_numceps = 26
 training_stages = 10 
-domain = 64
+domain = 128
 n_frames = 8
 n_jobs = 4
 

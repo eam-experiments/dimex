@@ -180,9 +180,11 @@ def get_encoder(input_data):
     in_dropout=0.0
     out_dropout=0.4
     # Recurrent encoder
-    rnn = Bidirectional(GRU(constants.domain // 2, dropout=in_dropout, return_sequences=True))(input_data)
+    rnn = GRU(8*n_mfcc, return_sequences=True, dropout=in_dropout)(input_data)
     drop = Dropout(out_dropout)(rnn)
-    rnn = Bidirectional(GRU(constants.domain // 2, dropout=in_dropout))(drop)
+    # rnn = GRU(4*n_mfcc, return_sequences=True, dropout=in_dropout)(drop)
+    # drop = Dropout(out_dropout)(rnn)
+    rnn = GRU(constants.domain, dropout=in_dropout)(drop)
     drop = Dropout(out_dropout)(rnn)
     norm = LayerNormalization()(drop)
     return norm
@@ -311,12 +313,13 @@ def train_classifier(training_percentage, filename, experiment):
         histories.append(history)
         history = model.evaluate(testing_data, testing_labels, return_dict=True)
         predicted_labels = model.predict(testing_data)
-        confusion_matrix += tf.math.confusion_matrix(testing_labels, predicted_labels, 
-            num_classes=constants.n_labels)
+        confusion_matrix += tf.math.confusion_matrix(np.argmax(testing_labels, axis=1), 
+            np.argmax(predicted_labels, axis=1), num_classes=constants.n_labels)
         histories.append(history)
         model.save(constants.classifier_filename(filename, n))
-    confusion_matrix /= stages
-    return histories, confusion_matrix
+    confusion_matrix = confusion_matrix.numpy()
+    totals = confusion_matrix.sum(axis=1).reshape(-1,1)
+    return histories, confusion_matrix/totals
 
 
 def store_images(original, produced, directory, stage, idx, label):
