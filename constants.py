@@ -61,8 +61,8 @@ domain = 64
 n_frames = 8
 n_jobs = 4
 
-nn_training_percent = 0.57
-am_filling_percent = 0.33
+nn_training_percent = 0.69
+am_filling_percent = 0.21
 am_testing_percent = 0.10
 
 n_labels = 22
