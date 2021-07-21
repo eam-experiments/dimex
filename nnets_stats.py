@@ -37,10 +37,13 @@ def trplot(a_measure, b_measure, a_label, b_label, epoch, nn):
     plt.show()
     
 
-def teplot(a_measure, a_label):
+def teplot(a_measure, a_label, ymin=0.0, ymax=None):
     fig = plt.figure()
     x = np.arange(0,len(a_measure))
     plt.errorbar(x, a_measure[:epoch], fmt='b-.', label=a_label)
+    
+    if not (ymax is None):
+        plt.ylim(ymin, ymax)
     plt.legend(loc=0)
     plt.suptitle(f'Average results')
     plt.show()
@@ -73,7 +76,7 @@ def testing_stats(data, simple):
         print(f'{ACCURACY}: {m[ACCURACY]}')
     else:
         teplot(m[LOSS], LOSS)
-        teplot(m[ACCURACY], ACCURACY)
+        teplot(m[ACCURACY], ACCURACY, ymax=1.0)
 
 
 if __name__== "__main__" :
