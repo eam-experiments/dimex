@@ -177,14 +177,14 @@ def get_weights(labels):
 
 
 def get_encoder(input_data):
-    in_dropout=0.0
+    in_dropout=0.2
     out_dropout=0.4
     # Recurrent encoder
-    rnn = GRU(8*n_mfcc, return_sequences=True, dropout=in_dropout)(input_data)
+    rnn = Bidirectional(GRU(4*n_mfcc, return_sequences=True, dropout=in_dropout))(input_data)
     drop = Dropout(out_dropout)(rnn)
     # rnn = GRU(4*n_mfcc, return_sequences=True, dropout=in_dropout)(drop)
     # drop = Dropout(out_dropout)(rnn)
-    rnn = GRU(constants.domain, dropout=in_dropout)(drop)
+    rnn = Bidirectional(GRU(constants.domain //2, dropout=in_dropout))(drop)
     drop = Dropout(out_dropout)(rnn)
     norm = LayerNormalization()(drop)
     return norm

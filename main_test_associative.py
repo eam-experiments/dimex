@@ -937,14 +937,14 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         # Trains the classifier.
         training_percentage = constants.nn_training_percent
         model_prefix = constants.model_name
-        stats_prefix = constants.stats_model_name
+        stats_prefix = constants.stats_model_name + constants.classifier_suffix
         history, conf_matrix = recnet.train_classifier(training_percentage, model_prefix, action)
         save_history(history, stats_prefix)
         save_conf_matrix(conf_matrix, stats_prefix)
     elif (action == constants.TRAIN_AUTOENCODER):
         # Trains the autoencoder.
         model_prefix = constants.model_name
-        stats_prefix = constants.stats_model_name
+        stats_prefix = constants.stats_model_name + constants.decoder_suffix
         history = recnet.train_decoder(model_prefix, action)
         save_history(history, stats_prefix)
     elif (action == constants.GET_FEATURES):
