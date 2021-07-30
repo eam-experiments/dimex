@@ -29,6 +29,9 @@ features_prefix = 'features'
 memories_prefix = 'memories'
 recognition_prefix = 'recognition'
 
+learning_data_seed = 'seed'
+learning_data_learnt = 'learned'
+
 # Categories prefixes.
 model_name = 'model'
 stats_model_name = 'model_stats'
@@ -36,11 +39,6 @@ data_name = 'data'
 labels_name = 'labels'
 
 original_suffix = '-original'
-
-experiment_defaul_suffix = ''
-experiment_suffix = ['', '', '', '', '',
-    '-top_hidden', '-bottom_hidden', '-left_hidden', '-right_hidden',
-    '-ver_bars', '-hor_bars']
 
 # Categories suffixes.
 training_suffix = '-training'
@@ -54,6 +52,8 @@ decoder_suffix = '-autoencoder'
 
 # Other suffixes.
 matrix_suffix = '-matrix'
+data_suffix = '-X'
+labels_suffix = '-Y'
 
 mfcc_numceps = 26
 training_stages = 10 
@@ -120,20 +120,20 @@ N_BARS = len(bar_patterns)
 def print_warning(*s):
     print('WARNING:', *s, file = sys.stderr)
 
-
-def occlusion_suffix(occlusion):
-    return '' if occlusion is None else '-occ_' + str(int(round(occlusion*100))).zfill(3)
-
-
-def bars_type_suffix(bars_type):
-    return '' if bars_type is None else '-bar_' + str(bars_type).zfill(3)
-
+def print_error(*s):
+    print('ERROR:', *s, file = sys.stderr)
 
 def tolerance_suffix(tolerance):
     return '' if not tolerance else '-tol_' + str(tolerance).zfill(3)
 
+def experiment_suffix(experiment):
+    return '' if not experiment else '-exp_' + str(experiment).zfill(3)
 
-def filename(s, idx = None, occlusion = None, bars_type = None, tolerance = 0, extension = ''):
+def counter_suffix(counter):
+    return '' if not counter else '-cnt_' + str(counter).zfill(3)    
+
+def filename(s, idx = None, tolerance = 0, extension = '',
+    experiment = None, counter = 0):
     """ Returns a file name in run_path directory with a given extension and an index
     """
     # Create target directory & all intermediate directories if don't exists
@@ -147,9 +147,9 @@ def filename(s, idx = None, occlusion = None, bars_type = None, tolerance = 0, e
         return run_path + '/' + s + extension
     else:
         return run_path + '/' + s + '-' + str(idx).zfill(3) \
-            + occlusion_suffix(occlusion) \
-            + bars_type_suffix(bars_type) + tolerance_suffix(tolerance) + extension
-
+            + experiment_suffix(experiment) \
+            + tolerance_suffix(tolerance) \
+            + counter_suffix(counter) + extension
 
 
 def json_filename(s):
@@ -158,10 +158,10 @@ def json_filename(s):
     return filename(s,  extension = '.json')
 
 
-def csv_filename(s, idx = None, occlusion = None, bars_type = None, tolerance = 0):
+def csv_filename(s, idx = None, tolerance = 0, experiment = None, counter = 0):
     """ Returns a file name for csv(i) in run_path directory
     """
-    return filename(s, idx, occlusion, bars_type, tolerance, '.csv')
+    return filename(s, idx, tolerance, '.csv', experiment, counter)
 
 
 def data_filename(s, idx = None):
@@ -170,10 +170,10 @@ def data_filename(s, idx = None):
     return filename(s, idx, extension='.npy')
 
 
-def picture_filename(s, idx = None, occlusion = None, bars_type = None, tolerance = 0):
+def picture_filename(s, idx = None, tolerance = 0):
     """ Returns a file name for a graph.
     """
-    return filename(s, idx, occlusion, bars_type, tolerance, '.svg')
+    return filename(s, idx, tolerance, '.svg')
 
 def classifier_filename(s, idx = None):
     return filename(s + classifier_suffix, idx)
@@ -181,8 +181,8 @@ def classifier_filename(s, idx = None):
 def decoder_filename(s, idx = None):
     return filename(s + decoder_suffix, idx)
 
-def recog_filename(s, idx = None):
-    return csv_filename(s, idx)
+def recog_filename(s, idx = None, experiment = None, tolerance = None, counter = 0):
+    return csv_filename(s, idx, tolerance, experiment, counter)
 
 
 def image_filename(dir, stage, idx, label, suffix = ''):
@@ -197,15 +197,13 @@ def image_filename(dir, stage, idx, label, suffix = ''):
     return image_path
 
 
-def testing_directory(i, occlusion = None, bars_type = None):
-    return testing_path + '-' + str(i).zfill(3) \
-        + occlusion_suffix(occlusion) + bars_type_suffix(bars_type)
+def testing_directory(i):
+    return testing_path + '-' + str(i).zfill(3)
 
 
-def memories_directory(i, occlusion = None, bars_type = None, tolerance = 0):
+def memories_directory(i, tolerance = 0):
     return memories_path + '-' + str(i).zfill(3) \
-        + occlusion_suffix(occlusion) \
-        + bars_type_suffix(bars_type) + tolerance_suffix(tolerance)
+        + tolerance_suffix(tolerance)
 
 
 def memory_filename(dir, msize, stage, idx, label):
@@ -222,32 +220,35 @@ def memory_filename(dir, msize, stage, idx, label):
     image_path += str(label) + '_' + str(idx).zfill(5) + '.png'
     return image_path
 
-
 def original_image_filename(dir, stage, idx, label):
     return image_filename(dir, stage, idx, label, original_suffix)
-
 
 def produced_image_filename(dir, stage, idx, label):
     return image_filename(dir, stage, idx, label)
 
-
 def produced_memory_filename(dir, msize, stage, idx, label):
     return memory_filename(dir, msize, stage, idx, label)
 
+def seed_data_filename():
+    return data_filename(learning_data_seed + data_suffix)
 
-def features_name(i = -1, occlusion = None, bars_type = None):
-    if i  < 0:
-        return features_prefix
-    else:
-        return features_prefix + experiment_suffix[i] \
-            + occlusion_suffix(occlusion) + bars_type_suffix(bars_type)
+def seed_labels_filename():
+    return data_filename(learning_data_seed + labels_suffix)
+
+def learned_data_filename(suffix, n):
+    return data_filename(learning_data_learnt + suffix + data_suffix, n)
+
+def learned_labels_filename(suffix, n):
+    return data_filename(learning_data_learnt + suffix + labels_suffix, n)
+
+def features_name(i = -1):
+    return features_prefix
 
 
-def memories_name(i = -1, occlusion = None, bars_type = None, tolerance = 0):
+def memories_name(i = -1, tolerance = 0):
     mem_name = memories_prefix
     if i  >= 0:
-        mem_name += experiment_suffix[i] + occlusion_suffix(occlusion) \
-            + bars_type_suffix(bars_type) + tolerance_suffix(tolerance)
+        mem_name += tolerance_suffix(tolerance)
     return mem_name
 
 

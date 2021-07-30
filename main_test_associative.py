@@ -867,8 +867,10 @@ def levenshtein(a: list, b: list):
     return d
 
 
-def save_recognitions(samples: list, dp: dimex.PostProcessor, fold: int):
-    file_name = constants.recog_filename(constants.recognition_prefix, fold)
+def save_recognitions(samples: list, dp: dimex.PostProcessor, fold: int,
+    experiment: int, tolerance: int, counter: int):
+    file_name = constants.recog_filename(constants.recognition_prefix, fold,
+        experiment, tolerance, counter)
 
     with open(file_name, 'w') as file:
         writer = csv.writer(file)
@@ -887,39 +889,65 @@ def save_recognitions(samples: list, dp: dimex.PostProcessor, fold: int):
             writer.writerow(row)
 
 
-def test_recognition(domain, mem_size, experiment, occlusion = None, bars_type = None, tolerance = 0):
-    for fold in range(constants.training_stages):
-        suffix = constants.filling_suffix
-        filling_features_filename = constants.features_name(experiment) + suffix        
-        filling_features_filename = constants.data_filename(filling_features_filename, fold)
-        filling_labels_filename = constants.labels_name + suffix        
-        filling_labels_filename = constants.data_filename(filling_labels_filename, fold)
+def recognition_on_dimex(samples, fold, experiment, tolerance, counter):
+    dp = dimex.PostProcessor()
+    for sample in samples:
+        sample.net_labels = dp.process(sample.net_labels)
+        sample.ams_labels = dp.process(sample.ams_labels)
+    save_recognitions(samples, dp, fold, experiment, tolerance, counter)
 
-        filling_features = np.load(filling_features_filename)
-        filling_labels = np.load(filling_labels_filename)
+
+def recognition_on_ciempiess(ams, fold, experiment, tolerance, counter):
+    pass
+
+
+def ams_process_samples(samples, ams, minimum, maximum):
+    for sample in samples:
+        ams_labels = []
+        for f in sample.features:
+            features = msize_features(f, ams.m, minimum, maximum)
+            label, _ = ams.recall(features)
+            ams_labels.append(label)
+        sample.ams_labels = ams_labels
+
+
+def test_recognition(domain, mem_size, experiment, tolerance = 0):
+    ds = dimex.LearnedDataSet(tolerance)
+    (data, labels), counter = ds.get_data()
+    total = len(labels)
+    step = total / constants.training_stages
+    training_size = int(total*constants.nn_training_percent)
+    truly_training = int(training_size*recnet.truly_training_percentage)
+    histories = []
+    for fold in range(constants.training_stages):
+        i = int(fold*step)
+        j = (i + training_size) % total
+        training_data = recnet.get_data_in_range(data, i, j)
+        training_labels = recnet.get_data_in_range(labels, i, j)
+        validation_data = training_data[truly_training:]
+        validation_labels = training_labels[truly_training:]
+        training_data = training_data[:truly_training]
+        training_labels = training_labels[:truly_training]
+        filling_data = recnet.get_data_in_range(data, j, i)
+        filling_labels = recnet.get_data_in_range(labels, j, i)
+        history = recnet.train_next_network(training_data, training_labels,
+            validation_data, validation_labels, experiment, tolerance, counter)
+        filling_features = recnet.get_features(
+            filling_data, filling_labels, experiment, tolerance, counter)
         maximum = filling_features.max()
         minimum = filling_features.min()
-        filling_features = msize_features(filling_features, mem_size, minimum, maximum)
-        ds = dimex.Sampler()
-        samples = ds.get_sample(constants.n_samples)
-        samples = recnet.process_samples(samples, fold)
 
-        ams = AssociativeMemorySystem(constants.all_labels,domain,mem_size)
+        ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
-
-        dp = dimex.PostProcessor()
-        for sample in samples:
-            sample.net_labels = dp.process(sample.net_labels)
-            ams_labels = []
-            for f in sample.features:
-                features = msize_features(f, mem_size, minimum, maximum)
-                label, _ = ams.recall(features)
-                ams_labels.append(label)
-            sample.ams_labels = dp.process(ams_labels)
-
-        save_recognitions(samples, dp, fold)
-    print(f'Experiment {experiment} completed!')
+        tds = dimex.TestingDataSet()
+        samples = tds.get_data()
+        samples = recnet.process_samples(samples, fold, experiment, tolerance)
+        samples = ams_process_samples(samples, ams, minimum, maximum)
+            
+        recognition_on_dimex(samples, fold, experiment, tolerance, counter)
+        recognition_on_ciempiess(ams, fold, experiment, tolerance, counter)
+    print(f'Experiment {experiment} round {counter} completed!')
 
         
 

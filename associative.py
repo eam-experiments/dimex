@@ -197,6 +197,9 @@ class AssociativeMemory(object):
 class AssociativeMemorySystem:
     def __init__(self, labels: list, n: int, m: int, tolerance = 0):
         self._memories = {}
+        self.n = n
+        self.m = m
+        self.tolerance = tolerance
         for label in labels:
             self._memories[label] = AssociativeMemory(n, m, tolerance)
 

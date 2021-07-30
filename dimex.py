@@ -15,11 +15,11 @@
 from abc import abstractclassmethod
 import csv
 import numpy as np
+from python_speech_features import mfcc
 import random
 import re
 import scipy.io.wavfile as wav
 import scipy.signal
-from python_speech_features import mfcc
 import constants
 
 
@@ -34,6 +34,40 @@ labels_to_phns = ['g', 'n~', 'f', 'd', 'n', 'm',
 phonemes = labels_to_phns
 unknown_phn = '-'
 
+_CORPUS_DIR = 'Corpus'
+_AUDIO_DIR = 'audio_editado'
+_PHONEMES_DIR = 'T22'
+_TEXT_DIR = 'texto'
+_TEXT_EXT = '.txt'
+_AUDIO_EXT = '.wav'
+_PHN_EXT = '.phn'
+
+IDEAL_SRATE = 16000
+
+
+
+def get_text_filename(modifier, id):
+    return _get_file_name(modifier, id, _TEXT_DIR, _TEXT_EXT)
+
+def get_audio_filename(modifier, id):
+    return _get_file_name(modifier, id, _AUDIO_DIR, _AUDIO_EXT)
+
+def get_phonemes_filename(modifier, id):
+    return _get_file_name(modifier, id, _PHONEMES_DIR, _PHN_EXT)
+
+def shuffle(data, labels):
+    pairs = [(data[i], labels[i]) for i in range(len(labels))]
+    random.shuffle(pairs)
+    data = np.array([p[0] for p in pairs])
+    labels = np.array([p[1] for p in pairs], dtype = 'int')
+    return data, labels
+
+def _get_file_name(modifier, id, cls, extension):
+    sdir = id[:4]
+    file_name = _CORPUS_DIR + '/' + sdir + '/' + cls + '/'
+    file_name += modifier + '/' + id + extension
+    return file_name
+
 
 
 class TaggedAudio:
@@ -47,16 +81,8 @@ class TaggedAudio:
         self.ams_labels = []
 
 class Sampler:
-    _CORPUS_DIR = 'Corpus'
-    _AUDIO_DIR = 'audio_editado'
-    _PHONEMES_DIR = 'T22'
-    _TEXT_DIR = 'texto'
     _IDS_FILE = 'ids.csv'
     _PHNS_FILE = 't22-phonemes.csv'
-    _TEXT_EXT = '.txt'
-    _AUDIO_EXT = '.wav'
-    _PHN_EXT = '.phn'
-    _IDEAL_SRATE = 16000
     _SEGMENT_MILLISECONDS = 90
 
     def __init__(self):
@@ -90,7 +116,7 @@ class Sampler:
             return audios
 
     def _get_text(self, modifier, id):
-        file_name = self._get_text_filename(modifier, id)
+        file_name = get_text_filename(modifier, id)
         text = ''
         try:
             with open(file_name, 'r', encoding="ISO-8859-1") as file:
@@ -102,7 +128,7 @@ class Sampler:
 
     def _get_labels(self, modifier, id):
         labels = []
-        file_name = self._get_phonemes_filename(modifier, id)
+        file_name = get_phonemes_filename(modifier, id)
         with open(file_name, 'r') as file:
             reader = csv.reader(file, delimiter = ' ')
             row = next(reader)
@@ -120,17 +146,17 @@ class Sampler:
         return labels
  
     def _get_segments(self, modifier, id):
-        audio_fname = self._get_audio_filename(modifier, id)
+        audio_fname = get_audio_filename(modifier, id)
         segments = self._get_mfcc(audio_fname)
         return segments
 
     def _get_mfcc(self, audio_fname):
         sample_rate, signal = wav.read(audio_fname)
-        if sample_rate != self._IDEAL_SRATE:
-            new_length = int(self._IDEAL_SRATE*len(signal)/sample_rate)
+        if sample_rate != IDEAL_SRATE:
+            new_length = int(IDEAL_SRATE*len(signal)/sample_rate)
             new_signal = scipy.signal.resample(signal, new_length)
 
-        segments = self._scan_audio(self._IDEAL_SRATE, new_signal)
+        segments = self._scan_audio(IDEAL_SRATE, new_signal)
         return np.array(segments)
 
     def _scan_audio(self, sample_rate, signal):
@@ -152,22 +178,80 @@ class Sampler:
             i += step
         return segments
 
-    def _get_text_filename(self, modifier, id):
-        return self._get_file_name(modifier, id, self._TEXT_DIR, self._TEXT_EXT)
 
-    def _get_audio_filename(self, modifier, id):
-        return self._get_file_name(modifier, id, self._AUDIO_DIR, self._AUDIO_EXT)
+class LearnedDataSet:
+    _TRAINING_PREFIX = 'seed'
+    _LEARNED_PREFIX = 'learned'
+    _RECOG_SUFFIXES = [['-agr'],['-agr','-ams'], ['-agr','-rnn'], ['-agr', '-ams', '-rnn'],
+        ['-agr', '-ams', '-rnn','-ori']]
 
-    def _get_phonemes_filename(self, modifier, id):
-        return self._get_file_name(modifier, id, self._PHONEMES_DIR, self._PHN_EXT)
+    def __init__(self, tolerance):
+        """ Creates learned data set for given 'tolerance'.
 
-    def _get_file_name(self, modifier, id, cls, extension):
-        sdir = id[:4]
-        file_name = self._CORPUS_DIR + '/' + sdir + '/' + cls + '/'
-        file_name += modifier + '/' + id + extension
-        return file_name
+            Tolerance:
+                0: Only agreed averaged learned features.
+                1: Agreed averaged and averaged accepted by memory.
+                2: Agreed averaged and averaged accepted by neural network.
+                3: Agreed averaged and averaged accepted by any.
+                4: Agreed averaged, averaged accepted, and original.
+        """
+        if (tolerance < 0) or (len(self._RECOG_SUFFIXES) <= tolerance):
+            constants.print_error(f'Tolerance {tolerance} is out of range.')
+            exit(1)
+        self._tolerance = tolerance
 
+    def get_data(self):
+        data, labels = self.get_seed_data()
+        learned_data, learned_labels, counter = self.get_learned_data(self._tolerance)
+        if not ((learned_data is None) or (learned_labels is None)):
+            data = np.concatenate((data, learned_data), axis=0)
+            labels = np.concatenate((labels, learned_labels), axis=0)
+        return shuffle(data, labels), counter
 
+    def get_seed_data(self):
+        data_filename = constants.seed_data_filename()
+        labels_filename = constants.seed_labels_filename()
+        data = np.load(data_filename)
+        labels = np.load(labels_filename)
+        return data, labels    
+
+    def get_learned_data(self, tolerance):
+        have_been_data = True
+        n = 0
+        data = []
+        labels = []
+        suffixes = self._RECOG_SUFFIXES[tolerance]
+        while have_been_data:
+            new_data, new_labels = self._get_stage_learned_data(suffixes, n)
+            have_been_data = not ((new_data is None) or (new_labels is None))
+            if have_been_data:
+                data.append(new_data)
+                labels.append(new_labels)
+                n += 1
+        if data and labels:
+            data = np.concatenate(data, axis= 0)
+            labels = np.concatenate(labels, axis=0)
+        else:
+            data = None
+            labels = None
+        return data, labels, n
+
+    def _get_stage_learned_data(self, suffixes, stage):
+        data = []
+        labels = []
+        for s in suffixes:
+            data_filename = constants.learned_data_filename(s, stage)
+            labels_filename = constants.learned_data_filename(s, stage)
+            try:
+                new_data = np.load(data_filename)
+                new_labels = np.load(labels_filename)
+            except:
+                return None, None
+            data.append(new_data)
+            labels.append(new_labels)
+        data = np.concatenate(data, axis=0)
+        labels = np.concatenate(labels, axis=0)
+        return data, labels
 class PostProcessor:
     _FEATURES_DIR_NAME = 'Features'
     _MEANS_FILE_NAME = _FEATURES_DIR_NAME + '/media.npy'
