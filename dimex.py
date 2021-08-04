@@ -15,6 +15,7 @@
 from abc import abstractclassmethod
 import csv
 import numpy as np
+import pickle
 from python_speech_features import mfcc
 import random
 import re
@@ -72,13 +73,13 @@ def _get_file_name(modifier, id, cls, extension):
 
 class TaggedAudio:
     def __init__(self, id):
-        self.id = id
-        self.text = ''
-        self.segments = []
-        self.features = []
-        self.labels = []
-        self.net_labels = []
-        self.ams_labels = []
+        self.id = id            # Audio id
+        self.text = ''          # Textual transcription of audio.
+        self.labels = []        # Phonemes as integers.
+        self.segments = []      # MFCC of phoneme audio segments
+        self.features = []      # Features of MFCC segments.
+        self.net_labels = []    # Classification of segments by neural network.
+        self.ams_labels = []    # Classification of segments by memories.
 
 class Sampler:
     _IDS_FILE = 'ids.csv'
@@ -114,6 +115,121 @@ class Sampler:
             return audios[0]
         else:
             return audios
+
+    def _get_text(self, modifier, id):
+        file_name = get_text_filename(modifier, id)
+        text = ''
+        try:
+            with open(file_name, 'r', encoding="ISO-8859-1") as file:
+                text = file.readline()
+                text = re.sub(' *\.\n', '', text)
+        except:
+            pass
+        return text
+
+    def _get_labels(self, modifier, id):
+        labels = []
+        file_name = get_phonemes_filename(modifier, id)
+        with open(file_name, 'r') as file:
+            reader = csv.reader(file, delimiter = ' ')
+            row = next(reader)
+            # skip the headers
+            while (len(row) == 0) or (row[0] != 'END'):
+                row = next(reader, None)
+            for row in reader:
+                if len(row) < 3:
+                    continue
+                phn = row[2]
+                if (phn == '.sil') or (phn == '.bn'):
+                    continue
+                label = phns_to_labels[phn]
+                labels.append(label)
+        return labels
+ 
+    def _get_segments(self, modifier, id):
+        audio_fname = get_audio_filename(modifier, id)
+        segments = self._get_mfcc(audio_fname)
+        return segments
+
+    def _get_mfcc(self, audio_fname):
+        sample_rate, signal = wav.read(audio_fname)
+        if sample_rate != IDEAL_SRATE:
+            new_length = int(IDEAL_SRATE*len(signal)/sample_rate)
+            new_signal = scipy.signal.resample(signal, new_length)
+
+        segments = self._scan_audio(IDEAL_SRATE, new_signal)
+        return np.array(segments)
+
+    def _scan_audio(self, sample_rate, signal):
+        segments = []
+        seg_len = int(self._SEGMENT_MILLISECONDS*sample_rate/1000)
+        step = int(sample_rate/100)
+        i = 0
+        end = len(signal)
+        stop = False
+        while not stop:
+            j = i + seg_len
+            if j > end:
+                j = end
+                stop = True
+            segment = signal[i:j]
+            features = mfcc(segment, sample_rate, numcep=constants.mfcc_numceps)
+            features = constants.padding_cropping(features, constants.n_frames)
+            segments.append(features)
+            i += step
+        return segments
+
+
+class TestingDataSet:
+    _INDIVIDUALS_FILE = 'testing-individuals.csv'
+    _COMMONS_FILE = 'testing-commons.csv'
+    _TESTING_PREFIX = 'testing-data'
+    _SEGMENT_MILLISECONDS = 90
+
+    def __init__(self):
+        """ Creates the random sampler by reading the identifiers file and storing it
+            in memory.
+
+            It also reads the phonemes and does the same.
+        """
+        testing_filename = constants.pickle_filename(self._TESTING_PREFIX)
+        try:
+            with open(testing_filename, 'rb') as f:
+                self.testing_data = pickle.load(f)
+        except:
+            self.testing_data = None
+
+        if self.testing_data is None:
+            ids = []
+            ids += self._get_ids(self._INDIVIDUALS_FILE)
+            ids += self._get_ids(self._COMMONS_FILE)
+            self.testing_data = self._get_data(ids)
+            with open(testing_filename, 'wb') as f:
+                pickle.dump(self.testing_data, f)
+    
+    def get_data(self):
+        return self.testing_data
+ 
+    def _get_ids(self, filename):
+        ids = []
+        with open(filename, 'r') as file:
+            reader = csv.reader(file)
+            next(reader, None)
+            for row in reader:
+                ids.append(tuple(row))
+        return ids
+
+    def _get_data(self, ids):
+        audios = []
+        for i in ids:
+            modifier = i[0]
+            id = i[1]
+            audio = TaggedAudio(id)
+            audio.text = self._get_text(modifier, id)
+            audio.labels = self._get_labels(modifier, id)
+            audio.segments = self._get_segments(modifier, id)
+            audios.append(audio)
+        return audios
 
     def _get_text(self, modifier, id):
         file_name = get_text_filename(modifier, id)

@@ -25,18 +25,19 @@ idx_digits = 3
 testing_path = 'test'
 memories_path = 'memories'
 
+labels_prefix = 'labels'
 features_prefix = 'features'
 memories_prefix = 'memories'
+model_prefix = 'model'
 recognition_prefix = 'recognition'
+stats_prefix = 'model_stats'
 
 learning_data_seed = 'seed'
 learning_data_learnt = 'learned'
 
 # Categories prefixes.
-model_name = 'model'
 stats_model_name = 'model_stats'
 data_name = 'data'
-labels_name = 'labels'
 
 original_suffix = '-original'
 
@@ -165,23 +166,25 @@ def csv_filename(s, idx = None, tolerance = 0, experiment = None, counter = 0):
 
 
 def data_filename(s, idx = None):
-    """ Returns a file name for csv(i) in run_path directory
-    """
     return filename(s, idx, extension='.npy')
+
+def pickle_filename(s, idx = None):
+    return filename(s, idx, extension='.pkl')
 
 
 def picture_filename(s, idx = None, tolerance = 0):
+
     """ Returns a file name for a graph.
     """
     return filename(s, idx, tolerance, '.svg')
 
-def classifier_filename(s, idx = None):
-    return filename(s + classifier_suffix, idx)
+def classifier_filename(s, idx = None, tolerance=0, counter = None):
+    return filename(s + classifier_suffix, idx, tolerance, counter = counter)
 
-def decoder_filename(s, idx = None):
-    return filename(s + decoder_suffix, idx)
+def decoder_filename(s, idx = None, tolerance=0, counter = None):
+    return filename(s + decoder_suffix, idx, tolerance, counter = counter)
 
-def recog_filename(s, idx = None, experiment = None, tolerance = None, counter = 0):
+def recog_filename(s, experiment = None, idx = None, tolerance = None, counter = 0):
     return csv_filename(s, idx, tolerance, experiment, counter)
 
 
@@ -241,16 +244,26 @@ def learned_data_filename(suffix, n):
 def learned_labels_filename(suffix, n):
     return data_filename(learning_data_learnt + suffix + labels_suffix, n)
 
-def features_name(i = -1):
-    return features_prefix
+def get_name_w_suffix(prefix, n, v, sf):
+    suffix = ''
+    if n > 0:
+        suffix = sf(v)
+    return prefix + suffix 
 
+def features_name(n = -1):
+    return get_name_w_exp(features_prefix, n, n, experiment_suffix)
 
-def memories_name(i = -1, tolerance = 0):
-    mem_name = memories_prefix
-    if i  >= 0:
-        mem_name += tolerance_suffix(tolerance)
-    return mem_name
+def labels_name(n = -1):
+    return get_name_w_exp(labels_prefix, n, n, experiment_suffix)
 
+def memories_name(n = -1, tolerance = 0):
+    return get_name_w_suffix(memories_prefix, n, tolerance, tolerance_suffix)
+
+def model_name(n = -1):
+    return get_name_w_suffix(model_prefix, n, n, experiment_suffix)
+
+def stats_name(n = -1):
+    return get_name_w_suffix(stats_prefix, n, n, experiment_suffix)
 
 def mean_idx(m):
     return m

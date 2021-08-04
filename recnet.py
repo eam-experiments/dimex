@@ -476,11 +476,70 @@ def train_decoder(filename, experiment):
     return histories
 
 
+def train_next_encoder(training_data, training_labels,
+    validation_data, validation_labels, model_prefix, fold, tolerance, counter):
+    input_data = Input(shape=(n_frames, n_mfcc))
+    weights = get_weights(training_labels)
+    encoded = get_encoder(input_data)
+    classified = get_classifier(encoded)
+    model = Model(inputs=input_data, outputs=classified)
+    model.compile(loss='categorical_crossentropy',
+                optimizer='adam',
+                metrics='accuracy')
+    model.summary()
+    history = model.fit(training_data,
+            training_labels,
+            batch_size = batch_size,
+            epochs = epochs,
+            class_weight = weights, # Only supported for single output models.
+            validation_data = (validation_data, validation_labels),
+            callbacks=[EarlyStoppingAtLossCrossing(patience)],
+            verbose=2)
+    model.save(constants.classifier_filename(model_prefix, fold, tolerance, counter))
+    model = Model(inputs=input_data, outputs=encoded)
+    return model, history
+
+def train_next_decoder(training_data, training_labels,
+    validation_data, validation_labels, model_prefix, fold, tolerance, counter):
+    input_data = Input(shape=(constants.domain))
+    decoded = get_decoder(input_data)
+    model = Model(inputs=input_data, outputs=decoded)
+    model.compile(loss='mean_squared_error', optimizer='adam', metrics='accuracy')
+    model.summary()
+    history = model.fit(training_data,
+            training_labels,
+            batch_size = batch_size,
+            epochs = epochs,
+            validation_data = (validation_data, validation_labels),
+            callbacks=[EarlyStoppingAtLossCrossing(patience)],
+            verbose=2)
+    model.save(constants.decoder_filename(model_prefix, fold, tolerance, counter))
+    return model, history
+
+def train_next_network(training_data, training_labels,
+    validation_data, validation_labels, filling_data, filling_labels,
+    model_prefix, fold, tolerance, counter):
+    histories = []
+    encoder, history = train_next_encoder(training_data, training_labels,
+        validation_data, validation_labels, model_prefix, fold, tolerance, counter)
+    histories.append(history)
+    training_features = encoder.predict(training_data)
+    validation_features = encoder.predict(validation_data)
+    filling_features = encoder.predict(filling_data)
+    _, history = train_next_decoder(training_features, training_labels,
+        validation_features, validation_labels, model_prefix, fold, tolerance, counter)
+    histories.append(history)
+    return filling_features, histories
+
+
+
+
+
 class SplittedNeuralNetwork:
-    def __init__ (self, n):
-        model_filename = constants.classifier_filename(constants.model_name, n)
+    def __init__ (self, prefix, fold, tolerance, counter):
+        model_filename = constants.classifier_filename(prefix, fold, tolerance, counter)
         classifier = tf.keras.models.load_model(model_filename)
-        model_filename = constants.decoder_filename(constants.model_name, n)
+        model_filename = constants.decoder_filename(prefix, fold, tolerance, counter)
         self.decoder = tf.keras.models.load_model(model_filename)
 
         input_enc = Input(shape=(n_frames, n_mfcc))
@@ -509,8 +568,8 @@ def process_sample(sample: dimex.TaggedAudio, snnet: SplittedNeuralNetwork):
     return sample
 
 
-def process_samples(samples, fold):
-    snnet = SplittedNeuralNetwork(fold)
+def process_samples(samples, prefix, fold, tolerance, counter):
+    snnet = SplittedNeuralNetwork(prefix, fold, tolerance, counter)
     new_samples = []
     for sample in samples: 
         new_sample = process_sample(sample, snnet)

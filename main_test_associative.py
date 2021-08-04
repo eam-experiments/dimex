@@ -360,13 +360,13 @@ def test_memories(domain, experiment, tolerance=0):
         suffix = constants.filling_suffix
         training_features_filename = constants.features_name(experiment) + suffix        
         training_features_filename = constants.data_filename(training_features_filename, i)
-        training_labels_filename = constants.labels_name + suffix        
+        training_labels_filename = constants.labels_name(experiment) + suffix        
         training_labels_filename = constants.data_filename(training_labels_filename, i)
 
         suffix = constants.testing_suffix
         testing_features_filename = constants.features_name(experiment) + suffix        
         testing_features_filename = constants.data_filename(testing_features_filename, i)
-        testing_labels_filename = constants.labels_name + suffix        
+        testing_labels_filename = constants.labels_name(experiment) + suffix        
         testing_labels_filename = constants.data_filename(testing_labels_filename, i)
 
         training_features = np.load(training_features_filename)
@@ -607,13 +607,13 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
     suffix = constants.filling_suffix
     filling_features_filename = constants.features_name(experiment) + suffix        
     filling_features_filename = constants.data_filename(filling_features_filename, fold)
-    filling_labels_filename = constants.labels_name + suffix        
+    filling_labels_filename = constants.labels_name(experiment) + suffix        
     filling_labels_filename = constants.data_filename(filling_labels_filename, fold)
 
     suffix = constants.testing_suffix
     testing_features_filename = constants.features_name(experiment, occlusion, bars_type) + suffix        
     testing_features_filename = constants.data_filename(testing_features_filename, fold)
-    testing_labels_filename = constants.labels_name + suffix        
+    testing_labels_filename = constants.labels_name(experiment) + suffix        
     testing_labels_filename = constants.data_filename(testing_labels_filename, fold)
 
     filling_features = np.load(filling_features_filename)
@@ -725,7 +725,7 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
         memories_filename = constants.memories_name(experiment, occlusion, bars_type, tolerance)
         memories_filename = constants.data_filename(memories_filename, fold)
         np.save(memories_filename, memories)
-        tags_filename = constants.labels_name + constants.memory_suffix
+        tags_filename = constants.labels_name(experiment) + constants.memory_suffix
         tags_filename = constants.data_filename(tags_filename, fold)
         np.save(tags_filename, tags)
     
@@ -791,7 +791,7 @@ def characterize_features(domain, experiment, occlusion = None, bars_type = None
     features_prefix = constants.features_name(experiment, occlusion, bars_type)
     tf_filename = features_prefix + constants.testing_suffix
 
-    labels_prefix = constants.labels_name
+    labels_prefix = constants.labels_name(experiment)
     tl_filename = labels_prefix + constants.testing_suffix
 
     features = get_all_data(tf_filename)
@@ -867,37 +867,40 @@ def levenshtein(a: list, b: list):
     return d
 
 
-def save_recognitions(samples: list, dp: dimex.PostProcessor, fold: int,
-    experiment: int, tolerance: int, counter: int):
-    file_name = constants.recog_filename(constants.recognition_prefix, fold,
-        experiment, tolerance, counter)
-
-    with open(file_name, 'w') as file:
+def save_recognitions(samples: list, dp: dimex.PostProcessor, experiment: int,
+    fold: int, tolerance: int, counter: int):
+    filename = constants.recog_filename(constants.recognition_prefix, experiment,
+        fold, tolerance, counter)
+    with open(filename, 'w') as file:
         writer = csv.writer(file)
-        writer.writerow(['Id', 'Text', 'Correct', 'Network','Memories',
-            'Cor2Net', 'Cor2Mem', 'Net2Mem'])
+        writer.writerow(['Id', 'Text', 'Correct', 'CorrSize', 'Network',
+            'NetSize', 'Memories', 'MemSize', 'Cor2Net', 'Cor2Mem', 'Net2Mem'])
         for sample in samples:
             # sample is a Tagged Audio
             correct_phns = dp.get_phonemes(sample.labels)
+            corr_size = len(sample.labels)
             nnet_phns = dp.get_phonemes(sample.net_labels)
+            nnet_size = len(sample.net_labels)
             ams_phns = dp.get_phonemes(sample.ams_labels)
+            ams_size = len(sample.ams_labels)
             cor_net = levenshtein(sample.labels, sample.net_labels)
             cor_mem = levenshtein(sample.labels, sample.ams_labels)
             net_mem = levenshtein(sample.net_labels, sample.ams_labels)
-            row = [sample.id, sample.text, correct_phns, nnet_phns, ams_phns]
+            row = [sample.id, sample.text, correct_phns, corr_size,
+                nnet_phns, nnet_size, ams_phns, ams_size]
             row += [cor_net, cor_mem, net_mem]
             writer.writerow(row)
 
 
-def recognition_on_dimex(samples, fold, experiment, tolerance, counter):
+def recognition_on_dimex(samples, experiment, fold, tolerance, counter):
     dp = dimex.PostProcessor()
     for sample in samples:
         sample.net_labels = dp.process(sample.net_labels)
         sample.ams_labels = dp.process(sample.ams_labels)
-    save_recognitions(samples, dp, fold, experiment, tolerance, counter)
+    save_recognitions(samples, dp, experiment, fold, tolerance, counter)
 
 
-def recognition_on_ciempiess(ams, fold, experiment, tolerance, counter):
+def recognition_on_ciempiess(ams, experiment, fold, tolerance, counter):
     pass
 
 
@@ -909,6 +912,7 @@ def ams_process_samples(samples, ams, minimum, maximum):
             label, _ = ams.recall(features)
             ams_labels.append(label)
         sample.ams_labels = ams_labels
+    return samples
 
 
 def test_recognition(domain, mem_size, experiment, tolerance = 0):
@@ -919,6 +923,10 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
     training_size = int(total*constants.nn_training_percent)
     truly_training = int(training_size*recnet.truly_training_percentage)
     histories = []
+    model_prefix = constants.model_name(experiment)
+    features_prefix = constants.features_name(experiment)
+    labels_prefix = constants.labels_name(experiment)
+
     for fold in range(constants.training_stages):
         i = int(fold*step)
         j = (i + training_size) % total
@@ -930,23 +938,25 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
         training_labels = training_labels[:truly_training]
         filling_data = recnet.get_data_in_range(data, j, i)
         filling_labels = recnet.get_data_in_range(labels, j, i)
-        history = recnet.train_next_network(training_data, training_labels,
-            validation_data, validation_labels, experiment, tolerance, counter)
-        filling_features = recnet.get_features(
-            filling_data, filling_labels, experiment, tolerance, counter)
+        filling_features, history = recnet.train_next_network(training_data, training_labels,
+            validation_data, validation_labels, filling_data, filling_labels,
+            model_prefix, fold, tolerance, counter)
+        histories.append(history)
         maximum = filling_features.max()
         minimum = filling_features.min()
 
         ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
-        tds = dimex.TestingDataSet()
-        samples = tds.get_data()
-        samples = recnet.process_samples(samples, fold, experiment, tolerance)
-        samples = ams_process_samples(samples, ams, minimum, maximum)
+        tds = dimex.TestingDataSet(experiment)
+        testing_data = tds.get_data()
+        testing_data = recnet.process_samples(testing_data, model_prefix, fold, tolerance, counter)
+        testing_data = ams_process_samples(testing_data, ams, minimum, maximum)
             
-        recognition_on_dimex(samples, fold, experiment, tolerance, counter)
-        recognition_on_ciempiess(ams, fold, experiment, tolerance, counter)
+        recognition_on_dimex(testing_data, experiment, fold, tolerance, counter)
+        recognition_on_ciempiess(ams, experiment, fold, tolerance, counter)
+    stats_prefix = constants.stats_name(experiment)
+    save_history(histories, stats_prefix)
     print(f'Experiment {experiment} round {counter} completed!')
 
         
@@ -982,7 +992,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         am_filling_percentage = constants.am_filling_percent
         model_prefix = constants.model_name
         features_prefix = constants.features_name(action)
-        labels_prefix = constants.labels_name
+        labels_prefix = constants.labels_name(action)
         data_prefix = constants.data_name
 
         history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
@@ -1006,7 +1016,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         am_filling_percentage = constants.am_filling_percent
         model_prefix = constants.model_name
         features_prefix = constants.features_name(action, occlusion, bar_type)
-        labels_prefix = constants.labels_name
+        labels_prefix = constants.labels_name(action)
         data_prefix = constants.data_name
 
         history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
