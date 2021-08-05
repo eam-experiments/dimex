@@ -905,6 +905,8 @@ def recognition_on_ciempiess(ams, experiment, fold, tolerance, counter):
 
 
 def ams_process_samples(samples, ams, minimum, maximum):
+    n = 0
+    print('Processing samples with memories.')
     for sample in samples:
         ams_labels = []
         for f in sample.features:
@@ -912,6 +914,11 @@ def ams_process_samples(samples, ams, minimum, maximum):
             label, _ = ams.recall(features)
             ams_labels.append(label)
         sample.ams_labels = ams_labels
+        n += 1
+        if (n % 100) == 0:
+            print(f' {n} ', end = '', flush=True)
+        elif (n % 10) == 0:
+            print('.', end = '', flush=True)
     return samples
 
 
@@ -944,6 +951,7 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
         histories.append(history)
         maximum = filling_features.max()
         minimum = filling_features.min()
+        filling_features = msize_features(filling_features, mem_size, minimum, maximum)
 
         ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size)
         for label, features in zip(filling_labels, filling_features):
