@@ -571,9 +571,17 @@ def process_sample(sample: dimex.TaggedAudio, snnet: SplittedNeuralNetwork):
 
 
 def process_samples(samples, prefix, fold, tolerance, counter):
+    n = 0
+    print('Processing samples with neural network.')
+
     snnet = SplittedNeuralNetwork(prefix, fold, tolerance, counter)
     new_samples = []
     for sample in samples: 
         new_sample = process_sample(sample, snnet)
         new_samples.append(new_sample)
+        n += 1
+        if (n % 100) == 0:
+            print(f' {n} ', end = '', flush=True)
+        elif (n % 10) == 0:
+            print('.', end = '', flush=True)
     return new_samples
