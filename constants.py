@@ -251,10 +251,10 @@ def get_name_w_suffix(prefix, n, v, sf):
     return prefix + suffix 
 
 def features_name(n = -1):
-    return get_name_w_exp(features_prefix, n, n, experiment_suffix)
+    return get_name_w_suffix(features_prefix, n, n, experiment_suffix)
 
 def labels_name(n = -1):
-    return get_name_w_exp(labels_prefix, n, n, experiment_suffix)
+    return get_name_w_suffix(labels_prefix, n, n, experiment_suffix)
 
 def memories_name(n = -1, tolerance = 0):
     return get_name_w_suffix(memories_prefix, n, tolerance, tolerance_suffix)

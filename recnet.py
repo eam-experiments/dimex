@@ -480,6 +480,8 @@ def train_next_encoder(training_data, training_labels,
     validation_data, validation_labels, model_prefix, fold, tolerance, counter):
     input_data = Input(shape=(n_frames, n_mfcc))
     weights = get_weights(training_labels)
+    training_labels = to_categorical(training_labels, constants.n_labels, dtype='int')
+    validation_labels = to_categorical(validation_labels, constants.n_labels, dtype='int')
     encoded = get_encoder(input_data)
     classified = get_classifier(encoded)
     model = Model(inputs=input_data, outputs=classified)
@@ -526,8 +528,8 @@ def train_next_network(training_data, training_labels,
     training_features = encoder.predict(training_data)
     validation_features = encoder.predict(validation_data)
     filling_features = encoder.predict(filling_data)
-    _, history = train_next_decoder(training_features, training_labels,
-        validation_features, validation_labels, model_prefix, fold, tolerance, counter)
+    _, history = train_next_decoder(training_features, training_data,
+        validation_features, validation_data, model_prefix, fold, tolerance, counter)
     histories.append(history)
     return filling_features, histories
 
