@@ -908,12 +908,8 @@ def ams_process_samples(samples, ams, minimum, maximum):
     n = 0
     print('Processing samples with memories.')
     for sample in samples:
-        ams_labels = []
-        for f in sample.features:
-            features = msize_features(f, ams.m, minimum, maximum)
-            label, _ = ams.recall(features)
-            ams_labels.append(label)
-        sample.ams_labels = ams_labels
+        features = msize_features(sample.features, ams.m, minimum, maximum)
+        sample.ams_labels = [ams.recall(f)[0] for f in features]
         n += 1
         if (n % 100) == 0:
             print(f' {n} ', end = '', flush=True)
