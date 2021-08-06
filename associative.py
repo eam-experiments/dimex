@@ -205,7 +205,7 @@ class AssociativeMemorySystem:
                 record = (k, entropy, recalled)
                 resp_mems.append(record)
         if not resp_mems:
-            return self.full_undefined
+            return (None, self.full_undefined)
         else:
             k = None
             recalled = None
