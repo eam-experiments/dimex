@@ -77,7 +77,6 @@ class AssociativeMemory(object):
     def undefined(self):
         return self.m
 
-
     def is_undefined(self, value):
         return value == self.undefined
 
@@ -90,35 +89,18 @@ class AssociativeMemory(object):
 
     # Choose a value for feature i.
     def choose(self, i, v):
-        if self.is_undefined(v) or not self.relation[v,i]:
-            values = []
-            for j in range(self.m):
-                if self.relation[j,i]:
-                    values.append(j)
-            if len(values) == 0:
-                return self.undefined
-            else:
-                j = random.randrange(len(values))
-                k = values[j]
-                return k
+        if not (self.is_undefined(v) or self.relation[v, i]):
+            return self.undefined
+
+        values = np.where(self.relation[:self.m,i])[0]
+        if len(values) == 0:
+            return self.undefined
+        if self.is_undefined(v):
+            return random.choice(values)
         else:
-            min = v
-            max = v
-            for j in range(v, -1, -1):
-                if self.relation[j,i]:
-                    min = j
-                else:
-                    break
-            for j in range(v, self.m):
-                if self.relation[j,i]:
-                    max = j
-                else:
-                    break
-            if min == max:
-                return v
-            else:
-                k = round(random.triangular(min, max, v))
-                return k
+            vj = np.where(values == v)[0][0]
+            j = round(random.triangular(0, len(values)-1, vj))
+            return values[j]
                  
 
     def abstract(self, r_io) -> None:
@@ -132,10 +114,8 @@ class AssociativeMemory(object):
     # Reduces a relation to a function
     def lreduce(self, vector):
         v = np.full(self.n, self.undefined)
-
         for i in range(self.n):
             v[i] = self.choose(i, vector[i])
-
         return v
 
 
@@ -145,13 +125,8 @@ class AssociativeMemory(object):
 
         if len(v) != self.n:
             raise ValueError('Invalid size of the input data. Expected', self.n, 'and given', vector.size)
-        for i in range(self.n):
-            if np.isnan(v[i]):
-                print('Got here')
-                v[i] = self.undefined
-            elif (v[i] > self.m) or (v[i] < 0):
-                constants.print_warning(f'Value {v[i]} is out of range. Changed to undefined.')
-                v[i] = self.undefined
+        v = np.nan_to_num(v, copy=False, nan=self.undefined)
+        v = np.where((v > self.m) | (v < 0), self.undefined, v)
         return v.astype('int')
         
 
@@ -183,9 +158,7 @@ class AssociativeMemory(object):
 
     def recall(self, vector):
         vector = self.validate(vector)
-
         accept = self.mismatches(vector) <= self._t
-
         if accept:
             r_io = self.lreduce(vector)
         else:
@@ -207,6 +180,10 @@ class AssociativeMemorySystem:
     def num_mems(self):
         return len(self._memories)
 
+    @property
+    def full_undefined(self):
+        return np.full(self.n, np.nan)
+
     def register(self, mem, vector):
         if not (mem in self._memories):
             raise ValueError(f'There is no memory for {mem}')
@@ -227,9 +204,8 @@ class AssociativeMemorySystem:
                 entropy = self._memories[k].entropy
                 record = (k, entropy, recalled)
                 resp_mems.append(record)
-        
         if not resp_mems:
-            return (None, random.choice(self._memories).recall(vector))
+            return self.full_undefined
         else:
             k = None
             recalled = None
@@ -239,7 +215,6 @@ class AssociativeMemorySystem:
                     k = record[0]
                     entropy = record[1]
                     recalled = record[2]
-            
             return (k, recalled)
         
 
