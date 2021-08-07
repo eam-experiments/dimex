@@ -68,7 +68,7 @@ cdef class AssociativeMemory:
     def entropy(self):
         """Return the entropy of the Associative Memory."""
         cdef float e = 0.0  # entropy
-        v = self.relation.sum(axis=0)  # number of marked cells in the columns
+        v = np.sum(self.relation, axis=0)  # number of marked cells in the columns
         for vi in v:
             if vi != 0:
                 e -= np.log2(vi)
