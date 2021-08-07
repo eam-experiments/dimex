@@ -15,18 +15,20 @@
 
 # File originally create by Raul Peralta-Lozada.
 
+
 import numpy as np
+cimport cython
 import random
 import time
-
 import constants
 
-class AssociativeMemoryError(Exception):
+cdef class AssociativeMemoryError(Exception):
     pass
 
 
-class AssociativeMemory(object):
-    def __init__(self, n: int, m: int, tolerance = 0):
+cdef class AssociativeMemory:
+    
+    def __init__(self, int n, int m, int tolerance = 0):
         """
         Parameters
         ----------
@@ -40,7 +42,7 @@ class AssociativeMemory(object):
         self._t = tolerance
 
         # it is m+1 to handle partial functions.
-        self._relation = np.zeros((self._m, self._n), dtype=np.bool)
+        self._relation = np.zeros((self._m, self._n), dtype=np.int)
 
     def __str__(self):
         relation = np.zeros((self.m, self.n), dtype=np.unicode)
@@ -63,9 +65,9 @@ class AssociativeMemory(object):
         return self._relation[:self.m,:self.n]
 
     @property
-    def entropy(self) -> float:
+    def entropy(self):
         """Return the entropy of the Associative Memory."""
-        e = 0.0  # entropy
+        cdef float e = 0.0  # entropy
         v = self.relation.sum(axis=0)  # number of marked cells in the columns
         for vi in v:
             if vi != 0:
@@ -77,18 +79,18 @@ class AssociativeMemory(object):
     def undefined(self):
         return self.m
 
-    def is_undefined(self, value):
+    cpdef is_undefined(self, int value):
         return value == self.undefined
 
 
-    def vector_to_relation(self, vector):
+    cpdef vector_to_relation(self, vector):
         relation = np.zeros((self._m, self._n), np.bool)
         relation[vector, range(self.n)] = True
         return relation
 
 
     # Choose a value for feature i.
-    def choose(self, i, v):
+    cpdef choose(self, int i, int v):
         if not (self.is_undefined(v) or self.relation[v, i]):
             return self.undefined
 
@@ -103,23 +105,23 @@ class AssociativeMemory(object):
             return values[j]
                  
 
-    def abstract(self, r_io) -> None:
+    cpdef void abstract(self, r_io):
         self._relation = self._relation | r_io
 
 
-    def containment(self, r_io):
+    cpdef containment(self, r_io):
         return ~r_io[:self.m, :self.n] | self.relation
 
 
     # Reduces a relation to a function
-    def lreduce(self, vector):
+    cpdef lreduce(self, vector):
         v = np.full(self.n, self.undefined)
         for i in range(self.n):
             v[i] = self.choose(i, vector[i])
         return v
 
 
-    def validate(self, vector):
+    cpdef validate(self, vector):
         # Forces it to be a vector.
         v = np.ravel(vector)
 
@@ -130,33 +132,33 @@ class AssociativeMemory(object):
         return v.astype('int')
         
 
-    def revalidate(self, vector):
+    cpdef revalidate(self, vector):
         v = vector.astype('float')
         return np.where(v == float(self.undefined), np.nan, v)
 
 
-    def register(self, vector) -> None:
+    cpdef void register(self, vector):
         vector = self.validate(vector)
 
         r_io = self.vector_to_relation(vector)
         self.abstract(r_io)
 
 
-    def recognize(self, vector):
+    cpdef recognize(self, vector):
         vector = self.validate(vector)
         r_io = self.vector_to_relation(vector)
         r_io = self.containment(r_io)
         return np.count_nonzero(r_io[:self.m,:self.n] == False) <= self._t
 
 
-    def mismatches(self, vector):
+    cpdef mismatches(self, vector):
         vector = self.validate(vector)
         r_io = self.vector_to_relation(vector)
         r_io = self.containment(r_io)
         return np.count_nonzero(r_io[:self.m,:self.n] == False)
 
 
-    def recall(self, vector):
+    cpdef recall(self, vector):
         vector = self.validate(vector)
         accept = self.mismatches(vector) <= self._t
         if accept:
@@ -167,8 +169,8 @@ class AssociativeMemory(object):
         return r_io, accept
 
 
-class AssociativeMemorySystem:
-    def __init__(self, labels: list, n: int, m: int, tolerance = 0):
+cdef class AssociativeMemorySystem:
+    def __init__(self, list labels, int n, int m, int tolerance = 0):
         self._memories = {}
         self.n = n
         self.m = m
@@ -184,20 +186,20 @@ class AssociativeMemorySystem:
     def full_undefined(self):
         return np.full(self.n, np.nan)
 
-    def register(self, mem, vector):
+    cpdef void register(self, int mem, vector):
         if not (mem in self._memories):
             raise ValueError(f'There is no memory for {mem}')
         self._memories[mem].register(vector)
 
-    def recognize(self, vector):
+    cpdef recognize(self, vector):
         for k in self._memories:
             recognized = self._memories[k].recognize(vector)
             if recognized:
                 return True
         return False
 
-    def recall(self, vector):
-        resp_mems = []
+    cpdef recall(self, vector):
+        cdef list resp_mems = []
         for k in self._memories:
             recalled, recognized = self._memories[k].recall(vector)
             if recognized:
