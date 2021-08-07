@@ -179,6 +179,14 @@ cdef class AssociativeMemorySystem:
             self._memories[label] = AssociativeMemory(n, m, tolerance)
 
     @property
+    def n(self):
+        return self.n
+
+    @property
+    def m(self):
+        return self.m
+
+    @property
     def num_mems(self):
         return len(self._memories)
 
