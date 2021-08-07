@@ -66,7 +66,7 @@ cdef class AssociativeMemory:
 
 cdef class AssociativeMemorySystem:
 
-    cdef dict memories
+    cdef dict _memories
     cdef int n
     cdef int m
     cdef int tolerance
