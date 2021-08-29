@@ -31,10 +31,11 @@ import seaborn
 from tensorflow.python.framework.tensor_shape import unknown_shape
 from tensorflow.python.ops.gen_parsing_ops import parse_single_sequence_example_eager_fallback
 
-import constants
-import recnet
 from associative import AssociativeMemory, AssociativeMemorySystem
+import ciempiess
+import constants
 import dimex
+import recnet
 
 # Translation
 gettext.install('ame', localedir=None, codeset=None, names=None)
@@ -956,9 +957,14 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
         testing_data = tds.get_data()
         testing_data = recnet.process_samples(testing_data, model_prefix, fold, tolerance, counter)
         testing_data = ams_process_samples(testing_data, ams, minimum, maximum)
-            
         recognition_on_dimex(testing_data, experiment, fold, tolerance, counter)
+
+        nds = ciempiess.NextDataSet(counter)
+        new_data = nds = nds.get_data()
+        new_data = recnet.process_samples(new_data, model_prefix, fold, tolerance, counter)
+        new_data = ams_process_samples(new_data, ams, minimum, maximum)
         recognition_on_ciempiess(ams, experiment, fold, tolerance, counter)
+
     stats_prefix = constants.stats_name(experiment)
     save_history(histories, stats_prefix)
     print(f'Experiment {experiment} round {counter} completed!')

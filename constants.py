@@ -91,6 +91,7 @@ memory_fills = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 100.0]
 ideal_memory_size = 256
 
 n_samples = 10
+ciempiess_segment_size = 2500
 
 CHARACTERIZE = -3
 TRAIN_AUTOENCODER = -2
@@ -285,4 +286,13 @@ def padding_cropping(data, n_frames):
         return np.pad(data, ((top_padding, bottom_padding),(0,0)),
             'constant', constant_values=((0,0),(0,0)))
 
+def print_counter(n, every, step = 1, symbol = '.'):
+    e = n % every
+    s = n % step
+    if e and s:
+        return
+    counter = symbol
+    if not e:
+        counter =  ' ' + str(n) + ' '
+    print(counter, end = '', flush=True)
 
