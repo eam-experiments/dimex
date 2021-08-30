@@ -55,6 +55,16 @@ matrix_suffix = '-matrix'
 data_suffix = '-X'
 labels_suffix = '-Y'
 
+agreed_suffix = '-agr'
+original_suffix = '-ori'
+amsystem_suffix = '-ams'
+nnetwork_suffix = '-rnn'
+recognition_suffixes = [[agreed_suffix], [agreed_suffix, original_suffix],
+    [agreed_suffix, original_suffix, amsystem_suffix],
+    [agreed_suffix, original_suffix, nnetwork_suffix],
+    [agreed_suffix, original_suffix, amsystem_suffix, nnetwork_suffix]]
+
+
 mfcc_numceps = 26
 training_stages = 10 
 domain = 64
@@ -132,6 +142,9 @@ def experiment_suffix(experiment):
 
 def counter_suffix(counter):
     return '' if not counter else '-cnt_' + str(counter).zfill(3)    
+
+def fold_suffix(fold):
+    return '' if not fold else '-fold_' + str(fold).zfill(3)    
 
 def filename(s, idx = None, tolerance = 0, extension = '',
     experiment = None, counter = 0):
@@ -238,11 +251,13 @@ def seed_data_filename():
 def seed_labels_filename():
     return data_filename(learning_data_seed + labels_suffix)
 
-def learned_data_filename(suffix, n):
-    return data_filename(learning_data_learnt + suffix + data_suffix, n)
+def learned_data_filename(suffix, fold, n):
+    prefix = learning_data_learnt + suffix + fold_suffix(fold) + data_suffix
+    return data_filename(prefix, n)
 
-def learned_labels_filename(suffix, n):
-    return data_filename(learning_data_learnt + suffix + labels_suffix, n)
+def learned_labels_filename(suffix, fold, n):
+    prefix = learning_data_learnt + suffix + fold_suffix(fold) + labels_suffix
+    return data_filename(prefix, n)
 
 def get_name_w_suffix(prefix, n, v, sf):
     suffix = ''

@@ -229,6 +229,8 @@ def get_label(memories, entropies = None):
 def msize_features(features, msize, min_value, max_value):
     return np.round((msize-1)*(features-min_value) / (max_value-min_value)).astype(np.int16)
 
+def rsize_recall(recall, msize, min_value, max_value):
+    return (max_value - min_value)*recall/(msize-1) + min_value
 
 def conf_sum(cms, t):
     return np.sum([cms[i][t] for i in range(len(cms))])
@@ -901,47 +903,91 @@ def recognition_on_dimex(samples, experiment, fold, tolerance, counter):
     save_recognitions(samples, dp, experiment, fold, tolerance, counter)
 
 
-def recognition_on_ciempiess(ams, experiment, fold, tolerance, counter):
-    pass
+def save_learned_data(pairs, suffix, experiment, fold, tolerance, counter):
+    labels = [p[0] for p in pairs]
+    filename = constants.learned_labels_filename(suffix, fold, counter)
+    np.save(filename, labels)
+
+    data = [p[1] for p in pairs]
+    filename = constants.learned_data_filename(suffix, fold, counter)
+    np.save(filename, data)
+
+ 
+def recognition_on_ciempiess(data, experiment, fold, tolerance, counter):
+    agreed = []
+    nnet = []
+    amsys = []
+    original = []
+    for d in data:
+        n = len(d.net_labels)
+        for i in range(n):
+            orig_mfcc = d.segments[i]
+            mem_label = d.ams_labels[i]
+            mem_mfcc = d.ams_segments[i]
+            net_label = d.net_labels[i]
+            net_mfcc = d.net_segments[i]
+            if mem_label is None:
+                mem_label = constants.n_labels
+            
+            if mem_label == net_label:
+                mfcc = (orig_mfcc + mem_mfcc + net_mfcc)/3
+                agreed.append((mem_label, mfcc))
+                original.append((mem_label, orig_mfcc))
+            mfcc = (orig_mfcc + net_mfcc)/2
+            nnet.append((net_label, mfcc))
+            if mem_label < constants.n_labels:
+                mfcc = (orig_mfcc + mem_mfcc)/2
+                amsys.append((mem_label, mfcc))
+    
+    save_learned_data(agreed, constants.agreed_suffix, experiment, fold, tolerance, counter)
+    save_learned_data(original, constants.original_suffix, experiment, fold, tolerance, counter)
+    save_learned_data(amsys, constants.amsystem_suffix, experiment, fold, tolerance, counter)
+    save_learned_data(nnet, constants.nnetwork_suffix, experiment, fold, tolerance, counter)
 
 
-def ams_process_samples(samples, ams, minimum, maximum):
+def ams_process_samples(samples, ams, minimum, maximum, decode=False):
     n = 0
     print('Processing samples with memories.')
     for sample in samples:
         features = msize_features(sample.features, ams.m, minimum, maximum)
-        sample.ams_labels = [ams.recall(f)[0] for f in features]
+        if not decode:
+            sample.ams_labels = [ams.recall(f)[0] for f in features]
+        else:
+            labels = []
+            recalls = []
+            for f in features:
+                label, recall = ams.recall(f)
+                labels.append(label)
+                recall = rsize_recall(recall, ams.m, minimum, maximum)
+                recalls.append(recall)
+            sample.ams_labels = labels
+            sample.ams_features = recalls
         n += 1
-        if (n % 100) == 0:
-            print(f' {n} ', end = '', flush=True)
-        elif (n % 10) == 0:
-            print('.', end = '', flush=True)
+        constants.print_counter(n,100,10)
     return samples
 
 
 def test_recognition(domain, mem_size, experiment, tolerance = 0):
-    ds = dimex.LearnedDataSet(tolerance)
-    (data, labels), counter = ds.get_data()
-    total = len(labels)
-    step = total / constants.training_stages
-    training_size = int(total*constants.nn_training_percent)
-    truly_training = int(training_size*recnet.truly_training_percentage)
     histories = []
     model_prefix = constants.model_name(experiment)
     features_prefix = constants.features_name(experiment)
     labels_prefix = constants.labels_name(experiment)
 
     for fold in range(constants.training_stages):
-        i = int(fold*step)
-        j = (i + training_size) % total
-        training_data = recnet.get_data_in_range(data, i, j)
-        training_labels = recnet.get_data_in_range(labels, i, j)
-        validation_data = training_data[truly_training:]
-        validation_labels = training_labels[truly_training:]
-        training_data = training_data[:truly_training]
-        training_labels = training_labels[:truly_training]
-        filling_data = recnet.get_data_in_range(data, j, i)
-        filling_labels = recnet.get_data_in_range(labels, j, i)
+        ds = dimex.LearnedDataSet(fold, tolerance)
+        data, labels, counter = ds.get_data()
+        total = len(labels)
+        step = total / constants.training_stages
+        training_size = int(total*(constants.nn_training_percent+constants.am_testing_percent))
+        truly_training = int(training_size*recnet.truly_training_percentage)
+
+        training_data = data[:truly_training]
+        training_labels = labels[:truly_training]
+        validation_data = data[truly_training:training_size]
+        validation_labels = labels[truly_training:training_size]
+        filling_data = data[training_size:]
+        filling_labels = labels[training_size:]
+
         filling_features, history = recnet.train_next_network(training_data, training_labels,
             validation_data, validation_labels, filling_data, filling_labels,
             model_prefix, fold, tolerance, counter)
@@ -961,9 +1007,10 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
 
         nds = ciempiess.NextDataSet(counter)
         new_data = nds = nds.get_data()
-        new_data = recnet.process_samples(new_data, model_prefix, fold, tolerance, counter)
-        new_data = ams_process_samples(new_data, ams, minimum, maximum)
-        recognition_on_ciempiess(ams, experiment, fold, tolerance, counter)
+        new_data = recnet.process_samples(new_data, model_prefix, fold, tolerance, counter, decode=True)
+        new_data = ams_process_samples(new_data, ams, minimum, maximum, decode=True)
+        new_data = recnet.reprocess_samples(new_data, model_prefix, fold, tolerance, counter)
+        recognition_on_ciempiess(new_data, experiment, fold, tolerance, counter)
 
     stats_prefix = constants.stats_name(experiment)
     save_history(histories, stats_prefix)

@@ -562,26 +562,38 @@ class SplittedNeuralNetwork:
             to_layer.set_weights(from_layer.get_weights())
 
 
-def process_sample(sample: dimex.TaggedAudio, snnet: SplittedNeuralNetwork):
+def process_sample(sample: dimex.TaggedAudio, snnet: SplittedNeuralNetwork, decode):
     features = snnet.encoder.predict(sample.segments)
-    labels = snnet.classifier.predict(features)    
+    labels = snnet.classifier.predict(features)
     sample.features = features
     sample.net_labels = np.argmax(labels, axis=1)
+    if decode:
+        sample.net_segments = snnet.decoder.predict(features)
     return sample
 
 
-def process_samples(samples, prefix, fold, tolerance, counter):
+def process_samples(samples, prefix, fold, tolerance, counter, decode=False):
     n = 0
     print('Processing samples with neural network.')
 
     snnet = SplittedNeuralNetwork(prefix, fold, tolerance, counter)
     new_samples = []
     for sample in samples: 
-        new_sample = process_sample(sample, snnet)
+        new_sample = process_sample(sample, snnet, decode)
         new_samples.append(new_sample)
         n += 1
-        if (n % 100) == 0:
-            print(f' {n} ', end = '', flush=True)
-        elif (n % 10) == 0:
-            print('.', end = '', flush=True)
+        constants.print_counter(n,100,10)
     return new_samples
+
+
+def reprocess_samples(samples, prefix, fold, tolerance, counter, decode=False):
+    n = 0
+    print('Reprocessing samples with neural network.')
+
+    snnet = SplittedNeuralNetwork(prefix, fold, tolerance, counter)
+    for sample in samples: 
+        features = sample.ams_features
+        sample.ams_segments = snnet.decoder.predict(features)
+        n += 1
+        constants.print_counter(n,100,10)
+    return samples
