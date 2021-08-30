@@ -91,7 +91,7 @@ memory_fills = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 100.0]
 ideal_memory_size = 256
 
 n_samples = 10
-ciempiess_segment_size = 2500
+ciempiess_segment_size = 250
 
 CHARACTERIZE = -3
 TRAIN_AUTOENCODER = -2
