@@ -69,6 +69,7 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
 
     data = []
     labels = []
+    frequencies = np.zeros(constants.n_labels, dtype=int)
     counter = 0
     for mod, id in mods_ids:
         audio_filename = dimex.get_audio_filename(mod, id)
@@ -108,6 +109,7 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
                 label = dimex.phns_to_labels[phn]
                 data.append(features)
                 labels.append(label)
+                frequencies[label] += 1
         counter += 1
         constants.print_counter(counter,100,10)    
     data, labels = dimex.shuffle(data, labels)
@@ -120,8 +122,8 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
         filename = constants.pickle_filename(prefix + constants.data_suffix)
         with open(filename, 'wb') as f:
             pickle.dump(data, f)
- 
-    
+    print(f'Frequencies: {frequencies}')
+     
 
 def create_learning_seeds():
     create_data_and_labels(_TRAINING_IDS, constants.learning_data_seed)
