@@ -1,6 +1,7 @@
 import argparse
 import csv
 import numpy as np
+import pickle
 from python_speech_features import mfcc
 import random
 import scipy.io.wavfile as wav
@@ -10,18 +11,21 @@ import constants
 import dimex
 
 _FEATURES_DIR = 'Features'
-_TRAINING_DATA = 'training.csv'
+_ALL_IDS = 'ids.csv'
+_TRAINING_IDS = 'training.csv'
+_ALL_DATA_PREFIX = 'all'
+_BALANCED_DATA_PREFIX = 'rand'
+
 
 _BALANCED = 0
 _SEED = 1
-_LABELS_SUFFIX = '_Y.npy'
-_DATA_SUFFIX = '_X.npy'
+_FULL = 2
 
 
 def create_balanced_data(cut_point, in_prefix, out_prefix, convert=False):
    # Load original data
-    labels_filename = in_prefix + _LABELS_SUFFIX
-    features_filename = in_prefix + _DATA_SUFFIX
+    labels_filename = in_prefix + constants.labels_suffix
+    features_filename = in_prefix + constants.data_suffix
     labels = np.load(labels_filename)
     features = np.load(features_filename, allow_pickle=True)
 
@@ -45,8 +49,8 @@ def create_balanced_data(cut_point, in_prefix, out_prefix, convert=False):
 
     features = [p[0] for p in pairs]
     labels = [p[1] for p in pairs]
-    np.save(out_prefix + _DATA_SUFFIX, features)
-    np.save(out_prefix + _LABELS_SUFFIX, labels)
+    np.save(out_prefix + constants.data_suffix, features)
+    np.save(out_prefix + constants.labels_suffix, labels)
 
 
 def get_mods_ids(file_name):
@@ -60,8 +64,8 @@ def get_mods_ids(file_name):
     return mods_ids
 
 
-def create_learning_seeds():
-    mods_ids = get_mods_ids(_TRAINING_DATA)
+def create_data_and_labels(id_filename, prefix, crop_pad=True):
+    mods_ids = get_mods_ids(id_filename)
 
     data = []
     labels = []
@@ -99,25 +103,31 @@ def create_learning_seeds():
                     resampling = int(duration/1000*dimex.IDEAL_SRATE)
                     ns = scipy.signal.resample(ns,resampling)
                 features = mfcc(ns,dimex.IDEAL_SRATE,numcep=26)
-                features = constants.padding_cropping(features, constants.n_frames)
+                if crop_pad:
+                    features = constants.padding_cropping(features, constants.n_frames)
                 label = dimex.phns_to_labels[phn]
                 data.append(features)
                 labels.append(label)
-
-            
         counter += 1
-        if (counter % 100) == 0:
-            print(f' {counter} ', end = '', flush=True)
-        elif (counter % 10) == 0:
-            print('.', end = '', flush=True)
-    
+        constants.print_counter(counter,100,10)    
     data, labels = dimex.shuffle(data, labels)
-    filename = constants.seed_data_filename()
-    np.save(filename,data)
-    filename = constants.seed_labels_filename()
+    filename = constants.data_filename(prefix + constants.labels_suffix)
     np.save(filename,labels)
+    if crop_pad:
+        filename = constants.data_filename(prefix + constants.data_suffix)
+        np.save(filename,data)
+    else:
+        filename = constants.pickle_filename(prefix + constants.data_suffix)
+        with open(filename, 'wb') as f:
+            pickle.dump(data, f)
+ 
     
 
+def create_learning_seeds():
+    create_data_and_labels(_TRAINING_IDS, constants.learning_data_seed)
+
+def create_full_data():
+    create_data_and_labels(_ALL_IDS, _ALL_DATA_PREFIX)
 
 if __name__== "__main__" :
     parser = argparse.ArgumentParser(description='Initial datasets creator.')
@@ -126,12 +136,16 @@ if __name__== "__main__" :
         help='balances initial data considering a maximum frequency per class.')
     group.add_argument('-s', action='store_const', const=_SEED, dest='action',
         help='creates the initial data set for the learning process.')
+    group.add_argument('-f', action='store_const', const=_FULL, dest='action',
+        help='creates the initial data set for experiments 1 and 3.')
 
     args = parser.parse_args()
     action = args.action
     if action is None:
         cutpoint = args.cutpoint
-        create_balanced_data(cutpoint)
-    else:
+        create_balanced_data(cutpoint, _ALL_DATA_PREFIX, _BALANCED_DATA_PREFIX)
+    elif action == _SEED:
         create_learning_seeds()
+    else:
+        create_full_data()
  

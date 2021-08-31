@@ -31,6 +31,7 @@ model_prefix = 'model'
 recognition_prefix = 'recognition'
 stats_prefix = 'model_stats'
 
+original_data = 'rand'
 learning_data_seed = 'seed'
 learning_data_learnt = 'learned'
 
@@ -52,8 +53,8 @@ decoder_suffix = '-autoencoder'
 
 # Other suffixes.
 matrix_suffix = '-matrix'
-data_suffix = '-X'
-labels_suffix = '-Y'
+data_suffix = '_X'
+labels_suffix = '_Y'
 
 agreed_suffix = '-agr'
 original_suffix = '-ori'
