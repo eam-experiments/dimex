@@ -14,7 +14,6 @@ _FEATURES_DIR = 'Features'
 _ALL_IDS = 'ids.csv'
 _TRAINING_IDS = 'training.csv'
 _ALL_DATA_PREFIX = 'all'
-_BALANCED_DATA_PREFIX = 'rand'
 
 
 _BALANCED = 0
@@ -24,10 +23,10 @@ _FULL = 2
 
 def create_balanced_data(cut_point, in_prefix, out_prefix, convert=False):
    # Load original data
-    labels_filename = in_prefix + constants.labels_suffix
-    features_filename = in_prefix + constants.data_suffix
+    labels_filename = constants.data_filename(in_prefix + constants.labels_suffix)
+    features_filename = constants.data_filename(in_prefix + constants.data_suffix)
     labels = np.load(labels_filename)
-    features = np.load(features_filename, allow_pickle=True)
+    features = np.load(features_filename)
 
     if convert:
         labels = [dimex.phns_to_labels[label] for label in labels]
@@ -49,8 +48,10 @@ def create_balanced_data(cut_point, in_prefix, out_prefix, convert=False):
 
     features = [p[0] for p in pairs]
     labels = [p[1] for p in pairs]
-    np.save(out_prefix + constants.data_suffix, features)
-    np.save(out_prefix + constants.labels_suffix, labels)
+    labels_filename = constants.data_filename(out_prefix + constants.labels_suffix)
+    features_filename = constants.data_filename(out_prefix + constants.data_suffix)
+    np.save(features_filename, features)
+    np.save(labels_filename, labels)
 
 
 def get_mods_ids(file_name):
@@ -126,7 +127,7 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
      
 
 def create_learning_seeds():
-    create_data_and_labels(_TRAINING_IDS, constants.learning_data_seed)
+    create_data_and_labels(_TRAINING_IDS, constants.seed_data)
 
 def create_full_data():
     create_data_and_labels(_ALL_IDS, _ALL_DATA_PREFIX)
@@ -134,18 +135,24 @@ def create_full_data():
 if __name__== "__main__" :
     parser = argparse.ArgumentParser(description='Initial datasets creator.')
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-b', nargs='?', dest='cutpoint', type=float, 
+    group.add_argument('-f', action='store_const', const=_FULL, dest='action',
+        help='creates the initial data set for experiments 1 and 3.')
+    group.add_argument('-b', nargs='?', dest='bcutpoint', type=float, 
         help='balances initial data considering a maximum frequency per class.')
     group.add_argument('-s', action='store_const', const=_SEED, dest='action',
         help='creates the initial data set for the learning process.')
-    group.add_argument('-f', action='store_const', const=_FULL, dest='action',
-        help='creates the initial data set for experiments 1 and 3.')
+    group.add_argument('-v', nargs='?', dest='vcutpoint', type=float, 
+        help='balances the initial data set for the learning process.')
 
     args = parser.parse_args()
     action = args.action
     if action is None:
-        cutpoint = args.cutpoint
-        create_balanced_data(cutpoint, _ALL_DATA_PREFIX, _BALANCED_DATA_PREFIX)
+        if args.bcutpoint:
+            cutpoint = args.bcutpoint
+            create_balanced_data(cutpoint, _ALL_DATA_PREFIX, constants.balanced_data)
+        elif args.vcutpoint:
+            cutpoint = args.vcutpoint
+            create_balanced_data(cutpoint, constants.seed_data, constants.learning_data_seed)
     elif action == _SEED:
         create_learning_seeds()
     else:

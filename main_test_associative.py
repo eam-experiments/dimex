@@ -93,7 +93,7 @@ def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
     cbar.set_label(_('Entropy'))
 
     s = tag + 'graph_prse_MEAN' + _('-english')
-    graph_filename = constants.picture_filename(s, action, occlusion, bars_type, tolerance)
+    graph_filename = constants.picture_filename(s, action, tolerance)
     plt.savefig(graph_filename, dpi=600)
 
 
@@ -195,7 +195,7 @@ def plot_features_graph(domain, means, stdevs, experiment, occlusion = None, bar
         plt.ylabel(_('Values'))
         plt.legend(loc='right')
         plt.grid(True)
-        filename = constants.features_name(experiment, occlusion, bars_type) + '-' + str(i) + _('-english')
+        filename = constants.features_name(experiment) + '-' + str(i) + _('-english')
         plt.savefig(constants.picture_filename(filename), dpi=600)
 
 
@@ -361,15 +361,15 @@ def test_memories(domain, experiment, tolerance=0):
         gc.collect()
 
         suffix = constants.filling_suffix
-        training_features_filename = constants.features_name(experiment) + suffix        
+        training_features_filename = constants.features_name() + suffix        
         training_features_filename = constants.data_filename(training_features_filename, i)
-        training_labels_filename = constants.labels_name(experiment) + suffix        
+        training_labels_filename = constants.labels_name() + suffix        
         training_labels_filename = constants.data_filename(training_labels_filename, i)
 
         suffix = constants.testing_suffix
-        testing_features_filename = constants.features_name(experiment) + suffix        
+        testing_features_filename = constants.features_name() + suffix        
         testing_features_filename = constants.data_filename(testing_features_filename, i)
-        testing_labels_filename = constants.labels_name(experiment) + suffix        
+        testing_labels_filename = constants.labels_name() + suffix        
         testing_labels_filename = constants.data_filename(testing_labels_filename, i)
 
         training_features = np.load(training_features_filename)
@@ -608,13 +608,13 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
         ams[j] = AssociativeMemory(domain, mem_size, tolerance)
 
     suffix = constants.filling_suffix
-    filling_features_filename = constants.features_name(experiment) + suffix        
+    filling_features_filename = constants.features_name() + suffix        
     filling_features_filename = constants.data_filename(filling_features_filename, fold)
     filling_labels_filename = constants.labels_name(experiment) + suffix        
     filling_labels_filename = constants.data_filename(filling_labels_filename, fold)
 
     suffix = constants.testing_suffix
-    testing_features_filename = constants.features_name(experiment, occlusion, bars_type) + suffix        
+    testing_features_filename = constants.features_name() + suffix        
     testing_features_filename = constants.data_filename(testing_features_filename, fold)
     testing_labels_filename = constants.labels_name(experiment) + suffix        
     testing_labels_filename = constants.data_filename(testing_labels_filename, fold)
@@ -791,7 +791,7 @@ def get_all_data(prefix):
 def characterize_features(domain, experiment, occlusion = None, bars_type = None):
     """ Produces a graph of features averages and standard deviations.
     """
-    features_prefix = constants.features_name(experiment, occlusion, bars_type)
+    features_prefix = constants.features_name()
     tf_filename = features_prefix + constants.testing_suffix
 
     labels_prefix = constants.labels_name(experiment)
@@ -1031,14 +1031,14 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
     if (action == constants.TRAIN_CLASSIFIER):
         # Trains the classifier.
         training_percentage = constants.nn_training_percent
-        model_prefix = constants.model_name
+        model_prefix = constants.model_name()
         stats_prefix = constants.stats_model_name + constants.classifier_suffix
         history, conf_matrix = recnet.train_classifier(training_percentage, model_prefix, action)
         save_history(history, stats_prefix)
         save_conf_matrix(conf_matrix, stats_prefix)
     elif (action == constants.TRAIN_AUTOENCODER):
         # Trains the autoencoder.
-        model_prefix = constants.model_name
+        model_prefix = constants.model_name()
         stats_prefix = constants.stats_model_name + constants.decoder_suffix
         history = recnet.train_decoder(model_prefix, action)
         save_history(history, stats_prefix)
@@ -1047,7 +1047,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         # neural networks.
         training_percentage = constants.nn_training_percent
         am_filling_percentage = constants.am_filling_percent
-        model_prefix = constants.model_name
+        model_prefix = constants.model_name()
         features_prefix = constants.features_name(action)
         labels_prefix = constants.labels_name(action)
         data_prefix = constants.data_name
@@ -1071,8 +1071,8 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         # neural network, introducing (background color) occlusion.
         training_percentage = constants.nn_training_percent
         am_filling_percentage = constants.am_filling_percent
-        model_prefix = constants.model_name
-        features_prefix = constants.features_name(action, occlusion, bar_type)
+        model_prefix = constants.model_name(action)
+        features_prefix = constants.features_name(action)
         labels_prefix = constants.labels_name(action)
         data_prefix = constants.data_name
 

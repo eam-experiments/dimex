@@ -50,112 +50,17 @@ def print_error(*s):
 
 
 #######################################################################
-# Noise related code.
-
-def add_side_occlusion(data, side_hidden, occlusion):
-    noise_value = 0
-    mid_row = int(round(n_frames*occlusion))
-    mid_col = int(round(n_mfcc*occlusion))
-    origin = (0, 0)
-    end = (0, 0)
-
-    if side_hidden == TOP_SIDE:
-        origin = (0, 0)
-        end = (mid_row, n_mfcc)
-    elif side_hidden ==  BOTTOM_SIDE:
-        origin = (mid_row, 0)
-        end = (n_frames, n_mfcc)
-    elif side_hidden == LEFT_SIDE:
-        origin = (0, 0)
-        end = (n_frames, mid_col)
-    elif side_hidden == RIGHT_SIDE:
-        origin = (0, mid_col)
-        end = (n_frames, n_mfcc)
-
-    for image in data:
-        n, m = origin
-        end_n, end_m = end
-
-        for i in range(n, end_n):
-            for j in range(m, end_m):
-                image[i,j] = noise_value
-
-    return data
-
-
-def add_bars_occlusion(data, bars, n):
-    pattern = constants.bar_patterns[n]
-
-    if bars == VERTICAL_BARS:
-        for image in data:
-            for j in range(n_mfcc):
-                image[:,j] *= pattern[j]     
-    else:
-        for image in data:
-            for i in range(n_frames):
-                image[i,:] *= pattern[i]
-
-    return data
-
-
-def add_noise(data, experiment, occlusion = 0, bars_type = None):
-    # data is assumed to be a numpy array of shape (N, img_rows, img_columns)
-
-    if experiment < constants.EXP_5:
-        return data
-    elif experiment < constants.EXP_9:
-        sides = {constants.EXP_5: TOP_SIDE,  constants.EXP_6: BOTTOM_SIDE,
-                 constants.EXP_7: LEFT_SIDE, constants.EXP_8: RIGHT_SIDE }
-        return add_side_occlusion(data, sides[experiment], occlusion)
-    else:
-        bars = {constants.EXP_9: VERTICAL_BARS,  constants.EXP_10: HORIZONTAL_BARS}
-        return add_bars_occlusion(data, bars[experiment], bars_type)
-
-
-#######################################################################
 # Getting data code
-
-def max_frames(data):
-    """ Calculates maximum number of feature frames.
-
-    Assumes features come as a flatten matrix of (frames, n_mfcc).
-    """
-    maximum = 0
-    for d in data:
-        s = d.size // n_mfcc
-        if s > maximum:
-            maximum = s
-    return maximum
-
-
-def reshape(data, n_frames):
-    """ Restores the flatten matrices (frames, n_mfcc) and pads them vertically.
-    """
-
-    reshaped = []
-    for d in data:
-        frames = d.size // n_mfcc
-        d = d.reshape((frames, n_mfcc))
-        d = constants.padding_cropping(d,n_frames)
-        reshaped.append(d)
-
-    return np.array(reshaped, dtype=np.float32)
-
-
 
 def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
     # Load DIMEX-100 labels
-    labels = np.load('Features/rand_Y.npy')
-    all_labels = np.zeros(labels.shape, dtype='int')
+    filename = constants.balanced_data + constants.labels_suffix
+    filename = constants.data_filename(filename)
+    all_labels = np.load(filename)
 
-    for i in range(len(labels)):
-        label = labels[i]
-        idx = dimex.phns_to_labels[label]
-        all_labels[i] = idx
-
-    # Load DIMEX-100 features and labels
-    all_data = np.load('Features/rand_X.npy', allow_pickle=True) 
-    all_data = reshape(all_data, n_frames)
+    filename = constants.balanced_data + constants.data_suffix
+    filename = constants.data_filename(filename)
+    all_data = np.load(filename)
     if one_hot:
         # Changes labels to binary rows. Each label correspond to a column, and only
         # the column for the corresponding label is set to one.

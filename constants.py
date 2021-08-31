@@ -31,8 +31,9 @@ model_prefix = 'model'
 recognition_prefix = 'recognition'
 stats_prefix = 'model_stats'
 
-original_data = 'rand'
-learning_data_seed = 'seed'
+balanced_data = 'balanced'
+seed_data = 'seed'
+learning_data_seed = 'seed_balanced'
 learning_data_learnt = 'learned'
 
 # Categories prefixes.
