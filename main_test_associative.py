@@ -939,6 +939,10 @@ def recognition_on_ciempiess(data, experiment, fold, tolerance, counter):
                 mfcc = (orig_mfcc + mem_mfcc)/2
                 amsys.append((mem_label, mfcc))
     
+    print(f'Agreed: {len(agreed)}')
+    print(f'Original: {len(original)}')
+    print(f'Memory: {len(amsys)}')
+    print(f'NNetwork: {len(nnet)}')
     save_learned_data(agreed, constants.agreed_suffix, experiment, fold, tolerance, counter)
     save_learned_data(original, constants.original_suffix, experiment, fold, tolerance, counter)
     save_learned_data(amsys, constants.amsystem_suffix, experiment, fold, tolerance, counter)
@@ -947,7 +951,7 @@ def recognition_on_ciempiess(data, experiment, fold, tolerance, counter):
 
 def ams_process_samples(samples, ams, minimum, maximum, decode=False):
     n = 0
-    print('Processing samples with memories.')
+    print('\nProcessing samples with memories.')
     for sample in samples:
         features = msize_features(sample.features, ams.m, minimum, maximum)
         if not decode:
