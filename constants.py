@@ -133,13 +133,14 @@ def tolerance_suffix(tolerance):
     return '' if not tolerance else '-tol_' + str(tolerance).zfill(3)
 
 def experiment_suffix(experiment):
-    return '' if not experiment else '-exp_' + str(experiment).zfill(3)
+    return '' if (experiment is None) or experiment < EXP_1 \
+        else '-exp_' + str(experiment).zfill(3)
 
 def counter_suffix(counter):
-    return '' if not counter else '-cnt_' + str(counter).zfill(3)    
+    return '' if counter is None else '-cnt_' + str(counter).zfill(3)    
 
 def fold_suffix(fold):
-    return '' if not fold else '-fold_' + str(fold).zfill(3)    
+    return '' if fold is None else '-fold_' + str(fold).zfill(3)    
 
 def filename(s, idx = None, tolerance = 0, extension = '',
     experiment = None, counter = 0):
