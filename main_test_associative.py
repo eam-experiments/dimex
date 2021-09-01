@@ -610,13 +610,13 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, toleranc
     suffix = constants.filling_suffix
     filling_features_filename = constants.features_name() + suffix        
     filling_features_filename = constants.data_filename(filling_features_filename, fold)
-    filling_labels_filename = constants.labels_name(experiment) + suffix        
+    filling_labels_filename = constants.labels_name() + suffix        
     filling_labels_filename = constants.data_filename(filling_labels_filename, fold)
 
     suffix = constants.testing_suffix
     testing_features_filename = constants.features_name() + suffix        
     testing_features_filename = constants.data_filename(testing_features_filename, fold)
-    testing_labels_filename = constants.labels_name(experiment) + suffix        
+    testing_labels_filename = constants.labels_name() + suffix        
     testing_labels_filename = constants.data_filename(testing_labels_filename, fold)
 
     filling_features = np.load(filling_features_filename)
