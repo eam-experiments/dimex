@@ -52,7 +52,7 @@ def print_error(*s):
 #######################################################################
 # Getting data code
 
-def get_data(experiment, occlusion = None, bars_type = None, one_hot = False):
+def get_data(experiment, one_hot = False):
     # Load DIMEX-100 labels
     filename = constants.balanced_data + constants.labels_suffix
     filename = constants.data_filename(filename)
@@ -252,14 +252,13 @@ def store_memories(labels, produced, features, directory, stage, msize):
 
 
 def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
-            training_percentage, am_filling_percentage, experiment,
-            occlusion = None, bars_type = None):
+            training_percentage, am_filling_percentage, experiment):
     """ Generate features for images.
     
     Uses the previously trained neural networks for generating the features corresponding
-    to the images. It may introduce occlusions.
+    to the images.
     """
-    (data, labels) = get_data(experiment, occlusion, bars_type)
+    (data, labels) = get_data(experiment)
 
     total = len(data)
     stages = constants.training_stages

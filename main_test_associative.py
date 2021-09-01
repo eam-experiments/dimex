@@ -46,7 +46,7 @@ def print_error(*s):
 
 def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
     tag = '', xlabels = constants.memory_sizes, xtitle = None, \
-        ytitle = None, action=None, occlusion = None, bars_type = None, tolerance = 0):
+        ytitle = None, action=None, tolerance = 0):
 
     plt.clf()
     plt.figure(figsize=(6.4,4.8))
@@ -169,7 +169,7 @@ def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None, to
     plt.savefig(graph_filename, dpi=600)
 
 
-def plot_features_graph(domain, means, stdevs, experiment, occlusion = None, bars_type = None):
+def plot_features_graph(domain, means, stdevs, experiment):
     """ Draws the characterist shape of features per label.
 
     The graph is a dots and lines graph with error bars denoting standard deviations.
@@ -601,7 +601,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
     return all_recalls, measures, total_precision, total_recall, mismatches
     
 
-def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusion = None, bars_type = None, tolerance = 0):
+def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, tolerance = 0):
     # Create the required associative memories.
     ams = dict.fromkeys(range(n_memories))
     for j in ams:
@@ -685,7 +685,7 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, occlusio
         stage_recall, total_precisions, total_recalls, mismatches
 
 
-def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = None, tolerance = 0):
+def test_recalling(domain, mem_size, experiment, tolerance = 0):
     n_memories = constants.n_labels
     memory_fills = constants.memory_fills
     training_stages = constants.training_stages
@@ -701,7 +701,7 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
     total_mismatches = np.zeros((training_stages, len(memory_fills)))
 
     list_results = Parallel(n_jobs=constants.n_jobs, verbose=50)(
-        delayed(test_recalling_fold)(n_memories, mem_size, domain, fold, experiment, occlusion, bars_type, tolerance) \
+        delayed(test_recalling_fold)(n_memories, mem_size, domain, fold, experiment, tolerance) \
             for fold in range(constants.training_stages))
 
     for fold, memories, avg_entropy, std_entropy, precision, recall,\
@@ -725,7 +725,7 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
             memories.append(np.array(features))
         tags = np.array(tags)
         memories = np.array(memories)
-        memories_filename = constants.memories_name(experiment, occlusion, bars_type, tolerance)
+        memories_filename = constants.memories_name(experiment, tolerance)
         memories_filename = constants.data_filename(memories_filename, fold)
         np.save(memories_filename, memories)
         tags_filename = constants.labels_name(experiment) + constants.memory_suffix
@@ -744,33 +744,33 @@ def test_recalling(domain, mem_size, experiment, occlusion = None, bars_type = N
     main_stdev_sys_recall = np.std(sys_recalls,axis=0)
     
     
-    np.savetxt(constants.csv_filename('main_average_precision',experiment, occlusion, bars_type, tolerance), \
+    np.savetxt(constants.csv_filename('main_average_precision',experiment, tolerance), \
         main_avrge_mprecision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_average_recall',experiment, occlusion, bars_type, tolerance), \
+    np.savetxt(constants.csv_filename('main_average_recall',experiment, tolerance), \
         main_avrge_mrecall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_average_entropy',experiment, occlusion, bars_type, tolerance), \
+    np.savetxt(constants.csv_filename('main_average_entropy',experiment, tolerance), \
         main_avrge_entropies, delimiter=',')
-    np.savetxt(constants.csv_filename('main_stdev_precision',experiment, occlusion, bars_type, tolerance), \
+    np.savetxt(constants.csv_filename('main_stdev_precision',experiment, tolerance), \
         main_stdev_mprecision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_stdev_recall',experiment, occlusion, bars_type, tolerance), \
+    np.savetxt(constants.csv_filename('main_stdev_recall',experiment, tolerance), \
         main_stdev_mrecall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_stdev_entropy',experiment, occlusion, bars_type, tolerance), \
+    np.savetxt(constants.csv_filename('main_stdev_entropy',experiment, tolerance), \
         main_stdev_entropies, delimiter=',')
-    np.savetxt(constants.csv_filename('main_total_recalls',experiment, occlusion, bars_type, tolerance), \
+    np.savetxt(constants.csv_filename('main_total_recalls',experiment, tolerance), \
         main_avrge_sys_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_total_precision',experiment, occlusion, bars_type, tolerance), \
+    np.savetxt(constants.csv_filename('main_total_precision',experiment, tolerance), \
         main_avrge_sys_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_total_mismatches',experiment, occlusion, bars_type, tolerance), \
+    np.savetxt(constants.csv_filename('main_total_mismatches',experiment, tolerance), \
         total_mismatches, delimiter=',')
 
     plot_pre_graph(main_avrge_mprecision*100, main_avrge_mrecall*100, main_avrge_entropies,\
         main_stdev_mprecision*100, main_stdev_mrecall*100, main_stdev_entropies, 'recall-', \
             xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'), action = experiment,
-            occlusion = occlusion, bars_type = bars_type, tolerance = tolerance)
+            tolerance = tolerance)
     plot_pre_graph(main_avrge_sys_precision*100, main_avrge_sys_recall*100, main_avrge_entropies, \
         main_stdev_sys_precision*100, main_stdev_sys_recall*100, main_stdev_entropies, 'total_recall-', \
             xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'), action=experiment,
-            occlusion = occlusion, bars_type = bars_type, tolerance = tolerance)
+            tolerance = tolerance)
 
     print(f'Experiment {experiment} completed!')
 
@@ -788,7 +788,7 @@ def get_all_data(prefix):
 
     return data
 
-def characterize_features(domain, experiment, occlusion = None, bars_type = None):
+def characterize_features(domain, experiment):
     """ Produces a graph of features averages and standard deviations.
     """
     features_prefix = constants.features_name()
@@ -816,7 +816,7 @@ def characterize_features(domain, experiment, occlusion = None, bars_type = None
         means[i] = np.mean(d[i], axis=0)
         stdevs[i] = np.std(d[i], axis=0)
 
-    plot_features_graph(domain, means, stdevs, experiment, occlusion, bars_type)
+    plot_features_graph(domain, means, stdevs, experiment)
     
 
 def save_history(history, prefix):
@@ -1021,7 +1021,7 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
 ##############################################################################
 # Main section
 
-def main(action, occlusion = None, bar_type= None, tolerance = 0):
+def main(action, tolerance = 0):
     """ Distributes work.
 
     The main function distributes work according to the options chosen in the
@@ -1068,7 +1068,7 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         test_recognition(constants.domain, constants.ideal_memory_size, action, tolerance=tolerance)
     elif (constants.EXP_5 <= action) and (action <= constants.EXP_10):
         # Generates features for the data sections using the previously generate
-        # neural network, introducing (background color) occlusion.
+        # neural network.
         training_percentage = constants.nn_training_percent
         am_filling_percentage = constants.am_filling_percent
         model_prefix = constants.model_name(action)
@@ -1077,12 +1077,11 @@ def main(action, occlusion = None, bar_type= None, tolerance = 0):
         data_prefix = constants.data_name
 
         history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
-            training_percentage, am_filling_percentage, action, occlusion, bar_type)
+            training_percentage, am_filling_percentage, action)
         save_history(history, features_prefix)
-        characterize_features(constants.domain, action, occlusion, bar_type)
-        test_recalling(constants.domain, constants.ideal_memory_size,
-            action, occlusion, bar_type, tolerance)
-        recnet.remember(action, occlusion, bar_type, tolerance)
+        characterize_features(constants.domain, action)
+        test_recalling(constants.domain, constants.ideal_memory_size, action, tolerance)
+        recnet.remember(action, tolerance)
 
 
 
@@ -1100,12 +1099,6 @@ if __name__== "__main__" :
     parser.add_argument('-t', nargs='?', dest='tolerance', type=int,
                         help='run the experiment with the tolerance given (only experiments 5 to 12).')
     
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument('-o', nargs='?', dest='occlusion', type=float, 
-                        help='run the experiment with a given proportion of occlusion (only experiments 5 to 12).')
-    group.add_argument('-b', nargs='?', dest='bars_type', type=int, 
-                        help='run the experiment with chosen bars type (only experiments 5 to 12).')
-    
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-n', action='store_const', const=constants.TRAIN_CLASSIFIER, dest='action',
                         help='train the classifier, separating NN and AM training data (Separate Data NN).')
@@ -1120,8 +1113,6 @@ if __name__== "__main__" :
 
     args = parser.parse_args()
     lang = args.lang
-    occlusion = args.occlusion
-    bars_type = args.bars_type
     tolerance = args.tolerance
     action = args.action
     nexp = args.nexp
@@ -1130,24 +1121,6 @@ if __name__== "__main__" :
     if lang == 'es':
         es = gettext.translation('ame', localedir='locale', languages=['es'])
         es.install()
-
-    if not (occlusion is None):
-        if (occlusion < 0) or (1 < occlusion):
-            print_error("Occlusion needs to be a value between 0 and 1")
-            exit(1)
-        elif (nexp is None) or (nexp < constants.EXP_5) or (constants.EXP_8 < nexp):
-            print_error("Occlusion is only valid for experiments 5 to 8")
-            exit(2)
-    elif not (bars_type is None):
-        if (bars_type < 0) or (constants.N_BARS <= bars_type):
-            print_error("Bar type must be a number between 0 and {0}"\
-                        .format(constants.N_BARS-1))
-            exit(1)
-        elif (nexp is None) or (nexp < constants.EXP_9):
-            print_error("Bar type is only valid for experiments 9 to {0}"\
-                        .format(constants.MAX_EXPERIMENT))
-            exit(2)
-
 
     if tolerance is None:
         tolerance = 0
@@ -1162,7 +1135,7 @@ if __name__== "__main__" :
             print_error("There are only {1} experiments available, numbered consecutively from {0}."
                 .format(constants.MIN_EXPERIMENT, constants.MAX_EXPERIMENT))
             exit(1)
-        main(nexp, occlusion, bars_type, tolerance)
+        main(nexp, tolerance)
     else:
         # Other action was chosen
         main(action)
