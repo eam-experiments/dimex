@@ -360,7 +360,7 @@ class LearnedDataSet:
         labels = []
         for s in suffixes:
             data_filename = constants.learned_data_filename(s, fold, n)
-            labels_filename = constants.learned_data_filename(s, fold, n)
+            labels_filename = constants.learned_labels_filename(s, fold, n)
             try:
                 new_data = np.load(data_filename)
                 new_labels = np.load(labels_filename)
