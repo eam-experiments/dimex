@@ -496,7 +496,9 @@ def reprocess_samples(samples, prefix, fold, tolerance, counter, decode=False):
 
     snnet = SplittedNeuralNetwork(prefix, fold, tolerance, counter)
     for sample in samples: 
-        features = sample.ams_features
+        features = np.array(sample.ams_features)
+        print(f'Total features: {len(features)}')
+        print(f'Features shape: {features[0].shape}')
         sample.ams_segments = snnet.decoder.predict(features)
         n += 1
         constants.print_counter(n,100,10)
