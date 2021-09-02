@@ -143,7 +143,7 @@ def fold_suffix(fold):
     return '' if fold is None else '-fold_' + str(fold).zfill(3)    
 
 def filename(s, idx = None, tolerance = 0, extension = '',
-    experiment = None, counter = 0):
+    experiment = None, counter = None):
     """ Returns a file name in run_path directory with a given extension and an index
     """
     # Create target directory & all intermediate directories if don't exists
@@ -168,14 +168,14 @@ def json_filename(s):
     return filename(s,  extension = '.json')
 
 
-def csv_filename(s, idx = None, tolerance = 0, experiment = None, counter = 0):
+def csv_filename(s, idx = None, tolerance = 0, experiment = None, counter = None):
     """ Returns a file name for csv(i) in run_path directory
     """
     return filename(s, idx, tolerance, '.csv', experiment, counter)
 
 
-def data_filename(s, idx = None):
-    return filename(s, idx, extension='.npy')
+def data_filename(s, idx = None, counter = None):
+    return filename(s, idx, extension='.npy', counter=counter)
 
 def pickle_filename(s, idx = None):
     return filename(s, idx, extension='.pkl')
@@ -193,7 +193,7 @@ def classifier_filename(s, idx = None, tolerance=0, counter = None):
 def decoder_filename(s, idx = None, tolerance=0, counter = None):
     return filename(s + decoder_suffix, idx, tolerance, counter = counter)
 
-def recog_filename(s, experiment = None, idx = None, tolerance = None, counter = 0):
+def recog_filename(s, experiment = None, idx = None, tolerance = None, counter = None):
     return csv_filename(s, idx, tolerance, experiment, counter)
 
 
@@ -247,13 +247,13 @@ def seed_data_filename():
 def seed_labels_filename():
     return data_filename(learning_data_seed + labels_suffix)
 
-def learned_data_filename(suffix, fold, n):
-    prefix = learning_data_learnt + suffix + fold_suffix(fold) + data_suffix
-    return data_filename(prefix, n)
+def learned_data_filename(suffix, fold, counter):
+    prefix = learning_data_learnt + suffix + data_suffix
+    return data_filename(prefix, fold, counter)
 
-def learned_labels_filename(suffix, fold, n):
-    prefix = learning_data_learnt + suffix + fold_suffix(fold) + labels_suffix
-    return data_filename(prefix, n)
+def learned_labels_filename(suffix, fold, counter):
+    prefix = learning_data_learnt + suffix + labels_suffix
+    return data_filename(prefix, fold, counter)
 
 def get_name_w_suffix(prefix, n, v, sf):
     suffix = ''
