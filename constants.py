@@ -129,6 +129,10 @@ def print_warning(*s):
 def print_error(*s):
     print('ERROR:', *s, file = sys.stderr)
 
+
+def idx_suffix(idx):
+    return '' if idx is None else str(idx).zfill(3)
+
 def tolerance_suffix(tolerance):
     return '' if not tolerance else '-tol_' + str(tolerance).zfill(3)
 
@@ -146,20 +150,17 @@ def filename(s, idx = None, tolerance = 0, extension = '',
     experiment = None, counter = None):
     """ Returns a file name in run_path directory with a given extension and an index
     """
+    print(counter)
     # Create target directory & all intermediate directories if don't exists
     try:
         os.makedirs(run_path)
         print("Directory " , run_path ,  " created ")
     except FileExistsError:
         pass
-
-    if idx is None:
-        return run_path + '/' + s + extension
-    else:
-        return run_path + '/' + s + '-' + str(idx).zfill(3) \
-            + experiment_suffix(experiment) \
-            + tolerance_suffix(tolerance) \
-            + counter_suffix(counter) + extension
+    return run_path + '/' + s + '-' + str(idx).zfill(3) \
+        + experiment_suffix(experiment) \
+        + tolerance_suffix(tolerance) \
+        + counter_suffix(counter) + extension
 
 
 def json_filename(s):
@@ -175,6 +176,7 @@ def csv_filename(s, idx = None, tolerance = 0, experiment = None, counter = None
 
 
 def data_filename(s, idx = None, counter = None):
+    print(counter)
     return filename(s, idx, extension='.npy', counter=counter)
 
 def pickle_filename(s, idx = None):
