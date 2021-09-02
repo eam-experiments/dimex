@@ -150,7 +150,6 @@ def filename(s, idx = None, tolerance = 0, extension = '',
     experiment = None, counter = None):
     """ Returns a file name in run_path directory with a given extension and an index
     """
-    print(counter)
     # Create target directory & all intermediate directories if don't exists
     try:
         os.makedirs(run_path)
@@ -176,7 +175,6 @@ def csv_filename(s, idx = None, tolerance = 0, experiment = None, counter = None
 
 
 def data_filename(s, idx = None, counter = None):
-    print(counter)
     return filename(s, idx, extension='.npy', counter=counter)
 
 def pickle_filename(s, idx = None):
