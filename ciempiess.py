@@ -38,9 +38,9 @@ class NextDataSet:
     _AUDIO_LIST_FILENAME = 'ciempiess.txt'
     _SEGMENT_MILLISECONDS = 90
     _NEXTDATA_PREFIX = 'ciempiess_data'
-    def __init__(self, n):
-        self._n = n
-        nextdata_filename = constants.data_filename(self._NEXTDATA_PREFIX, n)
+    def __init__(self, counter):
+        self._counter = counter
+        nextdata_filename = constants.data_filename(self._NEXTDATA_PREFIX, counter=counter)
         try:
             self._next_data = np.load(nextdata_filename)
             print(f'File {nextdata_filename} exists.')
@@ -52,7 +52,7 @@ class NextDataSet:
             audios_filenames = []
             with open(self._AUDIO_LIST_FILENAME, 'rt') as f:
                 audios_filenames = [filename.rstrip() for filename in f]
-            start = self._n*constants.ciempiess_segment_size
+            start = self._counter*constants.ciempiess_segment_size
             end = start + constants.ciempiess_segment_size
             self._next_data = self._get_data(audios_filenames[start:end])
             np.save(nextdata_filename, self._next_data)
