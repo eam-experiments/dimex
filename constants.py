@@ -131,7 +131,7 @@ def print_error(*s):
 
 
 def idx_suffix(idx):
-    return '' if idx is None else str(idx).zfill(3)
+    return '' if idx is None else '-' + str(idx).zfill(3)
 
 def tolerance_suffix(tolerance):
     return '' if not tolerance else '-tol_' + str(tolerance).zfill(3)
@@ -156,7 +156,7 @@ def filename(s, idx = None, tolerance = 0, extension = '',
         print("Directory " , run_path ,  " created ")
     except FileExistsError:
         pass
-    return run_path + '/' + s + '-' + str(idx).zfill(3) \
+    return run_path + '/' + s + idx_suffix(idx) \
         + experiment_suffix(experiment) \
         + tolerance_suffix(tolerance) \
         + counter_suffix(counter) + extension
