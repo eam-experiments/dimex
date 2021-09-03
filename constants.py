@@ -187,9 +187,10 @@ def filename(name_prefix, fold = None, tolerance = 0, extension = '',
         pass
     return run_path + '/' + name_prefix \
         + experiment_suffix(experiment) \
-        + stage_suffix(stage) + extension \
+        + stage_suffix(stage) \
         + tolerance_suffix(tolerance) \
-        + fold_suffix(fold)
+        + fold_suffix(fold) \
+        + extension 
 
 
 def json_filename(name_prefix):
