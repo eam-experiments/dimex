@@ -379,7 +379,7 @@ def train_next_encoder(training_data, training_labels,
     return model, history
 
 def train_next_decoder(training_data, training_labels,
-    validation_data, validation_labels, model_prefix, fold, tolerance, counter):
+    validation_data, validation_labels, model_prefix, fold, tolerance, stage):
     input_data = Input(shape=(constants.domain))
     decoded = get_decoder(input_data)
     model = Model(inputs=input_data, outputs=decoded)
@@ -392,21 +392,21 @@ def train_next_decoder(training_data, training_labels,
             validation_data = (validation_data, validation_labels),
             callbacks=[EarlyStoppingAtLossCrossing(patience)],
             verbose=2)
-    model.save(constants.decoder_filename(model_prefix, fold, tolerance, counter))
+    model.save(constants.decoder_filename(model_prefix, fold, tolerance, stage))
     return model, history
 
 def train_next_network(training_data, training_labels,
     validation_data, validation_labels, filling_data, filling_labels,
-    model_prefix, fold, tolerance, counter):
+    model_prefix, fold, tolerance, stage):
     histories = []
     encoder, history = train_next_encoder(training_data, training_labels,
-        validation_data, validation_labels, model_prefix, fold, tolerance, counter)
+        validation_data, validation_labels, model_prefix, fold, tolerance, stage)
     histories.append(history)
     training_features = encoder.predict(training_data)
     validation_features = encoder.predict(validation_data)
     filling_features = encoder.predict(filling_data)
     _, history = train_next_decoder(training_features, training_data,
-        validation_features, validation_data, model_prefix, fold, tolerance, counter)
+        validation_features, validation_data, model_prefix, fold, tolerance, stage)
     histories.append(history)
     return filling_features, histories
 

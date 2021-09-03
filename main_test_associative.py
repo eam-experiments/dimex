@@ -40,9 +40,6 @@ import recnet
 # Translation
 gettext.install('ame', localedir=None, codeset=None, names=None)
 
-def print_error(*s):
-    print('Error:', *s, file = sys.stderr)
-
 
 def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
     tag = '', xlabels = constants.memory_sizes, xtitle = None, \
@@ -913,7 +910,7 @@ def save_learned_data(pairs, suffix, experiment, fold, tolerance, stage):
     np.save(filename, data)
 
  
-def recognition_on_ciempiess(data, experiment, fold, tolerance, counter):
+def recognition_on_ciempiess(data, experiment, fold, tolerance, stage):
     agreed = []
     nnet = []
     amsys = []
@@ -943,10 +940,10 @@ def recognition_on_ciempiess(data, experiment, fold, tolerance, counter):
     print(f'Original: {len(original)}')
     print(f'Memory: {len(amsys)}')
     print(f'NNetwork: {len(nnet)}')
-    save_learned_data(agreed, constants.agreed_suffix, experiment, fold, tolerance, counter)
-    save_learned_data(original, constants.original_suffix, experiment, fold, tolerance, counter)
-    save_learned_data(amsys, constants.amsystem_suffix, experiment, fold, tolerance, counter)
-    save_learned_data(nnet, constants.nnetwork_suffix, experiment, fold, tolerance, counter)
+    save_learned_data(agreed, constants.agreed_suffix, experiment, fold, tolerance, stage)
+    save_learned_data(original, constants.original_suffix, experiment, fold, tolerance, stage)
+    save_learned_data(amsys, constants.amsystem_suffix, experiment, fold, tolerance, stage)
+    save_learned_data(nnet, constants.nnetwork_suffix, experiment, fold, tolerance, stage)
 
 
 def ams_process_samples(samples, ams, minimum, maximum, decode=False):
@@ -979,7 +976,8 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
 
     for fold in range(constants.n_folds):
         ds = dimex.LearnedDataSet(fold, tolerance)
-        data, labels, counter = ds.get_data()
+        data, labels, stage = ds.get_data()
+        print(f'Running experiment {experiment} on stage {stage}')
         total = len(labels)
         step = total / constants.n_folds
         training_size = int(total*(constants.nn_training_percent+constants.am_testing_percent))
@@ -994,7 +992,7 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
 
         filling_features, history = recnet.train_next_network(training_data, training_labels,
             validation_data, validation_labels, filling_data, filling_labels,
-            model_prefix, fold, tolerance, counter)
+            model_prefix, fold, tolerance, stage)
         histories.append(history)
         maximum = filling_features.max()
         minimum = filling_features.min()
@@ -1005,20 +1003,20 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
             ams.register(label,features)
         tds = dimex.TestingDataSet()
         testing_data = tds.get_data()
-        testing_data = recnet.process_samples(testing_data, model_prefix, fold, tolerance, counter)
+        testing_data = recnet.process_samples(testing_data, model_prefix, fold, tolerance, stage)
         testing_data = ams_process_samples(testing_data, ams, minimum, maximum)
-        recognition_on_dimex(testing_data, experiment, fold, tolerance, counter)
+        recognition_on_dimex(testing_data, experiment, fold, tolerance, stage)
 
-        nds = ciempiess.NextDataSet(counter)
+        nds = ciempiess.NextDataSet(stage)
         new_data = nds = nds.get_data()
-        new_data = recnet.process_samples(new_data, model_prefix, fold, tolerance, counter, decode=True)
+        new_data = recnet.process_samples(new_data, model_prefix, fold, tolerance, stage, decode=True)
         new_data = ams_process_samples(new_data, ams, minimum, maximum, decode=True)
-        new_data = recnet.reprocess_samples(new_data, model_prefix, fold, tolerance, counter)
-        recognition_on_ciempiess(new_data, experiment, fold, tolerance, counter)
+        new_data = recnet.reprocess_samples(new_data, model_prefix, fold, tolerance, stage)
+        recognition_on_ciempiess(new_data, experiment, fold, tolerance, stage)
 
     stats_prefix = constants.stats_name(experiment)
     save_history(histories, stats_prefix)
-    print(f'Experiment {experiment} round {counter} completed!')
+    print(f'Experiment {experiment} round {stage} completed!')
 
         
 
@@ -1129,14 +1127,14 @@ if __name__== "__main__" :
     if tolerance is None:
         tolerance = 0
     elif (tolerance < 0) or (constants.domain < tolerance):
-            print_error("tolerance needs to be a value between 0 and {0}."
+            constants.print_error("tolerance needs to be a value between 0 and {0}."
                 .format(constants.domain))
             exit(3)
 
     if action is None:
         # An experiment was chosen
         if (nexp < constants.MIN_EXPERIMENT) or (constants.MAX_EXPERIMENT < nexp):
-            print_error("There are only {1} experiments available, numbered consecutively from {0}."
+            constants.print_error("There are only {1} experiments available, numbered consecutively from {0}."
                 .format(constants.MIN_EXPERIMENT, constants.MAX_EXPERIMENT))
             exit(1)
         main(nexp, tolerance)

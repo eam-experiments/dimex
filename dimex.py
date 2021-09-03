@@ -70,7 +70,6 @@ def _get_file_name(modifier, id, cls, extension):
     return file_name
 
 
-
 class TaggedAudio:
     def __init__(self, id):
         self.id = id            # Audio id
