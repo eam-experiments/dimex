@@ -169,17 +169,15 @@ class EarlyStoppingAtLossCrossing(Callback):
 def train_classifier(training_percentage, filename, experiment):
 
     (data, labels) = get_data(experiment)
-
-    stages = constants.training_stages
     total = len(data)
-    step = total/stages
+    step = total/constants.n_folds
 
    # Amount of data used for training the networks
     training_size = int(total*training_percentage)
     confusion_matrix = np.zeros((constants.n_labels, constants.n_labels))
     histories = []
-    for n in range(stages):
-        i = int(n*step)
+    for fold in range(constants.n_folds):
+        i = int(fold*step)
         j = (i + training_size) % total
 
         training_data = get_data_in_range(data, i, j)
@@ -221,34 +219,10 @@ def train_classifier(training_percentage, filename, experiment):
         confusion_matrix += tf.math.confusion_matrix(np.argmax(testing_labels, axis=1), 
             np.argmax(predicted_labels, axis=1), num_classes=constants.n_labels)
         histories.append(history)
-        model.save(constants.classifier_filename(filename, n))
+        model.save(constants.classifier_filename(filename, fold))
     confusion_matrix = confusion_matrix.numpy()
     totals = confusion_matrix.sum(axis=1).reshape(-1,1)
     return histories, confusion_matrix/totals
-
-
-def store_images(original, produced, directory, stage, idx, label):
-    original_filename = constants.original_image_filename(directory, stage, idx, label)
-    produced_filename = constants.produced_image_filename(directory, stage, idx, label)
-
-    pixels = original.reshape(28,28) * 255
-    pixels = pixels.round().astype(np.uint8)
-    png.from_array(pixels, 'L;8').save(original_filename)
-    pixels = produced.reshape(28,28) * 255
-    pixels = pixels.round().astype(np.uint8)
-    png.from_array(pixels, 'L;8').save(produced_filename)
-
-
-def store_memories(labels, produced, features, directory, stage, msize):
-    (idx, label) = labels
-    produced_filename = constants.produced_memory_filename(directory, msize, stage, idx, label)
-
-    if np.isnan(np.sum(features)):
-        pixels = np.full((28,28), 255)
-    else:
-        pixels = produced.reshape(28,28) * 255
-    pixels = pixels.round().astype(np.uint8)
-    png.from_array(pixels, 'L;8').save(produced_filename)
 
 
 def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
@@ -261,8 +235,7 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
     (data, labels) = get_data(experiment)
 
     total = len(data)
-    stages = constants.training_stages
-    step = total/stages
+    step = total/constants.n_folds
 
     # Amount of data used for training the networks
     training_size = int(total*training_percentage)
@@ -270,8 +243,8 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
     testing_size = total - training_size - filling_size
 
     histories = []
-    for n in range(stages):
-        i = int(n*step)
+    for fold in range(constants.n_folds):
+        i = int(fold*step)
         j = (i+training_size) % total
         training_data = get_data_in_range(data, i, j)
         training_labels = get_data_in_range(labels, i, j)
@@ -285,7 +258,7 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
         testing_labels = get_data_in_range(labels, k, l)
 
         # Recreate the exact same model, including its weights and the optimizer
-        model = tf.keras.models.load_model(constants.classifier_filename(model_prefix, n))
+        model = tf.keras.models.load_model(constants.classifier_filename(model_prefix, fold))
 
         # Drop the autoencoder and the last layers of the full connected neural network part.
         # classifier = Model(model.input, model.output[0])
@@ -312,9 +285,9 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
             }
 
         for suffix in dict:
-            data_fn = constants.data_filename(data_prefix+suffix, n)
-            features_fn = constants.data_filename(features_prefix+suffix, n)
-            labels_fn = constants.data_filename(labels_prefix+suffix, n)
+            data_fn = constants.data_filename(data_prefix+suffix, fold)
+            features_fn = constants.data_filename(features_prefix+suffix, fold)
+            labels_fn = constants.data_filename(labels_prefix+suffix, fold)
 
             d, f, l = dict[suffix]
             np.save(data_fn, d)
@@ -325,22 +298,22 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
 def train_decoder(filename, experiment):
     (labels, _) = get_data(experiment)
     total = len(labels)
-    step = total/constants.training_stages
+    step = total/constants.n_folds
 
 
     histories = []
-    for n in range(constants.training_stages):
+    for fold in range(constants.n_folds):
         suffix = constants.training_suffix
         training_features_filename = constants.features_name(experiment) + suffix        
-        training_features_filename = constants.data_filename(training_features_filename, n)
+        training_features_filename = constants.data_filename(training_features_filename, fold)
 
         suffix = constants.filling_suffix
         filling_features_filename = constants.features_name(experiment) + suffix        
-        filling_features_filename = constants.data_filename(filling_features_filename, n)
+        filling_features_filename = constants.data_filename(filling_features_filename, fold)
 
         suffix = constants.testing_suffix
         testing_features_filename = constants.features_name(experiment) + suffix        
-        testing_features_filename = constants.data_filename(testing_features_filename, n)
+        testing_features_filename = constants.data_filename(testing_features_filename, fold)
 
         training_features = np.load(training_features_filename)
         filling_features = np.load(filling_features_filename)
@@ -352,7 +325,7 @@ def train_decoder(filename, experiment):
         training_data = training_features[:truly_training]
         testing_data = testing_features
 
-        i = int(n*step)
+        i = int(fold*step)
         j = (i+len(training_data)) % total
         training_labels = get_data_in_range(labels,i, j)
         k = (j+len(validation_data)) % total
@@ -376,12 +349,12 @@ def train_decoder(filename, experiment):
         history = model.evaluate(testing_data,
             (testing_labels, testing_data),return_dict=True)
         histories.append(history)
-        model.save(constants.decoder_filename(filename, n))
+        model.save(constants.decoder_filename(filename, fold))
     return histories
 
 
 def train_next_encoder(training_data, training_labels,
-    validation_data, validation_labels, model_prefix, fold, tolerance, counter):
+    validation_data, validation_labels, model_prefix, fold, tolerance, stage):
     input_data = Input(shape=(n_frames, n_mfcc))
     weights = get_weights(training_labels)
     training_labels = to_categorical(training_labels, constants.n_labels, dtype='int')
@@ -401,7 +374,7 @@ def train_next_encoder(training_data, training_labels,
             validation_data = (validation_data, validation_labels),
             callbacks=[EarlyStoppingAtLossCrossing(patience)],
             verbose=2)
-    model.save(constants.classifier_filename(model_prefix, fold, tolerance, counter))
+    model.save(constants.classifier_filename(model_prefix, fold, tolerance, stage))
     model = Model(inputs=input_data, outputs=encoded)
     return model, history
 
@@ -442,10 +415,10 @@ def train_next_network(training_data, training_labels,
 
 
 class SplittedNeuralNetwork:
-    def __init__ (self, prefix, fold, tolerance, counter):
-        model_filename = constants.classifier_filename(prefix, fold, tolerance, counter)
+    def __init__ (self, prefix, fold, tolerance, stage):
+        model_filename = constants.classifier_filename(prefix, fold, tolerance, stage)
         classifier = tf.keras.models.load_model(model_filename)
-        model_filename = constants.decoder_filename(prefix, fold, tolerance, counter)
+        model_filename = constants.decoder_filename(prefix, fold, tolerance, stage)
         self.decoder = tf.keras.models.load_model(model_filename)
 
         input_enc = Input(shape=(n_frames, n_mfcc))
@@ -476,11 +449,11 @@ def process_sample(sample: dimex.TaggedAudio, snnet: SplittedNeuralNetwork, deco
     return sample
 
 
-def process_samples(samples, prefix, fold, tolerance, counter, decode=False):
+def process_samples(samples, prefix, fold, tolerance, stage, decode=False):
     n = 0
     print('Processing samples with neural network.')
 
-    snnet = SplittedNeuralNetwork(prefix, fold, tolerance, counter)
+    snnet = SplittedNeuralNetwork(prefix, fold, tolerance, stage)
     new_samples = []
     for sample in samples: 
         new_sample = process_sample(sample, snnet, decode)
@@ -490,11 +463,11 @@ def process_samples(samples, prefix, fold, tolerance, counter, decode=False):
     return new_samples
 
 
-def reprocess_samples(samples, prefix, fold, tolerance, counter, decode=False):
+def reprocess_samples(samples, prefix, fold, tolerance, stage, decode=False):
     n = 0
     print('Reprocessing samples with neural network.')
 
-    snnet = SplittedNeuralNetwork(prefix, fold, tolerance, counter)
+    snnet = SplittedNeuralNetwork(prefix, fold, tolerance, stage)
     for sample in samples: 
         features = np.array(sample.ams_features)
         sample.ams_segments = snnet.decoder.predict(features)

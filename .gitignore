@@ -2,6 +2,7 @@ __pycache__/
 runs*
 runs*/
 tmp/
+.vscode/
 results
 Corpus
 Features

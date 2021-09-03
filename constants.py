@@ -68,7 +68,7 @@ recognition_suffixes = [[agreed_suffix], [agreed_suffix, original_suffix],
 
 
 mfcc_numceps = 26
-training_stages = 10 
+n_folds = 10 
 domain = 64
 n_frames = 8
 n_jobs = 4
@@ -129,9 +129,15 @@ def print_warning(*s):
 def print_error(*s):
     print('ERROR:', *s, file = sys.stderr)
 
-
-def idx_suffix(idx):
-    return '' if idx is None else '-' + str(idx).zfill(3)
+def print_counter(n, every, step = 1, symbol = '.'):
+    e = n % every
+    s = n % step
+    if e and s:
+        return
+    counter = symbol
+    if not e:
+        counter =  ' ' + str(n) + ' '
+    print(counter, end = '', flush=True)
 
 def tolerance_suffix(tolerance):
     return '' if not tolerance else '-tol_' + str(tolerance).zfill(3)
@@ -140,14 +146,37 @@ def experiment_suffix(experiment):
     return '' if (experiment is None) or experiment < EXP_1 \
         else '-exp_' + str(experiment).zfill(3)
 
-def counter_suffix(counter):
-    return '' if counter is None else '-cnt_' + str(counter).zfill(3)    
+def stage_suffix(stage):
+    return '' if stage is None else '-stg_' + str(stage).zfill(3)    
 
 def fold_suffix(fold):
-    return '' if fold is None else '-fold_' + str(fold).zfill(3)    
+    return '' if fold is None else '-fld_' + str(fold).zfill(3)
 
-def filename(s, idx = None, tolerance = 0, extension = '',
-    experiment = None, counter = None):
+def get_name_w_suffix(prefix, add_suffix, value, sf):
+    suffix = ''
+    if add_suffix:
+        suffix = sf(value)
+    return prefix + suffix 
+
+def features_name(experiment = -1):
+    return get_name_w_suffix(features_prefix, experiment >= EXP_1, experiment, experiment_suffix)
+
+def labels_name(experiment = -1):
+    return get_name_w_suffix(labels_prefix, experiment >= EXP_1, experiment, experiment_suffix)
+
+def memories_name(experiment = -1, tolerance = 0):
+    return get_name_w_suffix(memories_prefix, experiment >= EXP_1, experiment, tolerance_suffix) \
+        + tolerance_suffix(tolerance)
+
+def model_name(experiment = -1):
+    return get_name_w_suffix(model_prefix, experiment >= EXP_1, experiment, experiment_suffix)
+
+def stats_name(experiment = -1):
+    return get_name_w_suffix(stats_prefix, experiment >= EXP_1, experiment, experiment_suffix)
+
+
+def filename(name_prefix, fold = None, tolerance = 0, extension = '',
+    experiment = None, stage = None):
     """ Returns a file name in run_path directory with a given extension and an index
     """
     # Create target directory & all intermediate directories if don't exists
@@ -156,90 +185,42 @@ def filename(s, idx = None, tolerance = 0, extension = '',
         print("Directory " , run_path ,  " created ")
     except FileExistsError:
         pass
-    return run_path + '/' + s + idx_suffix(idx) \
+    return run_path + '/' + name_prefix \
         + experiment_suffix(experiment) \
+        + stage_suffix(stage) + extension \
         + tolerance_suffix(tolerance) \
-        + counter_suffix(counter) + extension
+        + fold_suffix(fold)
 
 
-def json_filename(s):
+def json_filename(name_prefix):
     """ Returns a file name for a JSON file in run_path directory
     """
-    return filename(s,  extension = '.json')
+    return filename(name_prefix,  extension = '.json')
 
 
-def csv_filename(s, idx = None, tolerance = 0, experiment = None, counter = None):
+def csv_filename(name_prefix, fold = None, tolerance = 0, experiment = None, stage = None):
     """ Returns a file name for csv(i) in run_path directory
     """
-    return filename(s, idx, tolerance, '.csv', experiment, counter)
+    return filename(name_prefix, fold, tolerance, '.csv', experiment, stage)
 
 
-def data_filename(s, idx = None, counter = None):
-    return filename(s, idx, extension='.npy', counter=counter)
+def data_filename(name_prefix, fold = None, stage = None):
+    return filename(name_prefix, fold, extension='.npy', stage=stage)
 
-def pickle_filename(s, idx = None):
-    return filename(s, idx, extension='.pkl')
+def pickle_filename(name_prefix, fold = None):
+    return filename(name_prefix, fold, extension='.pkl')
 
+def picture_filename(name_prefix, experiment = None, tolerance = 0):
+    return filename(name_prefix, experiment=experiment, tolerance=tolerance, extension='.svg')
 
-def picture_filename(s, idx = None, tolerance = 0):
+def classifier_filename(name_prefix, fold = None, tolerance=0, stage = None):
+    return filename(name_prefix + classifier_suffix, fold, tolerance, stage = stage)
 
-    """ Returns a file name for a graph.
-    """
-    return filename(s, idx, tolerance, '.svg')
+def decoder_filename(name_prefix, fold = None, tolerance=0, stage = None):
+    return filename(name_prefix + decoder_suffix, fold, tolerance, stage = stage)
 
-def classifier_filename(s, idx = None, tolerance=0, counter = None):
-    return filename(s + classifier_suffix, idx, tolerance, counter = counter)
-
-def decoder_filename(s, idx = None, tolerance=0, counter = None):
-    return filename(s + decoder_suffix, idx, tolerance, counter = counter)
-
-def recog_filename(s, experiment = None, idx = None, tolerance = None, counter = None):
-    return csv_filename(s, idx, tolerance, experiment, counter)
-
-
-def image_filename(dir, stage, idx, label, suffix = ''):
-    image_path = run_path + '/images/' + dir + '/' + 'stage_' + str(stage) + '/'
-
-    try:
-        os.makedirs(image_path)
-    except FileExistsError:
-        pass
-
-    image_path += str(label) + '_' + str(idx).zfill(5)  + suffix + '.png'
-    return image_path
-
-
-def testing_directory(i):
-    return testing_path + '-' + str(i).zfill(3)
-
-
-def memories_directory(i, tolerance = 0):
-    return memories_path + '-' + str(i).zfill(3) \
-        + tolerance_suffix(tolerance)
-
-
-def memory_filename(dir, msize, stage, idx, label):
-    # Remove '-'
-    image_path = run_path + '/images/' + dir + '/' + 'stage_' + str(stage) + '/'
-    image_path += 'msize_' + str(msize) + '/'
-
-    try:
-        os.makedirs(image_path)
-        print("Directory " , image_path ,  " created ")
-    except FileExistsError:
-        pass
-
-    image_path += str(label) + '_' + str(idx).zfill(5) + '.png'
-    return image_path
-
-def original_image_filename(dir, stage, idx, label):
-    return image_filename(dir, stage, idx, label, original_suffix)
-
-def produced_image_filename(dir, stage, idx, label):
-    return image_filename(dir, stage, idx, label)
-
-def produced_memory_filename(dir, msize, stage, idx, label):
-    return memory_filename(dir, msize, stage, idx, label)
+def recog_filename(name_prefix, experiment = None, fold = None, tolerance = None, stage = None):
+    return csv_filename(name_prefix, fold, tolerance, experiment, stage)
 
 def seed_data_filename():
     return data_filename(learning_data_seed + data_suffix)
@@ -247,41 +228,19 @@ def seed_data_filename():
 def seed_labels_filename():
     return data_filename(learning_data_seed + labels_suffix)
 
-def learned_data_filename(suffix, fold, counter):
+def learned_data_filename(suffix, fold, stage):
     prefix = learning_data_learnt + suffix + data_suffix
-    return data_filename(prefix, fold, counter)
+    return data_filename(prefix, fold, stage)
 
-def learned_labels_filename(suffix, fold, counter):
+def learned_labels_filename(suffix, fold, stage):
     prefix = learning_data_learnt + suffix + labels_suffix
-    return data_filename(prefix, fold, counter)
-
-def get_name_w_suffix(prefix, n, v, sf):
-    suffix = ''
-    if n > 0:
-        suffix = sf(v)
-    return prefix + suffix 
-
-def features_name(n = -1):
-    return get_name_w_suffix(features_prefix, n, n, experiment_suffix)
-
-def labels_name(n = -1):
-    return get_name_w_suffix(labels_prefix, n, n, experiment_suffix)
-
-def memories_name(n = -1, tolerance = 0):
-    return get_name_w_suffix(memories_prefix, n, tolerance, tolerance_suffix)
-
-def model_name(n = -1):
-    return get_name_w_suffix(model_prefix, n, n, experiment_suffix)
-
-def stats_name(n = -1):
-    return get_name_w_suffix(stats_prefix, n, n, experiment_suffix)
+    return data_filename(prefix, fold, stage)
 
 def mean_idx(m):
     return m
 
 def std_idx(m):
     return m+1
-
 
 def padding_cropping(data, n_frames):
 
@@ -297,13 +256,4 @@ def padding_cropping(data, n_frames):
         return np.pad(data, ((top_padding, bottom_padding),(0,0)),
             'constant', constant_values=((0,0),(0,0)))
 
-def print_counter(n, every, step = 1, symbol = '.'):
-    e = n % every
-    s = n % step
-    if e and s:
-        return
-    counter = symbol
-    if not e:
-        counter =  ' ' + str(n) + ' '
-    print(counter, end = '', flush=True)
 

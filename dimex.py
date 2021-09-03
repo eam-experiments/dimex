@@ -314,18 +314,18 @@ class LearnedDataSet:
     def get_data(self):
         data, labels = self.get_seed_data()
         total = len(labels)
-        step = total / constants.training_stages
+        step = total / constants.n_folds
         i = int(self._fold*step)
         data = np.concatenate((data[i:], data[0:i]), axis=0)
         labels = np.concatenate((labels[i:], labels[0:i]), axis=0)
 
-        learned_data, learned_labels, counter = \
+        learned_data, learned_labels, stage = \
             self.get_learned_data(self._fold, self._tolerance)
         if not ((learned_data is None) or (learned_labels is None)):
             data = np.concatenate((data, learned_data), axis=0)
             labels = np.concatenate((labels, learned_labels), axis=0)
             data, labels = shuffle(data, labels)
-        return data, labels, counter
+        return data, labels, stage
 
     def get_seed_data(self):
         data_filename = constants.seed_data_filename()
@@ -336,24 +336,24 @@ class LearnedDataSet:
 
     def get_learned_data(self, fold, tolerance):
         have_been_data = True
-        n = 0
+        stage = 0
         data = []
         labels = []
         suffixes = self._RECOG_SUFFIXES[tolerance]
         while have_been_data:
-            new_data, new_labels = self._get_stage_learned_data(suffixes, fold, n)
+            new_data, new_labels = self._get_stage_learned_data(suffixes, fold, stage)
             have_been_data = not ((new_data is None) or (new_labels is None))
             if have_been_data:
                 data.append(new_data)
                 labels.append(new_labels)
-                n += 1
+                stage += 1
         if data and labels:
             data = np.concatenate(data, axis= 0)
             labels = np.concatenate(labels, axis=0)
         else:
             data = None
             labels = None
-        return data, labels, n
+        return data, labels, stage
 
     def _get_stage_learned_data(self, suffixes, fold, n):
         data = []

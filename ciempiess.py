@@ -40,7 +40,7 @@ class NextDataSet:
     _NEXTDATA_PREFIX = 'ciempiess_data'
     def __init__(self, counter):
         self._counter = counter
-        nextdata_filename = constants.data_filename(self._NEXTDATA_PREFIX, counter=counter)
+        nextdata_filename = constants.data_filename(self._NEXTDATA_PREFIX, stage=counter)
         try:
             self._next_data = np.load(nextdata_filename)
             print(f'File {nextdata_filename} exists.')

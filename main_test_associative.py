@@ -357,20 +357,20 @@ def test_memories(domain, experiment, tolerance=0):
     labels_x_memory = constants.labels_per_memory[experiment]
     n_memories = int(constants.n_labels/labels_x_memory)
 
-    for i in range(constants.training_stages):
+    for fold in range(constants.n_folds):
         gc.collect()
 
         suffix = constants.filling_suffix
         training_features_filename = constants.features_name() + suffix        
-        training_features_filename = constants.data_filename(training_features_filename, i)
+        training_features_filename = constants.data_filename(training_features_filename, fold)
         training_labels_filename = constants.labels_name() + suffix        
-        training_labels_filename = constants.data_filename(training_labels_filename, i)
+        training_labels_filename = constants.data_filename(training_labels_filename, fold)
 
         suffix = constants.testing_suffix
         testing_features_filename = constants.features_name() + suffix        
-        testing_features_filename = constants.data_filename(testing_features_filename, i)
+        testing_features_filename = constants.data_filename(testing_features_filename, fold)
         testing_labels_filename = constants.labels_name() + suffix        
-        testing_labels_filename = constants.data_filename(testing_labels_filename, i)
+        testing_labels_filename = constants.data_filename(testing_labels_filename, fold)
 
         training_features = np.load(training_features_filename)
         training_labels = np.load(training_labels_filename)
@@ -380,7 +380,7 @@ def test_memories(domain, experiment, tolerance=0):
         measures_per_size = np.zeros((len(constants.memory_sizes), constants.n_measures), dtype=np.float64)
         behaviours = np.zeros((len(constants.memory_sizes), constants.n_behaviours))
 
-        print('Train the different co-domain memories -- NxM: ',experiment,' run: ',i)
+        print('Train the different co-domain memories -- NxM: ',experiment,' run: ',fold)
         # Processes running in parallel.
         list_measures = Parallel(n_jobs=constants.n_jobs, verbose=50)(
             delayed(get_ams_results)(midx, msize, domain, labels_x_memory, \
@@ -411,7 +411,7 @@ def test_memories(domain, experiment, tolerance=0):
         correct_chosen.append(behaviours[:, constants.correct_response_idx])
         total_responses.append(behaviours[:, constants.mean_responses_idx])
 
-    # Every row is training stage, and every column is a memory size.
+    # Every row is training fold, and every column is a memory size.
     average_entropy=np.array(average_entropy)
     stdev_entropy=np.array(stdev_entropy)
     precision = np.array(precision)
@@ -446,21 +446,21 @@ def test_memories(domain, experiment, tolerance=0):
     main_total_responses_stdev = []
 
 
-    for i in range(len(constants.memory_sizes)):
-        main_average_entropy.append( average_entropy[:,i].mean() )
-        main_stdev_entropy.append( stdev_entropy[:,i].mean() )
+    for fold in range(len(constants.memory_sizes)):
+        main_average_entropy.append( average_entropy[:,fold].mean() )
+        main_stdev_entropy.append( stdev_entropy[:,fold].mean() )
 
-        all_precision_average.append(all_precision[:, i].mean())
-        all_precision_stdev.append(all_precision[:, i].std())
-        all_recall_average.append(all_recall[:, i].mean())
-        all_recall_stdev.append(all_recall[:, i].std())
+        all_precision_average.append(all_precision[:, fold].mean())
+        all_precision_stdev.append(all_precision[:, fold].std())
+        all_recall_average.append(all_recall[:, fold].mean())
+        all_recall_stdev.append(all_recall[:, fold].std())
 
-        main_no_response.append(no_response[:, i].mean())
-        main_no_correct_response.append(no_correct_response[:, i].mean())
-        main_no_correct_chosen.append(no_correct_chosen[:, i].mean())
-        main_correct_chosen.append(correct_chosen[:, i].mean())
-        main_total_responses.append(total_responses[:, i].mean())
-        main_total_responses_stdev.append(total_responses[:, i].std())
+        main_no_response.append(no_response[:, fold].mean())
+        main_no_correct_response.append(no_correct_response[:, fold].mean())
+        main_no_correct_chosen.append(no_correct_chosen[:, fold].mean())
+        main_correct_chosen.append(correct_chosen[:, fold].mean())
+        main_total_responses.append(total_responses[:, fold].mean())
+        main_total_responses_stdev.append(total_responses[:, fold].std())
 
     main_behaviours = [main_no_response, main_no_correct_response, \
         main_no_correct_chosen, main_correct_chosen, main_total_responses]
@@ -639,11 +639,11 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, toleranc
     percents = np.array(constants.memory_fills)
     steps = np.round(total*percents/100.0).astype(int)
 
-    stage_recalls = []
-    stage_avg_entropies = []
-    stage_std_entropies = []
-    stage_precision = []
-    stage_recall = []
+    fold_recalls = []
+    fold_avg_entropies = []
+    fold_std_entropies = []
+    fold_precision = []
+    fold_recall = []
     total_precisions = []
     total_recalls = []
     mismatches = []
@@ -657,52 +657,52 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, toleranc
             minimum, maximum, features, labels, testing_features, testing_labels, fold, end)
 
         # A list of tuples (position, label, features)
-        stage_recalls += recalls
+        fold_recalls += recalls
 
         # An array with average entropy per step.
-        stage_avg_entropies.append(measures[constants.entropy_avg_idx])
+        fold_avg_entropies.append(measures[constants.entropy_avg_idx])
         # An array with standard deviation of entropy per step.
-        stage_std_entropies.append(measures[constants.entropy_std_idx])
+        fold_std_entropies.append(measures[constants.entropy_std_idx])
         # An array with precision per step
-        stage_precision.append(measures[constants.precision_idx])
+        fold_precision.append(measures[constants.precision_idx])
         # An array with recall per memory, per step
-        stage_recall.append(measures[constants.recall_idx])
+        fold_recall.append(measures[constants.recall_idx])
         # Overall recalls and precisions per step
         total_recalls.append(step_recall)
         total_precisions.append(step_precision)
         mismatches.append(mis_count)
         start = end
 
-    stage_avg_entropies = np.array(stage_avg_entropies)
-    stage_std_entropies = np.array(stage_std_entropies)
-    stage_precision = np.array(stage_precision)
-    stage_recall = np.array(stage_recall)
+    fold_avg_entropies = np.array(fold_avg_entropies)
+    fold_std_entropies = np.array(fold_std_entropies)
+    fold_precision = np.array(fold_precision)
+    fold_recall = np.array(fold_recall)
     total_precisions = np.array(total_precisions)
     total_recalls = np.array(total_recalls)
     mismatches = np.array(mismatches)
 
-    return fold, stage_recalls, stage_avg_entropies, stage_std_entropies, stage_precision, \
-        stage_recall, total_precisions, total_recalls, mismatches
+    return fold, fold_recalls, fold_avg_entropies, fold_std_entropies, fold_precision, \
+        fold_recall, total_precisions, total_recalls, mismatches
 
 
 def test_recalling(domain, mem_size, experiment, tolerance = 0):
     n_memories = constants.n_labels
     memory_fills = constants.memory_fills
-    training_stages = constants.training_stages
+    training_folds = constants.n_folds
     # All recalls, per memory fill and fold.
     all_memories = {}
     # All entropies, precision, and recall, per fold, and fill.
-    total_avg_entropies = np.zeros((training_stages, len(memory_fills)))
-    total_std_entropies = np.zeros((training_stages, len(memory_fills)))
-    total_precisions = np.zeros((training_stages, len(memory_fills)))
-    total_recalls = np.zeros((training_stages, len(memory_fills)))
-    sys_precisions = np.zeros((training_stages, len(memory_fills)))
-    sys_recalls = np.zeros((training_stages, len(memory_fills)))
-    total_mismatches = np.zeros((training_stages, len(memory_fills)))
+    total_avg_entropies = np.zeros((training_folds, len(memory_fills)))
+    total_std_entropies = np.zeros((training_folds, len(memory_fills)))
+    total_precisions = np.zeros((training_folds, len(memory_fills)))
+    total_recalls = np.zeros((training_folds, len(memory_fills)))
+    sys_precisions = np.zeros((training_folds, len(memory_fills)))
+    sys_recalls = np.zeros((training_folds, len(memory_fills)))
+    total_mismatches = np.zeros((training_folds, len(memory_fills)))
 
     list_results = Parallel(n_jobs=constants.n_jobs, verbose=50)(
         delayed(test_recalling_fold)(n_memories, mem_size, domain, fold, experiment, tolerance) \
-            for fold in range(constants.training_stages))
+            for fold in range(constants.n_folds))
 
     for fold, memories, avg_entropy, std_entropy, precision, recall,\
         sys_precision, sys_recall, mismatches in list_results:
@@ -778,8 +778,8 @@ def test_recalling(domain, mem_size, experiment, tolerance = 0):
 def get_all_data(prefix):
     data = None
 
-    for stage in range(constants.training_stages):
-        filename = constants.data_filename(prefix, stage)
+    for fold in range(constants.n_folds):
+        filename = constants.data_filename(prefix, fold)
         if data is None:
             data = np.load(filename)
         else:
@@ -871,9 +871,9 @@ def levenshtein(a: list, b: list):
 
 
 def save_recognitions(samples: list, dp: dimex.PostProcessor, experiment: int,
-    fold: int, tolerance: int, counter: int):
+    fold: int, tolerance: int, stage: int):
     filename = constants.recog_filename(constants.recognition_prefix, experiment,
-        fold, tolerance, counter)
+        fold, tolerance, stage)
     with open(filename, 'w') as file:
         writer = csv.writer(file)
         writer.writerow(['Id', 'Text', 'Correct', 'CorrSize', 'Network',
@@ -895,21 +895,21 @@ def save_recognitions(samples: list, dp: dimex.PostProcessor, experiment: int,
             writer.writerow(row)
 
 
-def recognition_on_dimex(samples, experiment, fold, tolerance, counter):
+def recognition_on_dimex(samples, experiment, fold, tolerance, stage):
     dp = dimex.PostProcessor()
     for sample in samples:
         sample.net_labels = dp.process(sample.net_labels)
         sample.ams_labels = dp.process(sample.ams_labels)
-    save_recognitions(samples, dp, experiment, fold, tolerance, counter)
+    save_recognitions(samples, dp, experiment, fold, tolerance, stage)
 
 
-def save_learned_data(pairs, suffix, experiment, fold, tolerance, counter):
+def save_learned_data(pairs, suffix, experiment, fold, tolerance, stage):
     labels = [p[0] for p in pairs]
-    filename = constants.learned_labels_filename(suffix, fold, counter)
+    filename = constants.learned_labels_filename(suffix, fold, stage)
     np.save(filename, labels)
 
     data = [p[1] for p in pairs]
-    filename = constants.learned_data_filename(suffix, fold, counter)
+    filename = constants.learned_data_filename(suffix, fold, stage)
     np.save(filename, data)
 
  
@@ -977,11 +977,11 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
     features_prefix = constants.features_name(experiment)
     labels_prefix = constants.labels_name(experiment)
 
-    for fold in range(constants.training_stages):
+    for fold in range(constants.n_folds):
         ds = dimex.LearnedDataSet(fold, tolerance)
         data, labels, counter = ds.get_data()
         total = len(labels)
-        step = total / constants.training_stages
+        step = total / constants.n_folds
         training_size = int(total*(constants.nn_training_percent+constants.am_testing_percent))
         truly_training = int(training_size*recnet.truly_training_percentage)
 
