@@ -465,25 +465,25 @@ def test_memories(domain, experiment, tolerance=0):
     main_behaviours = [main_no_response, main_no_correct_response, \
         main_no_correct_chosen, main_correct_chosen, main_total_responses]
 
-    np.savetxt(constants.csv_filename('memory_average_precision-{0}'.format(experiment),
+    np.savetxt(constants.csv_filename('memory_average_precision', experiment=experiment,
         tolerance=tolerance), precision, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_average_recall-{0}'.format(experiment),
+    np.savetxt(constants.csv_filename('memory_average_recall', experiment=experiment,
         tolerance=tolerance), recall, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_average_entropy-{0}'.format(experiment),
+    np.savetxt(constants.csv_filename('memory_average_entropy', experiment=experiment,
         tolerance=tolerance), average_entropy, delimiter=',')
 
-    np.savetxt(constants.csv_filename('memory_stdev_precision-{0}'.format(experiment),
+    np.savetxt(constants.csv_filename('memory_stdev_precision', experiment=experiment,
         tolerance=tolerance), stdev_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_stdev_recall-{0}'.format(experiment),
+    np.savetxt(constants.csv_filename('memory_stdev_recall', experiment=experiment,
         tolerance=tolerance), stdev_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_stdev_entropy-{0}'.format(experiment),
+    np.savetxt(constants.csv_filename('memory_stdev_entropy', experiment=experiment,
         tolerance=tolerance), stdev_entropy, delimiter=',')
 
-    np.savetxt(constants.csv_filename('all_precision-{0}'.format(experiment),
+    np.savetxt(constants.csv_filename('all_precision', experiment=experiment,
         tolerance=tolerance), all_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('all_recall-{0}'.format(experiment),
+    np.savetxt(constants.csv_filename('all_recall', experiment=experiment,
         tolerance=tolerance), all_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_behaviours-{0}'.format(experiment),
+    np.savetxt(constants.csv_filename('main_behaviours', experiment=experiment,
         tolerance=tolerance), main_behaviours, delimiter=',')
 
     plot_pre_graph(average_precision, average_recall, main_average_entropy,\
@@ -744,23 +744,23 @@ def test_recalling(domain, mem_size, experiment, tolerance = 0):
     main_stdev_sys_recall = np.std(sys_recalls,axis=0)
     
     
-    np.savetxt(constants.csv_filename('main_average_precision',experiment, tolerance), \
+    np.savetxt(constants.csv_filename('main_average_precision',experiment=experiment, tolerance=tolerance), \
         main_avrge_mprecision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_average_recall',experiment, tolerance), \
+    np.savetxt(constants.csv_filename('main_average_recall',experiment=experiment, tolerance=tolerance), \
         main_avrge_mrecall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_average_entropy',experiment, tolerance), \
+    np.savetxt(constants.csv_filename('main_average_entropy',experiment=experiment, tolerance=tolerance), \
         main_avrge_entropies, delimiter=',')
-    np.savetxt(constants.csv_filename('main_stdev_precision',experiment, tolerance), \
+    np.savetxt(constants.csv_filename('main_stdev_precision',experiment=experiment, tolerance=tolerance), \
         main_stdev_mprecision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_stdev_recall',experiment, tolerance), \
+    np.savetxt(constants.csv_filename('main_stdev_recall',experiment=experiment, tolerance=tolerance), \
         main_stdev_mrecall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_stdev_entropy',experiment, tolerance), \
+    np.savetxt(constants.csv_filename('main_stdev_entropy',experiment=experiment, tolerance=tolerance), \
         main_stdev_entropies, delimiter=',')
-    np.savetxt(constants.csv_filename('main_total_recalls',experiment, tolerance), \
+    np.savetxt(constants.csv_filename('main_total_recalls',experiment=experiment, tolerance=tolerance), \
         main_avrge_sys_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_total_precision',experiment, tolerance), \
+    np.savetxt(constants.csv_filename('main_total_precision',experiment=experiment, tolerance=tolerance), \
         main_avrge_sys_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_total_mismatches',experiment, tolerance), \
+    np.savetxt(constants.csv_filename('main_total_mismatches',experiment=experiment, tolerance=tolerance), \
         total_mismatches, delimiter=',')
 
     plot_pre_graph(main_avrge_mprecision*100, main_avrge_mrecall*100, main_avrge_entropies,\
