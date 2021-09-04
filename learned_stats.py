@@ -29,10 +29,13 @@ def seed_frequencies():
 
 def plot_graph(suffix, stage, bot, top, top_err):
     plt.clf()
+    plt.figure(figsize=(6.4,4.8))
+
     labels = dimex.labels_to_phns
-    width = 3
-    plt.bar(labels, bot, width, label='Seed')
-    plt.bar(labels, top, width, yerr=top_err, bottom=bot, label='Learned')
+    width = 0.75
+    # plt.bar(labels, bot, width, label='Seed')
+    # plt.bar(labels, top, width, yerr=top_err, bottom=bot, label='Learned')
+    plt.bar(labels, top, width, yerr=top_err, label='Learned')
     plt.ylabel('Data')
     plt.xlabel('Phonemes')
     plt.legend()
@@ -40,6 +43,10 @@ def plot_graph(suffix, stage, bot, top, top_err):
     filename = constants.picture_filename(suffix, EXPERIMENT, stage=stage)
     plt.savefig(filename, dpi=600)
 
+def sort (seed, means, stdvs):
+    total = seed + means
+    total, seed, means, stdvs = (list(t) for t in zip(*sorted(zip(total, seed, means, stdvs), reverse=True))) 
+    return seed, means, stdvs
 
 def get_stats(suffix, stage):
     seed = seed_frequencies()
@@ -53,6 +60,8 @@ def get_stats(suffix, stage):
         stats[:,fold] = count
     means = np.mean(stats, axis = 1)
     stdvs = np.std(stats, axis = 1)
+    # seed, means, stdvs = sort(seed, means, stdvs)
+    seed, means, stdvs = sort(np.zeros(constants.n_labels), means, stdvs)
     plot_graph(suffix, stage, seed, means, stdvs)
 
 if __name__== "__main__" :
