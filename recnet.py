@@ -268,7 +268,7 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
         history = classifier.evaluate(testing_data, no_hot, batch_size=100, verbose=1, return_dict=True)
         histories.append(history)
         model = Model(classifier.input, classifier.layers[-4].output)
-        model.summary()
+        # model.summary()
 
         training_features = model.predict(training_data)
         if len(filling_data) > 0:
@@ -427,10 +427,10 @@ class SplittedNeuralNetwork:
         classified = get_classifier(input_cla)
 
         self.encoder = Model(inputs = input_enc, outputs = encoded)
-        self.encoder.summary()
+        # self.encoder.summary()
         self.classifier = Model(inputs = input_cla, outputs = classified)
-        self.classifier.summary()
-        self.decoder.summary()
+        # self.classifier.summary()
+        # self.decoder.summary()
 
         for from_layer, to_layer in zip(classifier.layers[1:encoder_nlayers+1], self.encoder.layers[1:]):
             to_layer.set_weights(from_layer.get_weights())
