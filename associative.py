@@ -67,10 +67,9 @@ class AssociativeMemory(object):
         """Return the entropy of the Associative Memory."""
         e = 0.0  # entropy
         v = self.relation.sum(axis=0)  # number of marked cells in the columns
-        for vi in v:
-            if vi != 0:
-                e -= np.log2(vi)
-        e *= (-1.0 / self.n)
+        v = np.where(v == 0, 1, v)
+        v = np.log2(v)
+        e = v.sum()/self.n
         return e
 
     @property
@@ -95,8 +94,10 @@ class AssociativeMemory(object):
         values = np.where(self.relation[:self.m,i])[0]
         if len(values) == 0:
             return self.undefined
-        if self.is_undefined(v):
+        if self.is_undefined(v) or not (v in values):
             return random.choice(values)
+        if len(values) == 1:
+            return v
         else:
             vj = np.where(values == v)[0][0]
             j = round(random.triangular(0, len(values)-1, vj))
@@ -113,9 +114,8 @@ class AssociativeMemory(object):
 
     # Reduces a relation to a function
     def lreduce(self, vector):
-        v = np.full(self.n, self.undefined)
-        for i in range(self.n):
-            v[i] = self.choose(i, vector[i])
+        v = [self.choose(i, vector[i]) for i in range(self.n)]
+        v = np.array(v)
         return v
 
 
