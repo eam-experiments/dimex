@@ -15,7 +15,9 @@
 
 # File originally create by Raul Peralta-Lozada.
 
+from joblib import Parallel, delayed
 import numpy as np
+from operator import itemgetter
 import random
 import time
 
@@ -191,31 +193,26 @@ class AssociativeMemorySystem:
 
     def recognize(self, vector):
         for k in self._memories:
-            recognized = self._memories[k].recognize(vector)
-            if recognized:
+            if self._memories[k].recognize(vector):
                 return True
         return False
 
+    def _recall_with_entropy(self, k, vector):
+        recalled, recognized = self._memories[k].recall(vector)
+        entropy = self._memories[k].entropy if recognized else float('inf')
+        return recognized, entropy, k, recalled
+
     def recall(self, vector):
-        resp_mems = []
-        for k in self._memories:
-            recalled, recognized = self._memories[k].recall(vector)
-            if recognized:
-                entropy = self._memories[k].entropy
-                record = (k, entropy, recalled)
-                resp_mems.append(record)
-        if not resp_mems:
+        resp_mems = Parallel(n_jobs=constants.n_jobs, verbose=0)(
+            delayed(self._recall_with_entropy)(k, vector) \
+                    for k in self._memories)
+
+        recognized = filter(lambda t: t[0], resp_mems)
+        if not recognized:
             return (None, self.full_undefined)
         else:
-            k = None
-            recalled = None
-            entropy = float('inf')
-            for record in resp_mems:
-                if record[1] < entropy:
-                    k = record[0]
-                    entropy = record[1]
-                    recalled = record[2]
-            return (k, recalled)
+            t = min(recognized,key=itemgetter(1)) 
+            return (t[2], t[3])
         
 
 
