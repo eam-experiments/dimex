@@ -208,11 +208,9 @@ class AssociativeMemorySystem:
                     for k in self._memories)
 
         recognized = filter(lambda t: t[0], resp_mems)
-        if not recognized:
-            return (None, self.full_undefined)
-        else:
-            t = min(recognized,key=itemgetter(1)) 
-            return (t[2], t[3])
+        t = (False, float('inf'), None, self.full_undefined)
+        t = min(recognized,key=itemgetter(1), t) 
+        return (t[2], t[3])
         
 
 

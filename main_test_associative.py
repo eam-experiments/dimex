@@ -825,7 +825,7 @@ def save_history(history, prefix):
     stats = {}
     stats['history'] = []
     for h in history:
-        if type(h) is dict:
+        if (type(h) is dict) or (type(h) is list):
             stats['history'].append(h)
         else:
             stats['history'].append(h.history)
