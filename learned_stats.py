@@ -54,8 +54,8 @@ def plot_recognition_graph(stage, tolerance, means, errs):
     plt.ylabel('Normalized distance')
     plt.xlabel('Folds')
     plt.legend()
-    suffix = '-' + constants.recognition_prefix
-    filename = constants.picture_filename(suffix, EXPERIMENT, tolerance, stage)
+    prefix = constants.recognition_prefix
+    filename = constants.picture_filename(prefix, EXPERIMENT, tolerance, stage)
     fig.savefig(filename, dpi=600)
 
 def sort (seed, means, stdvs):
