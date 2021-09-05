@@ -935,7 +935,6 @@ def recognition_on_ciempiess(data, experiment, fold, tolerance, stage):
             if mem_label < constants.n_labels:
                 mfcc = (orig_mfcc + mem_mfcc)/2
                 amsys.append((mem_label, mfcc))
-    
     print(f'Agreed: {len(agreed)}')
     print(f'Original: {len(original)}')
     print(f'Memory: {len(amsys)}')
@@ -945,8 +944,12 @@ def recognition_on_ciempiess(data, experiment, fold, tolerance, stage):
     save_learned_data(amsys, constants.amsystem_suffix, experiment, fold, tolerance, stage)
     save_learned_data(nnet, constants.nnetwork_suffix, experiment, fold, tolerance, stage)
 
+def list_chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
-def ams_process_samples(samples, ams, minimum, maximum, decode=False):
+def ams_process_samples_batch(samples, ams, minimum, maximum, decode=False):
     n = 0
     print('\nProcessing samples with memories.')
     for sample in samples:
@@ -967,6 +970,13 @@ def ams_process_samples(samples, ams, minimum, maximum, decode=False):
         constants.print_counter(n,100,10)
     return samples
 
+def ams_process_samples(samples, ams, minimum, maximum, decode=False):
+    chunk_size = 100
+    chunks = list_chunks(samples, chunk_size)
+    processed = Parallel(n_jobs=constants.n_jobs, verbose=50)(
+        delayed(ams_process_samples_batch)(chunk, ams, minimum, maximum, decode) \
+                for chunk in chunks)
+    return [sample for chunk in processed for sample in chunk]
 
 def test_recognition(domain, mem_size, experiment, tolerance = 0):
     histories = []
