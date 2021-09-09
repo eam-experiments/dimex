@@ -63,6 +63,36 @@ def shuffle(data, labels):
     labels = np.array([p[1] for p in pairs], dtype = 'int')
     return data, labels
 
+def balance(pairs, cutpoint):
+    freqs = np.zeros(constants.n_labels, dtype=int)
+    balanced = []
+    for d, l in pairs:
+        if freqs[l] < cutpoint:
+            balanced.append((d,l))
+            freqs[l] += 1
+    return balanced
+
+
+def frequencies(labels):
+    freqs = np.zeros(constants.n_labels, dtype=int)
+    for label in labels:
+        freqs[label] += 1
+    return freqs
+
+def cutpoint(labels):
+    freqs = frequencies(labels)
+    return np.median(freqs)
+
+
+def shuffle_and_balance(data, labels):
+    pairs = [(data[i], labels[i]) for i in range(len(labels))]
+    random.shuffle(pairs)
+    cp = cutpoint(labels)
+    print(f'Balancing classes with cutpoint of {cp}.')
+    pairs = balance(pairs, cp)
+    labels = np.array([p[1] for p in pairs], dtype = 'int')
+    return data, labels
+
 def _get_file_name(modifier, id, cls, extension):
     sdir = id[:4]
     file_name = _CORPUS_DIR + '/' + sdir + '/' + cls + '/'
@@ -323,7 +353,7 @@ class LearnedDataSet:
         if not ((learned_data is None) or (learned_labels is None)):
             data = np.concatenate((data, learned_data), axis=0)
             labels = np.concatenate((labels, learned_labels), axis=0)
-            data, labels = shuffle(data, labels)
+            data, labels = shuffle_and_balance(data, labels)
         return data, labels, stage
 
     def get_seed_data(self):
