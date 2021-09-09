@@ -303,7 +303,7 @@ class LearnedDataSet:
     _RECOG_SUFFIXES = [['-agr'], ['-agr', '-ori'], ['-agr','-ams'], ['-agr','-rnn'],
         ['-agr', '-ams', '-rnn'], ['-agr', '-ams', '-rnn','-ori']]
 
-    def __init__(self, fold, tolerance):
+    def __init__(self, fold, tolerance = 0):
         if (tolerance < 0) or (len(self._RECOG_SUFFIXES) <= tolerance):
             constants.print_error(f'Tolerance {tolerance} is out of range.')
             exit(1)
