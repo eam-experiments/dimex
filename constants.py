@@ -204,12 +204,11 @@ def csv_filename(name_prefix, fold = None, tolerance = 0, experiment = None, sta
     """
     return filename(name_prefix, fold, tolerance, '.csv', experiment, stage)
 
-
 def data_filename(name_prefix, fold = None, stage = None):
     return filename(name_prefix, fold, extension='.npy', stage=stage)
 
-def pickle_filename(name_prefix, fold = None):
-    return filename(name_prefix, fold, extension='.pkl')
+def pickle_filename(name_prefix, fold = None, stage = None):
+    return filename(name_prefix, fold, extension='.pkl', stage=stage)
 
 def picture_filename(name_prefix, experiment = None, tolerance = 0, stage=None):
     return filename(name_prefix, experiment=experiment, tolerance=tolerance, stage=stage, extension='.svg')
