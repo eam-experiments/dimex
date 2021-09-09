@@ -134,7 +134,7 @@ def create_full_data():
 
 def create_learned_data(fold, tolerance):
     filename = constants.data_filename(_ALL_DATA_PREFIX + constants.data_suffix)
-    if os.path.exists('filename'):
+    if os.path.exists(filename):
         constants.print_error(f'File/directory {filename} exists! Nothing is done.')
         exit(1)
     lds = dimex.LearnedDataSet(fold)
@@ -146,7 +146,7 @@ def create_learned_data(fold, tolerance):
         labels = np.concatenate((labels, learned_labels), axis=0)
         data, labels = dimex.shuffle(data, labels)
     np.save(filename, data)
-    filename = constants.data_filename(_ALL_DATA_PREFIX + constants.label_suffix)
+    filename = constants.data_filename(_ALL_DATA_PREFIX + constants.labels_suffix)
     np.save(filename, labels)
 
 
