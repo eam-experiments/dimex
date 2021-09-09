@@ -46,7 +46,9 @@ def plot_recognition_graph(stage, tolerance, means, errs):
     plt.clf()
     fig = plt.figure()
     x = range(constants.n_folds)
-    plt.ylim(0.4, 1.0)
+    plt.ylim(0, 1.0)
+    plt.xlim(0, 10.0)
+    plt.autoscale(False)
     plt.errorbar(x, means[:,0], fmt='r-o', yerr=errs[:,0], label='Correct to network produced')
     plt.errorbar(x, means[:,1], fmt='g-d', yerr=errs[:,1], label='Correct to memory produced')
     plt.errorbar(x, means[:,2], fmt='b-s', yerr=errs[:,2], label='Network produced to memory produced')
@@ -54,8 +56,8 @@ def plot_recognition_graph(stage, tolerance, means, errs):
     plt.ylabel('Normalized distance')
     plt.xlabel('Folds')
     plt.legend()
-    suffix = '-' + constants.recognition_prefix
-    filename = constants.picture_filename(suffix, EXPERIMENT, tolerance, stage)
+    prefix = constants.recognition_prefix
+    filename = constants.picture_filename(prefix, EXPERIMENT, tolerance, stage)
     fig.savefig(filename, dpi=600)
 
 def sort (seed, means, stdvs):
