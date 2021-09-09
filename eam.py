@@ -13,10 +13,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Entropic Associative Memory Experiments
+
+Usage:
+  eam -h | --help
+  eam -n
+  eam -f
+  eam -c [-l (en | es) -t (<tolerance>)]
+  eam -a
+  eam -e (<experiment>) [-r -l (en | es) -t (<tolerance>)]
+
+Options:
+  -h --help       Show this screen.
+  -n              Trains the encoder+classifier neural network.
+  -f              Generates features for all data using the encoder.
+  -c              Generates graphs characterizing classes of features (by label).
+  -a              Trains the encoder+decoder (autoencoder) neural network.
+  -e              Run the given experiment (by number).
+  -t              Allow tolerance (unmatched features) in memory.
+  -x              Chooses language for graphs.
+"""
+from docopt import docopt
 import csv
 import sys
 import gc
-import argparse
 import gettext
 
 import numpy as np
@@ -1098,6 +1118,23 @@ def main(action, tolerance = 0):
 
 
 if __name__== "__main__" :
+    args = docopt(__doc__)
+    print(args)
+    lang = 'en'
+    if args['es']:
+        lang = 'es'
+        es = gettext.translation('ame', localedir='locale', languages=['es'])
+        es.install()
+    
+    tolerance = 0
+    if not (args['<tolerance>'] is None):
+        pass
+ 
+    exit()
+
+
+
+    
     """ Argument parsing.
     
     Basically, there is a parameter for choosing language (-l), one
