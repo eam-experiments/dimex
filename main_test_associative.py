@@ -825,10 +825,9 @@ def save_history(history, prefix):
     stats = {}
     stats['history'] = []
     for h in history:
-        if (type(h) is dict) or (type(h) is list):
-            stats['history'].append(h)
-        else:
-            stats['history'].append(h.history)
+        while not ((type(h) is dict) or (type(h) is list)):
+            h = h.history
+        stats['history'].append(h)
 
     with open(constants.json_filename(prefix), 'w') as outfile:
         json.dump(stats, outfile)
@@ -950,7 +949,6 @@ def list_chunks(lst, n):
         yield lst[i:i + n]
 
 def ams_process_samples_batch(samples, ams, minimum, maximum, decode=False):
-    n = 0
     print('\nProcessing samples with memories.')
     for sample in samples:
         features = msize_features(sample.features, ams.m, minimum, maximum)
@@ -966,8 +964,6 @@ def ams_process_samples_batch(samples, ams, minimum, maximum, decode=False):
                 recalls.append(recall)
             sample.ams_labels = labels
             sample.ams_features = recalls
-        n += 1
-        constants.print_counter(n,100,10)
     return samples
 
 def ams_process_samples(samples, ams, minimum, maximum, decode=False):
