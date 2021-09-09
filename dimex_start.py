@@ -1,6 +1,7 @@
 import argparse
 import csv
 import numpy as np
+import os.path
 import pickle
 from python_speech_features import mfcc
 import random
@@ -10,7 +11,6 @@ import scipy.signal
 import constants
 import dimex
 
-_FEATURES_DIR = 'Features'
 _ALL_IDS = 'ids.csv'
 _TRAINING_IDS = 'training.csv'
 _ALL_DATA_PREFIX = 'all'
@@ -132,6 +132,24 @@ def create_learning_seeds():
 def create_full_data():
     create_data_and_labels(_ALL_IDS, _ALL_DATA_PREFIX)
 
+def create_learned_data(fold, tolerance):
+    filename = constants.data_filename(_ALL_DATA_PREFIX + constants.data_suffix)
+    if os.path.exists(filename):
+        constants.print_error(f'File/directory {filename} exists! Nothing is done.')
+        exit(1)
+    lds = dimex.LearnedDataSet(fold)
+    data, labels = lds.get_seed_data()
+    learned_data, learned_labels, stage = \
+        lds.get_learned_data(fold, tolerance)
+    if not ((learned_data is None) or (learned_labels is None)):
+        data = np.concatenate((data, learned_data), axis=0)
+        labels = np.concatenate((labels, learned_labels), axis=0)
+        data, labels = dimex.shuffle(data, labels)
+    np.save(filename, data)
+    filename = constants.data_filename(_ALL_DATA_PREFIX + constants.labels_suffix)
+    np.save(filename, labels)
+
+
 if __name__== "__main__" :
     parser = argparse.ArgumentParser(description='Initial datasets creator.')
     group = parser.add_mutually_exclusive_group(required=True)
@@ -143,18 +161,32 @@ if __name__== "__main__" :
         help='creates the initial data set for the learning process.')
     group.add_argument('-v', nargs='?', dest='vcutpoint', type=float, 
         help='balances the initial data set for the learning process.')
+    group.add_argument('-l', nargs='?', dest='fold', type=int, 
+        help='creates the initial data set from the learning process, given fold and tolerance.')
+    parser.add_argument('-t', nargs='?', dest='tolerance', type=float, 
+        help='tolerance for the -l option.')
 
     args = parser.parse_args()
     action = args.action
     if action is None:
-        if args.bcutpoint:
+        if not (args.bcutpoint is None):
             cutpoint = args.bcutpoint
             create_balanced_data(cutpoint, _ALL_DATA_PREFIX, constants.balanced_data)
-        elif args.vcutpoint:
+        elif not (args.vcutpoint is None):
             cutpoint = args.vcutpoint
-            create_balanced_data(cutpoint, constants.seed_data, constants.learning_data_seed)
+            create_balanced_data(cutpoint, constants.seed_data,
+                constants.learning_data_seed)
+        elif not (args.fold is None):
+            if args.tolerance is None:
+                constants.print_warning(f'Assuming tolerance = 0.')
+                tolerance = 0
+            else:
+                tolerance = args.tolerance
+            fold = args.fold
+            create_learned_data(fold, tolerance)
     elif action == _SEED:
         create_learning_seeds()
-    else:
+    elif action == _FULL:
         create_full_data()
+
  
