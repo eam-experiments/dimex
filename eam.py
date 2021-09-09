@@ -1007,11 +1007,11 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
         ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
-        tds = dimex.TestingDataSet()
-        testing_data = tds.get_data()
-        testing_data = recnet.process_samples(testing_data, model_prefix, fold, tolerance, stage)
-        testing_data = ams_process_samples(testing_data, ams, minimum, maximum)
-        recognition_on_dimex(testing_data, experiment, fold, tolerance, stage)
+        # tds = dimex.TestingDataSet()
+        # testing_data = tds.get_data()
+        # testing_data = recnet.process_samples(testing_data, model_prefix, fold, tolerance, stage)
+        # testing_data = ams_process_samples(testing_data, ams, minimum, maximum)
+        # recognition_on_dimex(testing_data, experiment, fold, tolerance, stage)
 
         nds = ciempiess.NextDataSet(stage)
         new_data = nds = nds.get_data()
