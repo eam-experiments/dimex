@@ -333,12 +333,13 @@ class LearnedDataSet:
     _RECOG_SUFFIXES = [['-agr'], ['-agr', '-ori'], ['-agr','-ams'], ['-agr','-rnn'],
         ['-agr', '-ams', '-rnn'], ['-agr', '-ams', '-rnn','-ori']]
 
-    def __init__(self, fold, tolerance = 0):
+    def __init__(self, fold, tolerance = 0, stage = None):
         if (tolerance < 0) or (len(self._RECOG_SUFFIXES) <= tolerance):
             constants.print_error(f'Tolerance {tolerance} is out of range.')
             exit(1)
         self._tolerance = tolerance
         self._fold = fold
+        self._stage = stage
 
     def get_data(self):
         data, labels = self.get_seed_data()
@@ -349,7 +350,7 @@ class LearnedDataSet:
         labels = np.concatenate((labels[i:], labels[0:i]), axis=0)
 
         learned_data, learned_labels, stage = \
-            self.get_learned_data(self._fold, self._tolerance)
+            self.get_learned_data(self._fold, self._tolerance, self._stage)
         if not ((learned_data is None) or (learned_labels is None)):
             data = np.concatenate((data, learned_data), axis=0)
             labels = np.concatenate((labels, learned_labels), axis=0)
@@ -363,26 +364,28 @@ class LearnedDataSet:
         labels = np.load(labels_filename)
         return data, labels    
 
-    def get_learned_data(self, fold, tolerance):
-        have_been_data = True
-        stage = 0
+    def get_learned_data(self, fold, tolerance, stage):
         data = []
         labels = []
         suffixes = self._RECOG_SUFFIXES[tolerance]
-        while have_been_data:
-            new_data, new_labels = self._get_stage_learned_data(suffixes, fold, stage)
+        if stage is None:
+            stage = float('inf')
+        n = 0
+        have_been_data = True
+        while have_been_data and (n < stage):
+            new_data, new_labels = self._get_stage_learned_data(suffixes, fold, n)
             have_been_data = not ((new_data is None) or (new_labels is None))
             if have_been_data:
                 data.append(new_data)
                 labels.append(new_labels)
-                stage += 1
+                n += 1
         if data and labels:
             data = np.concatenate(data, axis= 0)
             labels = np.concatenate(labels, axis=0)
         else:
             data = None
             labels = None
-        return data, labels, stage
+        return data, labels, n
 
     def _get_stage_learned_data(self, suffixes, fold, n):
         data = []

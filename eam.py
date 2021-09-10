@@ -27,10 +27,6 @@ import random
 import json
 from numpy.core.defchararray import array
 import seaborn
-
-from tensorflow.python.framework.tensor_shape import unknown_shape
-from tensorflow.python.ops.gen_parsing_ops import parse_single_sequence_example_eager_fallback
-
 from associative import AssociativeMemory, AssociativeMemorySystem
 import ciempiess
 import constants
@@ -949,7 +945,7 @@ def list_chunks(lst, n):
         yield lst[i:i + n]
 
 def ams_process_samples_batch(samples, ams, minimum, maximum, decode=False):
-    print('\nProcessing samples with memories.')
+    print(f'\nProcessing {len(samples)} samples with memories.')
     for sample in samples:
         features = msize_features(sample.features, ams.m, minimum, maximum)
         if not decode:
