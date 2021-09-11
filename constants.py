@@ -24,6 +24,7 @@ idx_digits = 3
 testing_path = 'test'
 memories_path = 'memories'
 
+data_prefix = 'data'
 labels_prefix = 'labels'
 features_prefix = 'features'
 memories_prefix = 'memories'
@@ -36,11 +37,8 @@ seed_data = 'seed'
 learning_data_seed = 'seed_balanced'
 learning_data_learnt = 'learned'
 
-# Categories prefixes.
+# Category names.
 stats_model_name = 'model_stats'
-data_name = 'data'
-
-original_suffix = '-original'
 
 # Categories suffixes.
 training_suffix = '-training'
@@ -53,6 +51,7 @@ classifier_suffix = '-classifier'
 decoder_suffix = '-autoencoder'
 
 # Other suffixes.
+original_suffix = '-original'
 matrix_suffix = '-matrix'
 data_suffix = '_X'
 labels_suffix = '_Y'
@@ -158,6 +157,9 @@ def get_name_w_suffix(prefix, add_suffix, value, sf):
         suffix = sf(value)
     return prefix + suffix 
 
+def data_name(experiment = -1):
+    return get_name_w_suffix(data_prefix, experiment >= EXP_1, experiment, experiment_suffix)
+
 def features_name(experiment = -1):
     return get_name_w_suffix(features_prefix, experiment >= EXP_1, experiment, experiment_suffix)
 
@@ -173,7 +175,6 @@ def model_name(experiment = -1):
 
 def stats_name(experiment = -1):
     return get_name_w_suffix(stats_prefix, experiment >= EXP_1, experiment, experiment_suffix)
-
 
 def filename(name_prefix, fold = None, tolerance = 0, extension = '',
     experiment = None, stage = None):
@@ -193,10 +194,10 @@ def filename(name_prefix, fold = None, tolerance = 0, extension = '',
         + extension 
 
 
-def json_filename(name_prefix):
+def json_filename(name_prefix, experiment = None, stage = None):
     """ Returns a file name for a JSON file in run_path directory
     """
-    return filename(name_prefix,  extension = '.json')
+    return filename(name_prefix,  extension='.json', experiment=experiment, stage=stage)
 
 
 def csv_filename(name_prefix, fold = None, tolerance = 0, experiment = None, stage = None):
@@ -205,8 +206,8 @@ def csv_filename(name_prefix, fold = None, tolerance = 0, experiment = None, sta
     return filename(name_prefix, fold, tolerance, '.csv', experiment, stage)
 
 
-def data_filename(name_prefix, fold = None, stage = None):
-    return filename(name_prefix, fold, extension='.npy', stage=stage)
+def data_filename(name_prefix, fold = None, experiment=None, stage = None):
+    return filename(name_prefix, fold, extension='.npy', experiment=experiment, stage=stage)
 
 def pickle_filename(name_prefix, fold = None):
     return filename(name_prefix, fold, extension='.pkl')
@@ -217,8 +218,8 @@ def picture_filename(name_prefix, experiment = None, tolerance = 0, stage=None):
 def classifier_filename(name_prefix, fold = None, tolerance=0, stage = None):
     return filename(name_prefix + classifier_suffix, fold, tolerance, stage = stage)
 
-def decoder_filename(name_prefix, fold = None, tolerance=0, stage = None):
-    return filename(name_prefix + decoder_suffix, fold, tolerance, stage = stage)
+def decoder_filename(name_prefix, fold = None, experiment=None, tolerance=0, stage = None):
+    return filename(name_prefix + decoder_suffix, fold, experiment=experiment, tolerance=tolerance, stage = stage)
 
 def recog_filename(name_prefix, experiment = None, fold = None, tolerance = None, stage = None):
     return csv_filename(name_prefix, fold, tolerance, experiment, stage)

@@ -17,21 +17,24 @@
 
 Usage:
   eam -h | --help
-  eam -n
-  eam -f
-  eam -c [-l (en | es) -t (<tolerance>)]
+  eam -n [-s <stage>]
+  eam -f [-s <stage>]
+  eam -c [-l (en | es) ] [-t <tolerance>]
   eam -a
-  eam -e (<experiment>) [-r -l (en | es) -t (<tolerance>)]
+  eam -e <experiment> [-r -s <stage> -t <tolerance> -g <learning>] [ -l (en | es) ]
+  eam -h
 
 Options:
-  -h --help       Show this screen.
-  -n              Trains the encoder+classifier neural network.
-  -f              Generates features for all data using the encoder.
-  -c              Generates graphs characterizing classes of features (by label).
-  -a              Trains the encoder+decoder (autoencoder) neural network.
-  -e              Run the given experiment (by number).
-  -t              Allow tolerance (unmatched features) in memory.
-  -x              Chooses language for graphs.
+  -h        Show this screen.
+  -n        Trains the (encoder+)classifier neural network.
+  -f        Generates features for all data using the encoder.
+  -c        Generates graphs characterizing classes of features (by label).
+  -a        Trains the encoder+decoder (autoencoder) neural network.
+  -e        Run the given experiment (1, 3, 4 and 5).
+  -t        Allow tolerance (unmatched features) in memory.
+  -s        Selects stage of learning (for experiments 4 and 5).
+  -g        Selects which new data is used for recognition and learning.
+  -l        Chooses language for graphs.            
 """
 from docopt import docopt
 import csv
@@ -47,9 +50,6 @@ import random
 import json
 from numpy.core.defchararray import array
 import seaborn
-
-from tensorflow.python.framework.tensor_shape import unknown_shape
-from tensorflow.python.ops.gen_parsing_ops import parse_single_sequence_example_eager_fallback
 
 from associative import AssociativeMemory, AssociativeMemorySystem
 import ciempiess
@@ -836,7 +836,7 @@ def characterize_features(domain, experiment):
     plot_features_graph(domain, means, stdevs, experiment)
     
 
-def save_history(history, prefix):
+def save_history(history, prefix, experiment, stage = None):
     """ Saves the stats of neural networks.
 
     Neural networks stats may come either as a History object, that includes
@@ -854,10 +854,10 @@ def save_history(history, prefix):
         json.dump(stats, outfile)
 
 
-def save_conf_matrix(matrix, prefix):
+def save_conf_matrix(matrix, prefix, experiment, stage):
     prefix += constants.matrix_suffix
     plot_conf_matrix(matrix, dimex.phonemes, prefix)
-    file_name = constants.data_filename(prefix)
+    file_name = constants.data_filename(prefix, experiment=experiment,stage=stage)
     np.save(file_name, matrix)
 
 
@@ -1053,41 +1053,33 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
 ##############################################################################
 # Main section
 
+def create_and_train_classifiers(experiment, stage):
+    training_percentage = constants.nn_training_percent
+    model_prefix = constants.model_name(experiment)
+    stats_prefix = constants.stats_model_name + constants.classifier_suffix
+    history, conf_matrix = recnet.train_classifier(training_percentage, model_prefix, experiment, stage)
+    save_history(history, stats_prefix, experiment, stage)
+    save_conf_matrix(conf_matrix, stats_prefix, experiment, stage)
+ 
+def produce_features_from_data(experiment, stage):
+    training_percentage = constants.nn_training_percent
+    am_filling_percentage = constants.am_filling_percent
+    model_prefix = constants.model_name(experiment)
+    features_prefix = constants.features_name(experiment)
+    labels_prefix = constants.labels_name(experiment)
+    data_prefix = constants.data_name(experiment)
+    history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
+        training_percentage, am_filling_percentage, experiment, stage)
+    save_history(history, features_prefix, experiment, stage)
+
+def create_and_train_autoencoder(experiment):
+    model_prefix = constants.model_name(experiment)
+    stats_prefix = constants.stats_model_name + constants.decoder_suffix
+    history = recnet.train_decoder(model_prefix, experiment)
+    save_history(history, stats_prefix, experiment)
+ 
 def main(action, tolerance = 0):
-    """ Distributes work.
-
-    The main function distributes work according to the options chosen in the
-    command line.
-    """
-
-    if (action == constants.TRAIN_CLASSIFIER):
-        # Trains the classifier.
-        training_percentage = constants.nn_training_percent
-        model_prefix = constants.model_name()
-        stats_prefix = constants.stats_model_name + constants.classifier_suffix
-        history, conf_matrix = recnet.train_classifier(training_percentage, model_prefix, action)
-        save_history(history, stats_prefix)
-        save_conf_matrix(conf_matrix, stats_prefix)
-    elif (action == constants.TRAIN_AUTOENCODER):
-        # Trains the autoencoder.
-        model_prefix = constants.model_name()
-        stats_prefix = constants.stats_model_name + constants.decoder_suffix
-        history = recnet.train_decoder(model_prefix, action)
-        save_history(history, stats_prefix)
-    elif (action == constants.GET_FEATURES):
-        # Generates features for the memories using the previously generated
-        # neural networks.
-        training_percentage = constants.nn_training_percent
-        am_filling_percentage = constants.am_filling_percent
-        model_prefix = constants.model_name()
-        features_prefix = constants.features_name(action)
-        labels_prefix = constants.labels_name(action)
-        data_prefix = constants.data_name
-
-        history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
-            training_percentage, am_filling_percentage, action)
-        save_history(history, features_prefix)
-    elif action == constants.CHARACTERIZE:
+    if action == constants.CHARACTERIZE:
         # Generates graphs of mean and standard distributions of feature values,
         # per digit class.
         characterize_features(constants.domain, action)
@@ -1120,74 +1112,43 @@ def main(action, tolerance = 0):
 if __name__== "__main__" :
     args = docopt(__doc__)
     print(args)
+
+    # Processing language
     lang = 'en'
     if args['es']:
         lang = 'es'
         es = gettext.translation('ame', localedir='locale', languages=['es'])
         es.install()
-    
-    tolerance = 0
-    if not (args['<tolerance>'] is None):
-        pass
- 
-    exit()
 
-
-
-    
-    """ Argument parsing.
-    
-    Basically, there is a parameter for choosing language (-l), one
-    to train and save the neural networks (-n), one to create and save the features
-    for all data (-f), one to characterize the initial features (-c), and one to run
-    the experiments (-e).
-    """
-    parser = argparse.ArgumentParser(description='Associative Memory Experimenter.')
-    parser.add_argument('-l', nargs='?', dest='lang', choices=['en', 'es'], default='en',
-                        help='choose between English (en) or Spanish (es) labels for graphs.')
-    parser.add_argument('-t', nargs='?', dest='tolerance', type=int,
-                        help='run the experiment with the tolerance given (only experiments 5 to 12).')
-    
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-n', action='store_const', const=constants.TRAIN_CLASSIFIER, dest='action',
-                        help='train the classifier, separating NN and AM training data (Separate Data NN).')
-    group.add_argument('-f', action='store_const', const=constants.GET_FEATURES, dest='action',
-                        help='get data features using the separate data neural networks.')
-    group.add_argument('-a', action='store_const', const=constants.TRAIN_AUTOENCODER, dest='action',
-                        help='train the autoencoder using the features generated previously as data.')
-    group.add_argument('-c', action='store_const', const=constants.CHARACTERIZE, dest='action',
-                        help='characterize the features from partial data neural networks by class.')
-    group.add_argument('-e', nargs='?', dest='nexp', type=int, 
-                        help='run the experiment with that number, using separate data neural networks.')
-
-    args = parser.parse_args()
-    lang = args.lang
-    tolerance = args.tolerance
-    action = args.action
-    nexp = args.nexp
-
-    
-    if lang == 'es':
-        es = gettext.translation('ame', localedir='locale', languages=['es'])
-        es.install()
-
-    if tolerance is None:
-        tolerance = 0
-    elif (tolerance < 0) or (constants.domain < tolerance):
-            constants.print_error("tolerance needs to be a value between 0 and {0}."
-                .format(constants.domain))
-            exit(3)
-
-    if action is None:
-        # An experiment was chosen
-        if (nexp < constants.MIN_EXPERIMENT) or (constants.MAX_EXPERIMENT < nexp):
-            constants.print_error("There are only {1} experiments available, numbered consecutively from {0}."
-                .format(constants.MIN_EXPERIMENT, constants.MAX_EXPERIMENT))
+    # Processing stage
+    stage = None
+    if args['-s']:
+        try:
+            stage = int(args['<stage>'])
+        except:
+            constants.print_error('<stage> must be a positive integer.')
             exit(1)
-        main(nexp, tolerance)
-    else:
-        # Other action was chosen
-        main(action)
 
-    
-    
+    # Processing tolerance
+    tolerance = None
+    if args['-t']:
+        try:
+            tolerance = int(args['<tolerance>'])
+        except:
+            constants.print_error('<tolerance> must be a positive integer.')
+            exit(1)
+
+    # Processing creation and training of classifying neural networks.
+    if args['-n']:
+        experiment = constants.TRAIN_CLASSIFIER if stage is None else constants.EXP_5
+        create_and_train_classifiers(experiment, stage)
+
+    # Processing production of features for data.
+    elif args['-f']:
+        experiment = constants.GET_FEATURES if stage is None else constants.EXP_5
+        produce_features_from_data(experiment, stage)
+
+    # Processing creation and training of autoencoder neural networks.
+    elif args['-a']:
+        experiment = constants.TRAIN_AUTOENCODER
+        create_and_train_autoencoder(experiment)
