@@ -44,29 +44,6 @@ HORIZONTAL_BARS = 5
 
 truly_training_percentage = 0.80
 
-def print_error(*s):
-    print('Error:', *s, file = sys.stderr)
-
-
-#######################################################################
-# Getting data code
-
-def get_data(experiment, stage = None, one_hot = False):
-    # Load DIMEX-100 labels
-    filename = constants.balanced_data + constants.labels_suffix
-    filename = constants.data_filename(filename)
-    all_labels = np.load(filename)
-
-    filename = constants.balanced_data + constants.data_suffix
-    filename = constants.data_filename(filename)
-    all_data = np.load(filename)
-    if one_hot:
-        # Changes labels to binary rows. Each label correspond to a column, and only
-        # the column for the corresponding label is set to one.
-        all_labels = to_categorical(all_labels, constants.n_labels, dtype='int')
-    return (all_data, all_labels
-
-
 def get_weights(labels):
     class_weights = compute_class_weight('balanced', classes=constants.all_labels, y=labels)
     return dict(enumerate(class_weights))
