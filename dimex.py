@@ -371,11 +371,11 @@ class LearnedDataSet:
         if es.extended:
             data = np.concatenate((seed_data, learned_data), axis=0)
             labels = np.concatenate((seed_labels, learned_labels), axis=0)
-            self.data, self.labels = shuffle(data, labels)
+            self.data, self.labels = shuffle_and_balance(data, labels)
         else:
             self.seed_data, self.seed_labels = shuffle(seed_data, seed_labels)
             if learned_data and learned_labels:
-                self.learned_data, self.learned_labels = shuffle(learned_data, learned_labels)
+                self.learned_data, self.learned_labels = shuffle_and_balance(learned_data, learned_labels)
             else:
                 self.learned_data = learned_data
                 self.learned_labels = learned_labels
