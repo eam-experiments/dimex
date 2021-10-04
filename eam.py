@@ -13,10 +13,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Entropic Associative Memory Experiments
+
+Usage:
+  eam -h | --help
+  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [-d <learned_data>] [-x] [-t <tolerance>] [ -l (en | es) ]
+
+Options:
+  -h        Show this screen.
+  -n        Trains the encoder + classifier Neural networks.
+  -f        Generates Features for all data using the encoder.
+  -a        Trains the encoder + decoder (Autoencoder) neural networks.
+  -c        Generates graphs Characterizing classes of features (by label).
+  -e        Run the experiment 1 (Evaluation).
+  -i        Increase the amount of data (learning).
+  -r        Run the experiment 2 (Recognition).
+  -t        Allow Tolerance (unmatched features) in memory.
+  -d        Selects which learneD Data is used for evaluation, recognition or learning.
+  -x        Use the eXtended data set as testing data for memory.
+  -l        Chooses Language for graphs.            
+
+The parameter <stage> indicates the stage of learning from which data is used.
+Default is the last one.
+"""
+from docopt import docopt
 import csv
 import sys
 import gc
-import argparse
 import gettext
 
 import numpy as np
@@ -812,7 +835,7 @@ def characterize_features(domain, experiment):
     plot_features_graph(domain, means, stdevs, experiment)
     
 
-def save_history(history, prefix):
+def save_history(history, prefix, es):
     """ Saves the stats of neural networks.
 
     Neural networks stats may come either as a History object, that includes
@@ -824,16 +847,15 @@ def save_history(history, prefix):
         while not ((type(h) is dict) or (type(h) is list)):
             h = h.history
         stats['history'].append(h)
-
-    with open(constants.json_filename(prefix), 'w') as outfile:
+    with open(constants.json_filename(prefix,es), 'w') as outfile:
         json.dump(stats, outfile)
 
 
-def save_conf_matrix(matrix, prefix):
-    prefix += constants.matrix_suffix
-    plot_conf_matrix(matrix, dimex.phonemes, prefix)
-    file_name = constants.data_filename(prefix)
-    np.save(file_name, matrix)
+def save_conf_matrix(matrix, prefix, es):
+    name = constants.matrix_name(es)
+    plot_conf_matrix(matrix, dimex.phonemes, name)
+    filename = constants.data_filename(prefix, es)
+    np.save(filename, matrix)
 
 
 def lev(a, b, m):
@@ -1025,41 +1047,38 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
 ##############################################################################
 # Main section
 
+def create_and_train_classifiers(es):
+    model_prefix = constants.model_name(es)
+    stats_prefix = constants.stats_model_name(es) + constants.classifier_suffix
+    history, conf_matrix = recnet.train_classifier(model_prefix, es)
+    save_history(history, stats_prefix, es)
+    save_conf_matrix(conf_matrix, stats_prefix, es)
+ 
+def produce_features_from_data(experiment, stage):
+    training_percentage = constants.nn_training_percent
+    am_filling_percentage = constants.am_filling_percent
+    model_prefix = constants.model_name(experiment)
+    features_prefix = constants.features_name(experiment)
+    labels_prefix = constants.labels_name(experiment)
+    data_prefix = constants.data_name(experiment)
+    history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
+        training_percentage, am_filling_percentage, experiment, stage)
+    save_history(history, features_prefix, experiment, stage)
+
+def create_and_train_autoencoder(experiment):
+    model_prefix = constants.model_name(experiment)
+    stats_prefix = constants.stats_model_name + constants.decoder_suffix
+    history = recnet.train_decoder(model_prefix, experiment)
+    save_history(history, stats_prefix, experiment)
+
+def run_evaluation(ec):
+    pass
+
+def extend_data(stage, learned, tolerance):
+    pass
+ 
 def main(action, tolerance = 0):
-    """ Distributes work.
-
-    The main function distributes work according to the options chosen in the
-    command line.
-    """
-
-    if (action == constants.TRAIN_CLASSIFIER):
-        # Trains the classifier.
-        training_percentage = constants.nn_training_percent
-        model_prefix = constants.model_name()
-        stats_prefix = constants.stats_model_name + constants.classifier_suffix
-        history, conf_matrix = recnet.train_classifier(training_percentage, model_prefix, action)
-        save_history(history, stats_prefix)
-        save_conf_matrix(conf_matrix, stats_prefix)
-    elif (action == constants.TRAIN_AUTOENCODER):
-        # Trains the autoencoder.
-        model_prefix = constants.model_name()
-        stats_prefix = constants.stats_model_name + constants.decoder_suffix
-        history = recnet.train_decoder(model_prefix, action)
-        save_history(history, stats_prefix)
-    elif (action == constants.GET_FEATURES):
-        # Generates features for the memories using the previously generated
-        # neural networks.
-        training_percentage = constants.nn_training_percent
-        am_filling_percentage = constants.am_filling_percent
-        model_prefix = constants.model_name()
-        features_prefix = constants.features_name(action)
-        labels_prefix = constants.labels_name(action)
-        data_prefix = constants.data_name
-
-        history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
-            training_percentage, am_filling_percentage, action)
-        save_history(history, features_prefix)
-    elif action == constants.CHARACTERIZE:
+    if action == constants.CHARACTERIZE:
         # Generates graphs of mean and standard distributions of feature values,
         # per digit class.
         characterize_features(constants.domain, action)
@@ -1088,61 +1107,67 @@ def main(action, tolerance = 0):
         recnet.remember(action, tolerance)
 
 
-
 if __name__== "__main__" :
-    """ Argument parsing.
-    
-    Basically, there is a parameter for choosing language (-l), one
-    to train and save the neural networks (-n), one to create and save the features
-    for all data (-f), one to characterize the initial features (-c), and one to run
-    the experiments (-e).
-    """
-    parser = argparse.ArgumentParser(description='Associative Memory Experimenter.')
-    parser.add_argument('-l', nargs='?', dest='lang', choices=['en', 'es'], default='en',
-                        help='choose between English (en) or Spanish (es) labels for graphs.')
-    parser.add_argument('-t', nargs='?', dest='tolerance', type=int,
-                        help='run the experiment with the tolerance given (only experiments 5 to 12).')
-    
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-n', action='store_const', const=constants.TRAIN_CLASSIFIER, dest='action',
-                        help='train the classifier, separating NN and AM training data (Separate Data NN).')
-    group.add_argument('-f', action='store_const', const=constants.GET_FEATURES, dest='action',
-                        help='get data features using the separate data neural networks.')
-    group.add_argument('-a', action='store_const', const=constants.TRAIN_AUTOENCODER, dest='action',
-                        help='train the autoencoder using the features generated previously as data.')
-    group.add_argument('-c', action='store_const', const=constants.CHARACTERIZE, dest='action',
-                        help='characterize the features from partial data neural networks by class.')
-    group.add_argument('-e', nargs='?', dest='nexp', type=int, 
-                        help='run the experiment with that number, using separate data neural networks.')
+    args = docopt(__doc__)
+    print(args)
 
-    args = parser.parse_args()
-    lang = args.lang
-    tolerance = args.tolerance
-    action = args.action
-    nexp = args.nexp
-
-    
-    if lang == 'es':
+    # Processing language.
+    lang = 'en'
+    if args['es']:
+        lang = 'es'
         es = gettext.translation('ame', localedir='locale', languages=['es'])
         es.install()
 
-    if tolerance is None:
-        tolerance = 0
-    elif (tolerance < 0) or (constants.domain < tolerance):
-            constants.print_error("tolerance needs to be a value between 0 and {0}."
-                .format(constants.domain))
-            exit(3)
-
-    if action is None:
-        # An experiment was chosen
-        if (nexp < constants.MIN_EXPERIMENT) or (constants.MAX_EXPERIMENT < nexp):
-            constants.print_error("There are only {1} experiments available, numbered consecutively from {0}."
-                .format(constants.MIN_EXPERIMENT, constants.MAX_EXPERIMENT))
+    # Processing stage. 
+    stage = 0
+    if args['<stage>']:
+        try:
+            stage = int(args['<stage>'])
+            if stage < 0:
+                raise Exception('Negative number.')
+        except:
+            constants.print_error('<stage> must be a positive integer.')
             exit(1)
-        main(nexp, tolerance)
-    else:
-        # Other action was chosen
-        main(action)
 
-    
-    
+    # Processing learned data.
+    learned = 0
+    if args['<learned_data>']:
+        try:
+            learned = int(args['<learned_data>'])
+            if (learned < 0) or (learned >= constants.learned_data_groups)
+            raise Exception('Number out of range.')
+        except:
+            constants.print_error('<learned_data> must be a positive integer.')
+            exit(1)
+
+    # Processing use of extended data as testing data for memory
+    extended = args['-x']
+
+    # Processing tolerance.
+    tolerance = 0
+    if args['<tolerance>']:
+        try:
+            tolerance = int(args['<tolerance>'])
+            if (tolerance < 0) or (tolerance > constants.domain):
+                raise Exception('Number out of range.')
+        except:
+            constants.print_error('<tolerance> must be a positive integer.')
+            exit(1)
+
+    exp_set = constants.ExperimentSettings(stage, learned, extended, tolerance)
+    # PROCESSING OF MAIN OPTIONS.
+
+    if args['-n']:
+        create_and_train_classifiers(exp_set)
+    elif args['-f']:
+        produce_features_from_data(exp_set)
+    elif args['-a']:
+        create_and_train_autoencoder(exp_set)
+    elif args['-c']:
+        characterize_features(exp_set)
+    elif args['-e']:
+        run_evaluation(exp_set)
+    elif args['-i']:
+        extend_data(exp_set)
+    elif args['-r']:
+        test_recognition(exp_set)

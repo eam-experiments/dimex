@@ -52,7 +52,7 @@ def print_error(*s):
 #######################################################################
 # Getting data code
 
-def get_data(experiment, one_hot = False):
+def get_data(experiment, stage = None, one_hot = False):
     # Load DIMEX-100 labels
     filename = constants.balanced_data + constants.labels_suffix
     filename = constants.data_filename(filename)
@@ -65,15 +65,7 @@ def get_data(experiment, one_hot = False):
         # Changes labels to binary rows. Each label correspond to a column, and only
         # the column for the corresponding label is set to one.
         all_labels = to_categorical(all_labels, constants.n_labels, dtype='int')
-    return (all_data, all_labels)
-
-
-def get_data_in_range(data, i, j):
-    total = len(data)
-    if j >= i:
-        return data[i:j]
-    else:
-        return np.concatenate((data[i:total], data[0:j]), axis=0)
+    return (all_data, all_labels
 
 
 def get_weights(labels):
@@ -166,37 +158,21 @@ class EarlyStoppingAtLossCrossing(Callback):
             print("Epoch %05d: early stopping" % (self.stopped_epoch + 1))
 
 
-def train_classifier(training_percentage, filename, experiment):
-
-    (data, labels) = get_data(experiment)
-    total = len(data)
-    step = total/constants.n_folds
-
-   # Amount of data used for training the networks
-    training_size = int(total*training_percentage)
+def train_classifier(prefix, es):
+    lds = dimex.LearnedDataSet(es)
     confusion_matrix = np.zeros((constants.n_labels, constants.n_labels))
     histories = []
     for fold in range(constants.n_folds):
-        i = int(fold*step)
-        j = (i + training_size) % total
-
-        training_data = get_data_in_range(data, i, j)
-        training_labels = get_data_in_range(labels, i, j)
-        testing_data = get_data_in_range(data, j, i)
-        testing_labels = get_data_in_range(labels, j, i)
-
-        truly_training = int(training_size*truly_training_percentage)
+        training_data, training_labels = lds.get_training_data(fold)
+        testing_data, testing_labels = lds.get_testing_data(fold)
+        truly_training = int(len(training_labels)*truly_training_percentage)
 
         validation_data = training_data[truly_training:]
         validation_labels = training_labels[truly_training:]
         training_data = training_data[:truly_training]
         training_labels = training_labels[:truly_training]
 
-        weights = get_weights(training_labels)
-        training_labels = to_categorical(training_labels, constants.n_labels, dtype='int')
-        validation_labels = to_categorical(validation_labels, constants.n_labels, dtype='int')
-        testing_labels = to_categorical(testing_labels, constants.n_labels, dtype='int')
-        
+        weights = get_weights(training_labels)        
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
         classified = get_classifier(encoded)
@@ -219,21 +195,20 @@ def train_classifier(training_percentage, filename, experiment):
         confusion_matrix += tf.math.confusion_matrix(np.argmax(testing_labels, axis=1), 
             np.argmax(predicted_labels, axis=1), num_classes=constants.n_labels)
         histories.append(history)
-        model.save(constants.classifier_filename(filename, fold))
+        model.save(constants.classifier_filename(prefix, fold, stage=stage))
     confusion_matrix = confusion_matrix.numpy()
     totals = confusion_matrix.sum(axis=1).reshape(-1,1)
     return histories, confusion_matrix/totals
 
 
 def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
-            training_percentage, am_filling_percentage, experiment):
+            training_percentage, am_filling_percentage, experiment, stage):
     """ Generate features for images.
     
     Uses the previously trained neural networks for generating the features corresponding
     to the images.
     """
-    (data, labels) = get_data(experiment)
-
+    (data, labels) = get_data(experiment, stage)
     total = len(data)
     step = total/constants.n_folds
 
@@ -246,16 +221,16 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
     for fold in range(constants.n_folds):
         i = int(fold*step)
         j = (i+training_size) % total
-        training_data = get_data_in_range(data, i, j)
-        training_labels = get_data_in_range(labels, i, j)
+        training_data = constants.get_data_in_range(data, i, j)
+        training_labels = constants.get_data_in_range(labels, i, j)
 
         k = (j+filling_size) % total
-        filling_data = get_data_in_range(data, j, k)
-        filling_labels = get_data_in_range(labels, j, k)
+        filling_data = constants.get_data_in_range(data, j, k)
+        filling_labels = constants.get_data_in_range(labels, j, k)
 
         l = (k+testing_size) % total
-        testing_data = get_data_in_range(data, k, l)
-        testing_labels = get_data_in_range(labels, k, l)
+        testing_data = constants.get_data_in_range(data, k, l)
+        testing_labels = constants.get_data_in_range(labels, k, l)
 
         # Recreate the exact same model, including its weights and the optimizer
         model = tf.keras.models.load_model(constants.classifier_filename(model_prefix, fold))
@@ -283,11 +258,10 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
             constants.filling_suffix : (filling_data, filling_features, filling_labels),
             constants.testing_suffix : (testing_data, testing_features, testing_labels)
             }
-
         for suffix in dict:
-            data_fn = constants.data_filename(data_prefix+suffix, fold)
-            features_fn = constants.data_filename(features_prefix+suffix, fold)
-            labels_fn = constants.data_filename(labels_prefix+suffix, fold)
+            data_fn = constants.data_filename(data_prefix+suffix, fold, experiment, stage)
+            features_fn = constants.data_filename(features_prefix+suffix, fold, experiment, stage)
+            labels_fn = constants.data_filename(labels_prefix+suffix, fold, experiment, stage)
 
             d, f, l = dict[suffix]
             np.save(data_fn, d)
@@ -295,12 +269,11 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
             np.save(labels_fn, l)    
     return histories
 
+
 def train_decoder(filename, experiment):
     (labels, _) = get_data(experiment)
     total = len(labels)
     step = total/constants.n_folds
-
-
     histories = []
     for fold in range(constants.n_folds):
         suffix = constants.training_suffix
@@ -327,11 +300,11 @@ def train_decoder(filename, experiment):
 
         i = int(fold*step)
         j = (i+len(training_data)) % total
-        training_labels = get_data_in_range(labels,i, j)
+        training_labels = constants.get_data_in_range(labels,i, j)
         k = (j+len(validation_data)) % total
-        validation_labels = get_data_in_range(labels,j, k)
+        validation_labels = constants.get_data_in_range(labels,j, k)
         l = (k+len(testing_data)) % total
-        testing_labels = get_data_in_range(labels, k, l)
+        testing_labels = constants.get_data_in_range(labels, k, l)
 
         input_data = Input(shape=(constants.domain))
         decoded = get_decoder(input_data)
@@ -349,7 +322,7 @@ def train_decoder(filename, experiment):
         history = model.evaluate(testing_data,
             (testing_labels, testing_data),return_dict=True)
         histories.append(history)
-        model.save(constants.decoder_filename(filename, fold))
+        model.save(constants.decoder_filename(filename, fold, experiment))
     return histories
 
 
@@ -392,7 +365,7 @@ def train_next_decoder(training_data, training_labels,
             validation_data = (validation_data, validation_labels),
             callbacks=[EarlyStoppingAtLossCrossing(patience)],
             verbose=2)
-    model.save(constants.decoder_filename(model_prefix, fold, tolerance, stage))
+    model.save(constants.decoder_filename(model_prefix, fold, tolerance=tolerance, stage=stage))
     return model, history
 
 def train_next_network(training_data, training_labels,
@@ -418,7 +391,7 @@ class SplittedNeuralNetwork:
     def __init__ (self, prefix, fold, tolerance, stage):
         model_filename = constants.classifier_filename(prefix, fold, tolerance, stage)
         classifier = tf.keras.models.load_model(model_filename)
-        model_filename = constants.decoder_filename(prefix, fold, tolerance, stage)
+        model_filename = constants.decoder_filename(prefix, fold, tolerance=tolerance, stage=stage)
         self.decoder = tf.keras.models.load_model(model_filename)
 
         input_enc = Input(shape=(n_frames, n_mfcc))
