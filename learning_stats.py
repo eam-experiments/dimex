@@ -38,7 +38,7 @@ def plot_learning_graph(suffix, stage, bot, top, top_err):
     plt.ylabel('Data')
     plt.xlabel('Phonemes')
     plt.legend()
-    suffix = constants.learning_data_learnt + suffix
+    suffix = constants.learning_data_learned + suffix
     filename = constants.picture_filename(suffix, EXPERIMENT, stage=stage)
     plt.savefig(filename, dpi=600)
 

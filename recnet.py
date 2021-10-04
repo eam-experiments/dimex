@@ -65,15 +65,7 @@ def get_data(experiment, stage = None, one_hot = False):
         # Changes labels to binary rows. Each label correspond to a column, and only
         # the column for the corresponding label is set to one.
         all_labels = to_categorical(all_labels, constants.n_labels, dtype='int')
-    return (all_data, all_labels)
-
-
-def get_data_in_range(data, i, j):
-    total = len(data)
-    if j >= i:
-        return data[i:j]
-    else:
-        return np.concatenate((data[i:total], data[0:j]), axis=0)
+    return (all_data, all_labels
 
 
 def get_weights(labels):
@@ -166,26 +158,14 @@ class EarlyStoppingAtLossCrossing(Callback):
             print("Epoch %05d: early stopping" % (self.stopped_epoch + 1))
 
 
-def train_classifier(training_percentage, prefix, experiment, stage):
-
-    (data, labels) = get_data(experiment, stage, one_hot=True)
-    total = len(data)
-    step = total/constants.n_folds
-
-   # Amount of data used for training the networks
-    training_size = int(total*training_percentage)
+def train_classifier(prefix, es):
+    lds = dimex.LearnedDataSet(es)
     confusion_matrix = np.zeros((constants.n_labels, constants.n_labels))
     histories = []
     for fold in range(constants.n_folds):
-        i = int(fold*step)
-        j = (i + training_size) % total
-
-        training_data = get_data_in_range(data, i, j)
-        training_labels = get_data_in_range(labels, i, j)
-        testing_data = get_data_in_range(data, j, i)
-        testing_labels = get_data_in_range(labels, j, i)
-
-        truly_training = int(training_size*truly_training_percentage)
+        training_data, training_labels = lds.get_training_data(fold)
+        testing_data, testing_labels = lds.get_testing_data(fold)
+        truly_training = int(len(training_labels)*truly_training_percentage)
 
         validation_data = training_data[truly_training:]
         validation_labels = training_labels[truly_training:]
@@ -241,16 +221,16 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
     for fold in range(constants.n_folds):
         i = int(fold*step)
         j = (i+training_size) % total
-        training_data = get_data_in_range(data, i, j)
-        training_labels = get_data_in_range(labels, i, j)
+        training_data = constants.get_data_in_range(data, i, j)
+        training_labels = constants.get_data_in_range(labels, i, j)
 
         k = (j+filling_size) % total
-        filling_data = get_data_in_range(data, j, k)
-        filling_labels = get_data_in_range(labels, j, k)
+        filling_data = constants.get_data_in_range(data, j, k)
+        filling_labels = constants.get_data_in_range(labels, j, k)
 
         l = (k+testing_size) % total
-        testing_data = get_data_in_range(data, k, l)
-        testing_labels = get_data_in_range(labels, k, l)
+        testing_data = constants.get_data_in_range(data, k, l)
+        testing_labels = constants.get_data_in_range(labels, k, l)
 
         # Recreate the exact same model, including its weights and the optimizer
         model = tf.keras.models.load_model(constants.classifier_filename(model_prefix, fold))
@@ -320,11 +300,11 @@ def train_decoder(filename, experiment):
 
         i = int(fold*step)
         j = (i+len(training_data)) % total
-        training_labels = get_data_in_range(labels,i, j)
+        training_labels = constants.get_data_in_range(labels,i, j)
         k = (j+len(validation_data)) % total
-        validation_labels = get_data_in_range(labels,j, k)
+        validation_labels = constants.get_data_in_range(labels,j, k)
         l = (k+len(testing_data)) % total
-        testing_labels = get_data_in_range(labels, k, l)
+        testing_labels = constants.get_data_in_range(labels, k, l)
 
         input_data = Input(shape=(constants.domain))
         decoded = get_decoder(input_data)

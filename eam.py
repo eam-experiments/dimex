@@ -17,24 +17,24 @@
 
 Usage:
   eam -h | --help
-  eam -n [-s <stage>]
-  eam -f [-s <stage>]
-  eam -c [-l (en | es) ] [-t <tolerance>]
-  eam -a
-  eam -e <experiment> [-r -s <stage> -t <tolerance> -g <learning>] [ -l (en | es) ]
-  eam -h
+  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [-d <learned_data>] [-x] [-t <tolerance>] [ -l (en | es) ]
 
 Options:
   -h        Show this screen.
-  -n        Trains the (encoder+)classifier neural network.
-  -f        Generates features for all data using the encoder.
-  -c        Generates graphs characterizing classes of features (by label).
-  -a        Trains the encoder+decoder (autoencoder) neural network.
-  -e        Run the given experiment (1, 3, 4 and 5).
-  -t        Allow tolerance (unmatched features) in memory.
-  -s        Selects stage of learning (for experiments 4 and 5).
-  -g        Selects which new data is used for recognition and learning.
-  -l        Chooses language for graphs.            
+  -n        Trains the encoder + classifier Neural networks.
+  -f        Generates Features for all data using the encoder.
+  -a        Trains the encoder + decoder (Autoencoder) neural networks.
+  -c        Generates graphs Characterizing classes of features (by label).
+  -e        Run the experiment 1 (Evaluation).
+  -i        Increase the amount of data (learning).
+  -r        Run the experiment 2 (Recognition).
+  -t        Allow Tolerance (unmatched features) in memory.
+  -d        Selects which learneD Data is used for evaluation, recognition or learning.
+  -x        Use the eXtended data set as testing data for memory.
+  -l        Chooses Language for graphs.            
+
+The parameter <stage> indicates the stage of learning from which data is used.
+Default is the last one.
 """
 from docopt import docopt
 import csv
@@ -836,7 +836,7 @@ def characterize_features(domain, experiment):
     plot_features_graph(domain, means, stdevs, experiment)
     
 
-def save_history(history, prefix, experiment, stage = None):
+def save_history(history, prefix, es):
     """ Saves the stats of neural networks.
 
     Neural networks stats may come either as a History object, that includes
@@ -849,16 +849,15 @@ def save_history(history, prefix, experiment, stage = None):
             stats['history'].append(h)
         else:
             stats['history'].append(h.history)
-
-    with open(constants.json_filename(prefix), 'w') as outfile:
+    with open(constants.json_filename(prefix,es), 'w') as outfile:
         json.dump(stats, outfile)
 
 
-def save_conf_matrix(matrix, prefix, experiment, stage):
-    prefix += constants.matrix_suffix
-    plot_conf_matrix(matrix, dimex.phonemes, prefix)
-    file_name = constants.data_filename(prefix, experiment=experiment,stage=stage)
-    np.save(file_name, matrix)
+def save_conf_matrix(matrix, prefix, es):
+    name = constants.matrix_name(es)
+    plot_conf_matrix(matrix, dimex.phonemes, name)
+    filename = constants.data_filename(prefix, es)
+    np.save(filename, matrix)
 
 
 def lev(a, b, m):
@@ -1053,13 +1052,12 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
 ##############################################################################
 # Main section
 
-def create_and_train_classifiers(experiment, stage):
-    training_percentage = constants.nn_training_percent
-    model_prefix = constants.model_name(experiment)
-    stats_prefix = constants.stats_model_name + constants.classifier_suffix
-    history, conf_matrix = recnet.train_classifier(training_percentage, model_prefix, experiment, stage)
-    save_history(history, stats_prefix, experiment, stage)
-    save_conf_matrix(conf_matrix, stats_prefix, experiment, stage)
+def create_and_train_classifiers(es):
+    model_prefix = constants.model_name(es)
+    stats_prefix = constants.stats_model_name(es) + constants.classifier_suffix
+    history, conf_matrix = recnet.train_classifier(model_prefix, es)
+    save_history(history, stats_prefix, es)
+    save_conf_matrix(conf_matrix, stats_prefix, es)
  
 def produce_features_from_data(experiment, stage):
     training_percentage = constants.nn_training_percent
@@ -1077,6 +1075,12 @@ def create_and_train_autoencoder(experiment):
     stats_prefix = constants.stats_model_name + constants.decoder_suffix
     history = recnet.train_decoder(model_prefix, experiment)
     save_history(history, stats_prefix, experiment)
+
+def run_evaluation(ec):
+    pass
+
+def extend_data(stage, learned, tolerance):
+    pass
  
 def main(action, tolerance = 0):
     if action == constants.CHARACTERIZE:
@@ -1108,47 +1112,67 @@ def main(action, tolerance = 0):
         recnet.remember(action, tolerance)
 
 
-
 if __name__== "__main__" :
     args = docopt(__doc__)
     print(args)
 
-    # Processing language
+    # Processing language.
     lang = 'en'
     if args['es']:
         lang = 'es'
         es = gettext.translation('ame', localedir='locale', languages=['es'])
         es.install()
 
-    # Processing stage
-    stage = None
-    if args['-s']:
+    # Processing stage. 
+    stage = 0
+    if args['<stage>']:
         try:
             stage = int(args['<stage>'])
+            if stage < 0:
+                raise Exception('Negative number.')
         except:
             constants.print_error('<stage> must be a positive integer.')
             exit(1)
 
-    # Processing tolerance
-    tolerance = None
-    if args['-t']:
+    # Processing learned data.
+    learned = 0
+    if args['<learned_data>']:
+        try:
+            learned = int(args['<learned_data>'])
+            if (learned < 0) or (learned >= constants.learned_data_groups)
+            raise Exception('Number out of range.')
+        except:
+            constants.print_error('<learned_data> must be a positive integer.')
+            exit(1)
+
+    # Processing use of extended data as testing data for memory
+    extended = args['-x']
+
+    # Processing tolerance.
+    tolerance = 0
+    if args['<tolerance>']:
         try:
             tolerance = int(args['<tolerance>'])
+            if (tolerance < 0) or (tolerance > constants.domain):
+                raise Exception('Number out of range.')
         except:
             constants.print_error('<tolerance> must be a positive integer.')
             exit(1)
 
-    # Processing creation and training of classifying neural networks.
+    exp_set = constants.ExperimentSettings(stage, learned, extended, tolerance)
+    # PROCESSING OF MAIN OPTIONS.
+
     if args['-n']:
-        experiment = constants.TRAIN_CLASSIFIER if stage is None else constants.EXP_5
-        create_and_train_classifiers(experiment, stage)
-
-    # Processing production of features for data.
+        create_and_train_classifiers(exp_set)
     elif args['-f']:
-        experiment = constants.GET_FEATURES if stage is None else constants.EXP_5
-        produce_features_from_data(experiment, stage)
-
-    # Processing creation and training of autoencoder neural networks.
+        produce_features_from_data(exp_set)
     elif args['-a']:
-        experiment = constants.TRAIN_AUTOENCODER
-        create_and_train_autoencoder(experiment)
+        create_and_train_autoencoder(exp_set)
+    elif args['-c']:
+        characterize_features(exp_set)
+    elif args['-e']:
+        run_evaluation(exp_set)
+    elif args['-i']:
+        extend_data(exp_set)
+    elif args['-r']:
+        test_recognition(exp_set)
