@@ -1134,8 +1134,8 @@ if __name__== "__main__" :
     if args['<learned_data>']:
         try:
             learned = int(args['<learned_data>'])
-            if (learned < 0) or (learned >= constants.learned_data_groups)
-            raise Exception('Number out of range.')
+            if (learned < 0) or (learned >= constants.learned_data_groups):
+                raise Exception('Number out of range.')
         except:
             constants.print_error('<learned_data> must be a positive integer.')
             exit(1)

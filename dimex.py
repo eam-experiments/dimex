@@ -84,7 +84,6 @@ def shuffle(data, labels):
     labels = np.array([p[1] for p in pairs], dtype='int')
     return data, labels
 
-<<<<<<< HEAD
 def balance(pairs, cutpoint):
     freqs = np.zeros(constants.n_labels, dtype=int)
     balanced = []
@@ -114,8 +113,6 @@ def shuffle_and_balance(data, labels):
     pairs = balance(pairs, cp)
     labels = np.array([p[1] for p in pairs], dtype = 'int')
     return data, labels
-=======
->>>>>>> argparse-1
 
 def _get_file_name(modifier, id, cls, extension):
     sdir = id[:4]
@@ -377,7 +374,11 @@ class LearnedDataSet:
             self.data, self.labels = shuffle(data, labels)
         else:
             self.seed_data, self.seed_labels = shuffle(seed_data, seed_labels)
-            self.learned_data, self.learned_labels = shuffle(learned_data, learned_labels)
+            if learned_data and learned_labels:
+                self.learned_data, self.learned_labels = shuffle(learned_data, learned_labels)
+            else:
+                self.learned_data = learned_data
+                self.learned_labels = learned_labels
 
     def _get_data_segment(self, data, labels, segment, fold):
         total = len(labels)
@@ -409,11 +410,14 @@ class LearnedDataSet:
         else:
             seed_data, seed_labels = \
                 self._get_data_segment(self.seed_data, self.seed_labels, segment, fold)
-            learned_data, learned_labels = \
-                self._get_data_segment(self.learned_data, self.learned_labels, segment, fold)
-            data = np.concatenate((seed_data, learned_data), axis=0)
-            labels = np.concatenate((seed_labels, learned_labels), axis=0)
-            return shuffle(data, labels)
+            if self.learned_data and self.learned_labels:
+                learned_data, learned_labels = \
+                    self._get_data_segment(self.learned_data, self.learned_labels, segment, fold)
+                data = np.concatenate((seed_data, learned_data), axis=0)
+                labels = np.concatenate((seed_labels, learned_labels), axis=0)
+                return shuffle(data, labels)
+            else:
+                return seed_data, seed_labels
 
     def get_training_data(self, fold):
         return self.get_data_segment(self._TRAINING_SEGMENT, fold)

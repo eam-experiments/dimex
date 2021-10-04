@@ -149,6 +149,10 @@ def train_classifier(prefix, es):
         training_labels = training_labels[:truly_training]
 
         weights = get_weights(training_labels)        
+        training_labels = to_categorical(training_labels)
+        validation_labels = to_categorical(validation_labels)
+        testing_labels = to_categorical(testing_labels)
+
         input_data = Input(shape=(n_frames, n_mfcc))
         encoded = get_encoder(input_data)
         classified = get_classifier(encoded)
