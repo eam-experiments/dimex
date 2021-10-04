@@ -24,8 +24,10 @@ idx_digits = 3
 testing_path = 'test'
 memories_path = 'memories'
 
+data_prefix = 'data'
 labels_prefix = 'labels'
 features_prefix = 'features'
+matrix_prefix = 'confrix'
 memories_prefix = 'memories'
 model_prefix = 'model'
 recognition_prefix = 'recognition'
@@ -34,13 +36,7 @@ stats_prefix = 'model_stats'
 balanced_data = 'balanced'
 seed_data = 'seed'
 learning_data_seed = 'seed_balanced'
-learning_data_learnt = 'learned'
-
-# Categories prefixes.
-stats_model_name = 'model_stats'
-data_name = 'data'
-
-original_suffix = '-original'
+learning_data_learned = 'learned'
 
 # Categories suffixes.
 training_suffix = '-training'
@@ -53,7 +49,7 @@ classifier_suffix = '-classifier'
 decoder_suffix = '-autoencoder'
 
 # Other suffixes.
-matrix_suffix = '-matrix'
+original_suffix = '-original'
 data_suffix = '_X'
 labels_suffix = '_Y'
 
@@ -104,6 +100,7 @@ ideal_memory_size = 256
 
 n_samples = 10
 ciempiess_segment_size = 250
+learned_data_groups = 6
 
 CHARACTERIZE = -3
 TRAIN_AUTOENCODER = -2
@@ -123,6 +120,14 @@ EXP_10 = 10
 MIN_EXPERIMENT = 1
 MAX_EXPERIMENT = 10
 
+class ExperimentSettings:
+    def __init__(self, stage = 0, learned = 0, extended = False, tolerance = 0):
+        self.stage = stage
+        self.learned = learned
+        self.extended = extended
+        self.tolerance = tolerance
+
+
 def print_warning(*s):
     print('WARNING:', *s, file = sys.stderr)
 
@@ -139,24 +144,93 @@ def print_counter(n, every, step = 1, symbol = '.'):
         counter =  ' ' + str(n) + ' '
     print(counter, end = '', flush=True)
 
+def extended_suffix(extended):
+    return '' if extended is None else '-ext'    
+
+def fold_suffix(fold):
+    return '' if fold is None else '-fld_' + str(fold).zfill(3)
+
+def learned_suffix(learned):
+    return '-lrn_' + str(learned).zfill(3)    
+
+def stage_suffix(stage):
+    return '-stg_' + str(stage).zfill(3)    
+
 def tolerance_suffix(tolerance):
-    return '' if not tolerance else '-tol_' + str(tolerance).zfill(3)
+    return '-tol_' + str(tolerance).zfill(3)
 
 def experiment_suffix(experiment):
     return '' if (experiment is None) or experiment < EXP_1 \
         else '-exp_' + str(experiment).zfill(3)
-
-def stage_suffix(stage):
-    return '' if stage is None else '-stg_' + str(stage).zfill(3)    
-
-def fold_suffix(fold):
-    return '' if fold is None else '-fld_' + str(fold).zfill(3)
 
 def get_name_w_suffix(prefix, add_suffix, value, sf):
     suffix = ''
     if add_suffix:
         suffix = sf(value)
     return prefix + suffix 
+
+def get_full_name(prefix, es):
+    if es is None:
+        return prefix
+    name = get_name_w_suffix(prefix, True, es.stage, stage_suffix)
+    name = get_name_w_suffix(name, es.stage > 0, es.learned, learned_suffix)
+    name = get_name_w_suffix(name, es.stage > 0, es.extended, learned_suffix)
+    name = get_name_w_suffix(name, True, es.tolerance, tolerance_suffix)
+    return name
+
+def matrix_name(es):
+    return get_full_name(matrix_prefix, es)
+
+def model_name(es):
+    return get_full_name(model_prefix, es)
+
+def stats_model_name(es):
+    return get_full_name(stats_prefix, es)
+
+def filename(name_prefix, es = None, fold = None, extension = ''):
+    """ Returns a file name in run_path directory with a given extension and an index
+    """
+    # Create target directory & all intermediate directories if don't exists
+    try:
+        os.makedirs(run_path)
+        print("Directory " , run_path ,  " created ")
+    except FileExistsError:
+        pass
+    return run_path + '/' + get_full_name(name_prefix,es) \
+        + fold_suffix(fold) + extension 
+
+def data_filename(name_prefix, es = None, fold = None):
+    return filename(name_prefix, es, fold, '.npy')
+
+def json_filename(name_prefix, es):
+    """ Returns a file name for a JSON file in run_path directory
+    """
+    return filename(name_prefix, es, extension='.json')
+
+def learned_data_filename(suffix, es):
+    prefix = learning_data_learned + suffix + data_suffix
+    return data_filename(prefix, es)
+
+def learned_labels_filename(suffix, es):
+    prefix = learning_data_learned + suffix + labels_suffix
+    return data_filename(prefix, es)
+
+def picture_filename(name_prefix):
+    return filename(name_prefix, extension='.svg')
+
+def seed_data_filename():
+    return data_filename(learning_data_seed + data_suffix)
+
+def seed_labels_filename():
+    return data_filename(learning_data_seed + labels_suffix)
+
+
+
+###### TO BE MODIFIED #####
+
+
+def data_name(experiment = -1):
+    return get_name_w_suffix(data_prefix, experiment >= EXP_1, experiment, experiment_suffix)
 
 def features_name(experiment = -1):
     return get_name_w_suffix(features_prefix, experiment >= EXP_1, experiment, experiment_suffix)
@@ -168,74 +242,25 @@ def memories_name(experiment = -1, tolerance = 0):
     return get_name_w_suffix(memories_prefix, experiment >= EXP_1, experiment, tolerance_suffix) \
         + tolerance_suffix(tolerance)
 
-def model_name(experiment = -1):
-    return get_name_w_suffix(model_prefix, experiment >= EXP_1, experiment, experiment_suffix)
-
 def stats_name(experiment = -1):
     return get_name_w_suffix(stats_prefix, experiment >= EXP_1, experiment, experiment_suffix)
-
-
-def filename(name_prefix, fold = None, tolerance = 0, extension = '',
-    experiment = None, stage = None):
-    """ Returns a file name in run_path directory with a given extension and an index
-    """
-    # Create target directory & all intermediate directories if don't exists
-    try:
-        os.makedirs(run_path)
-        print("Directory " , run_path ,  " created ")
-    except FileExistsError:
-        pass
-    return run_path + '/' + name_prefix \
-        + experiment_suffix(experiment) \
-        + stage_suffix(stage) \
-        + tolerance_suffix(tolerance) \
-        + fold_suffix(fold) \
-        + extension 
-
-
-def json_filename(name_prefix):
-    """ Returns a file name for a JSON file in run_path directory
-    """
-    return filename(name_prefix,  extension = '.json')
-
 
 def csv_filename(name_prefix, fold = None, tolerance = 0, experiment = None, stage = None):
     """ Returns a file name for csv(i) in run_path directory
     """
     return filename(name_prefix, fold, tolerance, '.csv', experiment, stage)
 
-
-def data_filename(name_prefix, fold = None, stage = None):
-    return filename(name_prefix, fold, extension='.npy', stage=stage)
-
-def pickle_filename(name_prefix, fold = None):
-    return filename(name_prefix, fold, extension='.pkl')
-
-def picture_filename(name_prefix, experiment = None, tolerance = 0, stage=None):
-    return filename(name_prefix, experiment=experiment, tolerance=tolerance, stage=stage, extension='.svg')
+def pickle_filename(name_prefix, fold = None, stage = None):
+    return filename(name_prefix, fold, extension='.pkl', stage=stage)
 
 def classifier_filename(name_prefix, fold = None, tolerance=0, stage = None):
     return filename(name_prefix + classifier_suffix, fold, tolerance, stage = stage)
 
-def decoder_filename(name_prefix, fold = None, tolerance=0, stage = None):
-    return filename(name_prefix + decoder_suffix, fold, tolerance, stage = stage)
+def decoder_filename(name_prefix, fold = None, experiment=None, tolerance=0, stage = None):
+    return filename(name_prefix + decoder_suffix, fold, experiment=experiment, tolerance=tolerance, stage = stage)
 
 def recog_filename(name_prefix, experiment = None, fold = None, tolerance = None, stage = None):
     return csv_filename(name_prefix, fold, tolerance, experiment, stage)
-
-def seed_data_filename():
-    return data_filename(learning_data_seed + data_suffix)
-
-def seed_labels_filename():
-    return data_filename(learning_data_seed + labels_suffix)
-
-def learned_data_filename(suffix, fold, stage):
-    prefix = learning_data_learnt + suffix + data_suffix
-    return data_filename(prefix, fold, stage)
-
-def learned_labels_filename(suffix, fold, stage):
-    prefix = learning_data_learnt + suffix + labels_suffix
-    return data_filename(prefix, fold, stage)
 
 def mean_idx(m):
     return m
@@ -257,4 +282,8 @@ def padding_cropping(data, n_frames):
         return np.pad(data, ((top_padding, bottom_padding),(0,0)),
             'constant', constant_values=((0,0),(0,0)))
 
-
+def get_data_in_range(data, i, j):
+    if j >= i:
+        return data[i:j]
+    else:
+        return np.concatenate((data[i:], data[:j]), axis=0)

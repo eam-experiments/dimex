@@ -139,8 +139,8 @@ def create_learned_data(fold, tolerance):
         exit(1)
     lds = dimex.LearnedDataSet(fold)
     data, labels = lds.get_seed_data()
-    learned_data, learned_labels, stage = \
-        lds.get_learned_data(fold, tolerance)
+    learned_data, learned_labels, _ = \
+        lds.get_learned_data(fold, tolerance, None)
     if not ((learned_data is None) or (learned_labels is None)):
         data = np.concatenate((data, learned_data), axis=0)
         labels = np.concatenate((labels, learned_labels), axis=0)

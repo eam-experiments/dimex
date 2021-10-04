@@ -14,6 +14,7 @@
 
 import csv
 import numpy as np
+import pickle
 from python_speech_features import mfcc
 import random
 import re
@@ -40,14 +41,14 @@ class NextDataSet:
     _NEXTDATA_PREFIX = 'ciempiess_data'
     def __init__(self, stage):
         self._stage = stage
-        nextdata_filename = constants.data_filename(self._NEXTDATA_PREFIX, stage=stage)
+        nextdata_filename = constants.pickle_filename(self._NEXTDATA_PREFIX, stage=stage)
         try:
-            self._next_data = np.load(nextdata_filename)
+            with open(nextdata_filename, 'rb') as f:
+                self._next_data = pickle.load(f)
             print(f'File {nextdata_filename} exists.')
         except:
             self._next_data = None
             print(f'File {nextdata_filename} does not exists.')
-
         if self._next_data is None:
             audios_filenames = []
             with open(self._AUDIO_LIST_FILENAME, 'rt') as f:
@@ -55,7 +56,9 @@ class NextDataSet:
             start = self._stage*constants.ciempiess_segment_size
             end = start + constants.ciempiess_segment_size
             self._next_data = self._get_data(audios_filenames[start:end])
-            np.save(nextdata_filename, self._next_data)
+            with open(nextdata_filename, 'wb') as f:
+                pickle.dump(self._next_data,f)
+
     
     def get_data(self):
         return self._next_data
