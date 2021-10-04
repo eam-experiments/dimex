@@ -175,7 +175,7 @@ def train_classifier(prefix, es):
         confusion_matrix += tf.math.confusion_matrix(np.argmax(testing_labels, axis=1), 
             np.argmax(predicted_labels, axis=1), num_classes=constants.n_labels)
         histories.append(history)
-        model.save(constants.classifier_filename(prefix, fold, stage=stage))
+        model.save(constants.classifier_filename(prefix, es, fold))
     confusion_matrix = confusion_matrix.numpy()
     totals = confusion_matrix.sum(axis=1).reshape(-1,1)
     return histories, confusion_matrix/totals

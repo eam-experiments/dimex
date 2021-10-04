@@ -207,6 +207,9 @@ def json_filename(name_prefix, es):
     """
     return filename(name_prefix, es, extension='.json')
 
+def picture_filename(name_prefix):
+    return filename(name_prefix, extension='.svg')
+
 def learned_data_filename(suffix, es):
     prefix = learning_data_learned + suffix + data_suffix
     return data_filename(prefix, es)
@@ -215,14 +218,17 @@ def learned_labels_filename(suffix, es):
     prefix = learning_data_learned + suffix + labels_suffix
     return data_filename(prefix, es)
 
-def picture_filename(name_prefix):
-    return filename(name_prefix, extension='.svg')
-
 def seed_data_filename():
     return data_filename(learning_data_seed + data_suffix)
 
 def seed_labels_filename():
     return data_filename(learning_data_seed + labels_suffix)
+
+def classifier_filename(name_prefix, es, fold):
+    return filename(name_prefix + classifier_suffix, es, fold)
+
+def decoder_filename(name_prefix, es, fold):
+    return filename(name_prefix + decoder_suffix, es, fold)
 
 
 
@@ -252,12 +258,6 @@ def csv_filename(name_prefix, fold = None, tolerance = 0, experiment = None, sta
 
 def pickle_filename(name_prefix, fold = None, stage = None):
     return filename(name_prefix, fold, extension='.pkl', stage=stage)
-
-def classifier_filename(name_prefix, fold = None, tolerance=0, stage = None):
-    return filename(name_prefix + classifier_suffix, fold, tolerance, stage = stage)
-
-def decoder_filename(name_prefix, fold = None, experiment=None, tolerance=0, stage = None):
-    return filename(name_prefix + decoder_suffix, fold, experiment=experiment, tolerance=tolerance, stage = stage)
 
 def recog_filename(name_prefix, experiment = None, fold = None, tolerance = None, stage = None):
     return csv_filename(name_prefix, fold, tolerance, experiment, stage)
