@@ -1049,7 +1049,7 @@ def test_recognition(domain, mem_size, experiment, tolerance = 0):
 
 def create_and_train_classifiers(es):
     model_prefix = constants.model_name(es)
-    stats_prefix = constants.stats_model_name(es) + constants.classifier_suffix
+    stats_prefix = model_prefix + constants.classifier_suffix
     history, conf_matrix = recnet.train_classifier(model_prefix, es)
     save_history(history, stats_prefix, es)
     save_conf_matrix(conf_matrix, stats_prefix, es)

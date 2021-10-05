@@ -178,14 +178,15 @@ def get_full_name(prefix, es):
     name = get_name_w_suffix(name, True, es.tolerance, tolerance_suffix)
     return name
 
+# Currently, names include nothing about experiment settings.
 def matrix_name(es):
-    return get_full_name(matrix_prefix, es)
+    return matrix_prefix
 
 def model_name(es):
-    return get_full_name(model_prefix, es)
+    return model_prefix
 
 def stats_model_name(es):
-    return get_full_name(stats_prefix, es)
+    return stats_prefix
 
 def filename(name_prefix, es = None, fold = None, extension = ''):
     """ Returns a file name in run_path directory with a given extension and an index
