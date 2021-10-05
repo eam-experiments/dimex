@@ -1054,16 +1054,13 @@ def create_and_train_classifiers(es):
     save_history(history, stats_prefix, es)
     save_conf_matrix(conf_matrix, stats_prefix, es)
  
-def produce_features_from_data(experiment, stage):
-    training_percentage = constants.nn_training_percent
-    am_filling_percentage = constants.am_filling_percent
-    model_prefix = constants.model_name(experiment)
-    features_prefix = constants.features_name(experiment)
-    labels_prefix = constants.labels_name(experiment)
-    data_prefix = constants.data_name(experiment)
-    history = recnet.obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
-        training_percentage, am_filling_percentage, experiment, stage)
-    save_history(history, features_prefix, experiment, stage)
+def produce_features_from_data(es):
+    model_prefix = constants.model_name(es)
+    features_prefix = constants.features_name(es)
+    labels_prefix = constants.labels_name(es)
+    data_prefix = constants.data_name(es)
+    recnet.obtain_features(
+        model_prefix, features_prefix, labels_prefix, data_prefix, es)
 
 def create_and_train_autoencoder(experiment):
     model_prefix = constants.model_name(experiment)

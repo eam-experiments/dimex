@@ -181,56 +181,31 @@ def train_classifier(prefix, es):
     return histories, confusion_matrix/totals
 
 
-def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
-            training_percentage, am_filling_percentage, experiment, stage):
-    """ Generate features for images.
+def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix, es):
+    """ Generate features for sound segments, corresponding to phonemes.
     
-    Uses the previously trained neural networks for generating the features corresponding
-    to the images.
+    Uses the previously trained neural networks for generating the features.
     """
-    (data, labels) = get_data(experiment, stage)
-    total = len(data)
-    step = total/constants.n_folds
-
-    # Amount of data used for training the networks
-    training_size = int(total*training_percentage)
-    filling_size = int(total*am_filling_percentage)
-    testing_size = total - training_size - filling_size
-
-    histories = []
+    lds = dimex.LearnedDataSet(es)
     for fold in range(constants.n_folds):
-        i = int(fold*step)
-        j = (i+training_size) % total
-        training_data = constants.get_data_in_range(data, i, j)
-        training_labels = constants.get_data_in_range(labels, i, j)
-
-        k = (j+filling_size) % total
-        filling_data = constants.get_data_in_range(data, j, k)
-        filling_labels = constants.get_data_in_range(labels, j, k)
-
-        l = (k+testing_size) % total
-        testing_data = constants.get_data_in_range(data, k, l)
-        testing_labels = constants.get_data_in_range(labels, k, l)
+        training_data, training_labels = lds.get_training_data(fold)
+        filling_data, filling_labels = lds.get_filling_data(fold)
+        testing_data, testing_labels = lds.get_testing_data(fold)
 
         # Recreate the exact same model, including its weights and the optimizer
-        model = tf.keras.models.load_model(constants.classifier_filename(model_prefix, fold))
+        filename = constants.classifier_filename(model_prefix, es, fold)
+        model = tf.keras.models.load_model(filename)
 
         # Drop the autoencoder and the last layers of the full connected neural network part.
-        # classifier = Model(model.input, model.output[0])
         classifier = Model(model.input, model.output)
         no_hot = to_categorical(testing_labels)
-        classifier.compile(optimizer='adam', loss='categorical_crossentropy', metrics='accuracy')
-        history = classifier.evaluate(testing_data, no_hot, batch_size=100, verbose=1, return_dict=True)
-        histories.append(history)
+        classifier.compile(
+            optimizer='adam', loss='categorical_crossentropy', metrics='accuracy')
         model = Model(classifier.input, classifier.layers[-4].output)
-        # model.summary()
+        model.summary()
 
         training_features = model.predict(training_data)
-        if len(filling_data) > 0:
-            filling_features = model.predict(filling_data)
-        else:
-            r, c = training_features.shape
-            filling_features = np.zeros((0, c))
+        filling_features = model.predict(filling_data)
         testing_features = model.predict(testing_data)
 
         dict = {
@@ -239,15 +214,14 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix,
             constants.testing_suffix : (testing_data, testing_features, testing_labels)
             }
         for suffix in dict:
-            data_fn = constants.data_filename(data_prefix+suffix, fold, experiment, stage)
-            features_fn = constants.data_filename(features_prefix+suffix, fold, experiment, stage)
-            labels_fn = constants.data_filename(labels_prefix+suffix, fold, experiment, stage)
+            data_filename = constants.data_filename(data_prefix+suffix, es, fold)
+            features_filename = constants.data_filename(features_prefix+suffix, es, fold)
+            labels_filename = constants.data_filename(labels_prefix+suffix, es, fold)
 
-            d, f, l = dict[suffix]
-            np.save(data_fn, d)
-            np.save(features_fn, f)
-            np.save(labels_fn, l)    
-    return histories
+            data, features, labels = dict[suffix]
+            np.save(data_filename, data)
+            np.save(features_filename, features)
+            np.save(labels_filename, labels)    
 
 
 def train_decoder(filename, experiment):

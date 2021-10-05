@@ -188,6 +188,16 @@ def model_name(es):
 def stats_model_name(es):
     return stats_prefix
 
+def data_name(es):
+    return data_prefix
+
+def features_name(es):
+    return features_prefix
+
+def labels_name(es):
+    return labels_prefix
+
+
 def filename(name_prefix, es = None, fold = None, extension = ''):
     """ Returns a file name in run_path directory with a given extension and an index
     """
@@ -236,14 +246,6 @@ def decoder_filename(name_prefix, es, fold):
 ###### TO BE MODIFIED #####
 
 
-def data_name(experiment = -1):
-    return get_name_w_suffix(data_prefix, experiment >= EXP_1, experiment, experiment_suffix)
-
-def features_name(experiment = -1):
-    return get_name_w_suffix(features_prefix, experiment >= EXP_1, experiment, experiment_suffix)
-
-def labels_name(experiment = -1):
-    return get_name_w_suffix(labels_prefix, experiment >= EXP_1, experiment, experiment_suffix)
 
 def memories_name(experiment = -1, tolerance = 0):
     return get_name_w_suffix(memories_prefix, experiment >= EXP_1, experiment, tolerance_suffix) \
