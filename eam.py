@@ -185,7 +185,7 @@ def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None, to
     plt.savefig(graph_filename, dpi=600)
 
 
-def plot_features_graph(domain, means, stdevs, experiment):
+def plot_features_graph(domain, means, stdevs, es):
     """ Draws the characterist shape of features per label.
 
     The graph is a dots and lines graph with error bars denoting standard deviations.
@@ -211,8 +211,8 @@ def plot_features_graph(domain, means, stdevs, experiment):
         plt.ylabel(_('Values'))
         plt.legend(loc='right')
         plt.grid(True)
-        filename = constants.features_name(experiment) + '-' + str(i) + _('-english')
-        plt.savefig(constants.picture_filename(filename), dpi=600)
+        filename = constants.features_name(es) + '-' + str(i).zfill(3) + _('-english')
+        plt.savefig(constants.picture_filename(filename, es), dpi=600)
 
 
 def plot_conf_matrix(matrix, tags, prefix):
@@ -791,49 +791,16 @@ def test_recalling(domain, mem_size, experiment, tolerance = 0):
     print(f'Experiment {experiment} completed!')
 
 
-def get_all_data(prefix):
+def get_all_data(prefix, es):
     data = None
-
     for fold in range(constants.n_folds):
-        filename = constants.data_filename(prefix, fold)
+        filename = constants.data_filename(prefix, es, fold)
         if data is None:
             data = np.load(filename)
         else:
             newdata = np.load(filename)
             data = np.concatenate((data, newdata), axis=0)
-
     return data
-
-def characterize_features(domain, experiment):
-    """ Produces a graph of features averages and standard deviations.
-    """
-    features_prefix = constants.features_name()
-    tf_filename = features_prefix + constants.testing_suffix
-
-    labels_prefix = constants.labels_name(experiment)
-    tl_filename = labels_prefix + constants.testing_suffix
-
-    features = get_all_data(tf_filename)
-    labels = get_all_data(tl_filename)
-
-    d = {}
-    for i in constants.all_labels:
-        d[i] = []
-
-    for (i, feats) in zip(labels, features):
-        # Separates features per label.
-        d[i].append(feats)
-
-    means = {}
-    stdevs = {}
-    for i in constants.all_labels:
-        # The list of features becomes a matrix
-        d[i] = np.array(d[i])
-        means[i] = np.mean(d[i], axis=0)
-        stdevs[i] = np.std(d[i], axis=0)
-
-    plot_features_graph(domain, means, stdevs, experiment)
-    
 
 def save_history(history, prefix, es):
     """ Saves the stats of neural networks.
@@ -1069,6 +1036,32 @@ def create_and_train_autoencoder(es):
     data_prefix = constants.data_name(es)
     history = recnet.train_decoder(model_prefix, features_prefix, data_prefix, es)
     save_history(history, stats_prefix, es)
+
+def characterize_features(es):
+    """ Produces a graph of features averages and standard deviations.
+    """
+    features_prefix = constants.features_name(es)
+    tf_filename = features_prefix + constants.testing_suffix
+    labels_prefix = constants.labels_name(es)
+    tl_filename = labels_prefix + constants.testing_suffix
+    features = get_all_data(tf_filename, es)
+    labels = get_all_data(tl_filename, es)
+    d = {}
+    for i in constants.all_labels:
+        d[i] = []
+    for (i, feats) in zip(labels, features):
+        # Separates features per label.
+        d[i].append(feats)
+    means = {}
+    stdevs = {}
+    for i in constants.all_labels:
+        # The list of features becomes a matrix
+        d[i] = np.array(d[i])
+        means[i] = np.mean(d[i], axis=0)
+        stdevs[i] = np.std(d[i], axis=0)
+    plot_features_graph(constants.domain, means, stdevs, es)
+    
+
 
 def run_evaluation(ec):
     pass

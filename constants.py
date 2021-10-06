@@ -218,7 +218,7 @@ def json_filename(name_prefix, es):
     """
     return filename(name_prefix, es, extension='.json')
 
-def picture_filename(name_prefix):
+def picture_filename(name_prefix, es):
     return filename(name_prefix, extension='.svg')
 
 def learned_data_filename(suffix, es):
