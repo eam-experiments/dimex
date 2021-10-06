@@ -74,7 +74,7 @@ am_filling_percent = 0.21
 am_testing_percent = 0.10
 
 n_labels = 22
-labels_per_memory = [0, 1, 2]
+labels_per_memory = 1
 all_labels = list(range(n_labels))
 label_formats = ['r:v', 'y--d', 'g-.4', 'y-.3', 'k-.8', 'y--^',
     'c-..', 'm:*', 'c-1', 'b-p', 'm-.D', 'c:D', 'r--s', 'g:d',
@@ -197,6 +197,8 @@ def features_name(es):
 def labels_name(es):
     return labels_prefix
 
+def memories_name(es):
+    return memories_prefix
 
 def filename(name_prefix, es = None, fold = None, extension = ''):
     """ Returns a file name in run_path directory with a given extension and an index
@@ -210,16 +212,17 @@ def filename(name_prefix, es = None, fold = None, extension = ''):
     return run_path + '/' + get_full_name(name_prefix,es) \
         + fold_suffix(fold) + extension 
 
+def csv_filename(name_prefix, es = None, fold = None):
+    return filename(name_prefix, es, fold, '.csv')
+
 def data_filename(name_prefix, es = None, fold = None):
     return filename(name_prefix, es, fold, '.npy')
 
 def json_filename(name_prefix, es):
-    """ Returns a file name for a JSON file in run_path directory
-    """
     return filename(name_prefix, es, extension='.json')
 
 def picture_filename(name_prefix, es):
-    return filename(name_prefix, extension='.svg')
+    return filename(name_prefix, es, extension='.svg')
 
 def learned_data_filename(suffix, es):
     prefix = learning_data_learned + suffix + data_suffix
@@ -245,19 +248,8 @@ def decoder_filename(name_prefix, es, fold):
 
 ###### TO BE MODIFIED #####
 
-
-
-def memories_name(experiment = -1, tolerance = 0):
-    return get_name_w_suffix(memories_prefix, experiment >= EXP_1, experiment, tolerance_suffix) \
-        + tolerance_suffix(tolerance)
-
 def stats_name(experiment = -1):
     return get_name_w_suffix(stats_prefix, experiment >= EXP_1, experiment, experiment_suffix)
-
-def csv_filename(name_prefix, fold = None, tolerance = 0, experiment = None, stage = None):
-    """ Returns a file name for csv(i) in run_path directory
-    """
-    return filename(name_prefix, fold, tolerance, '.csv', experiment, stage)
 
 def pickle_filename(name_prefix, fold = None, stage = None):
     return filename(name_prefix, fold, extension='.pkl', stage=stage)

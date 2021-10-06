@@ -36,6 +36,7 @@ Options:
 The parameter <stage> indicates the stage of learning from which data is used.
 Default is the last one.
 """
+from pickle import EMPTY_SET
 from docopt import docopt
 import csv
 import sys
@@ -43,6 +44,7 @@ import gc
 import gettext
 
 import numpy as np
+from numpy.core.einsumfunc import einsum_path
 from joblib import Parallel, delayed
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -61,8 +63,8 @@ gettext.install('ame', localedir=None, codeset=None, names=None)
 
 
 def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
-    tag = '', xlabels = constants.memory_sizes, xtitle = None, \
-        ytitle = None, action=None, tolerance = 0):
+    es, tag = '', xlabels = constants.memory_sizes, xtitle = None, \
+        ytitle = None):
 
     plt.clf()
     plt.figure(figsize=(6.4,4.8))
@@ -109,11 +111,11 @@ def plot_pre_graph (pre_mean, rec_mean, ent_mean, pre_std, rec_std, ent_std, \
     cbar.set_label(_('Entropy'))
 
     s = tag + 'graph_prse_MEAN' + _('-english')
-    graph_filename = constants.picture_filename(s, action, tolerance)
+    graph_filename = constants.picture_filename(s, es)
     plt.savefig(graph_filename, dpi=600)
 
 
-def plot_size_graph (response_size, size_stdev, action=None, tolerance=0):
+def plot_size_graph (response_size, size_stdev, es):
     plt.clf()
 
     full_length = 100.0
@@ -137,11 +139,11 @@ def plot_size_graph (response_size, size_stdev, action=None, tolerance=0):
     plt.legend(loc=1)
     plt.grid(True)
 
-    graph_filename = constants.picture_filename('graph_size_MEAN' + _('-english'), action, tolerance=tolerance)
+    graph_filename = constants.picture_filename('graph_size_MEAN' + _('-english'), es)
     plt.savefig(graph_filename, dpi=600)
 
 
-def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None, tolerance=0):
+def plot_behs_graph(no_response, no_correct, no_chosen, correct, es):
 
     for i in range(len(no_response)):
         total = (no_response[i] + no_correct[i] + no_chosen[i] + correct[i])/100.0
@@ -181,7 +183,7 @@ def plot_behs_graph(no_response, no_correct, no_chosen, correct, action=None, to
     plt.legend(loc=0)
     plt.grid(axis='y')
 
-    graph_filename = constants.picture_filename('graph_behaviours_MEAN' + _('-english'), action, tolerance=tolerance)
+    graph_filename = constants.picture_filename('graph_behaviours_MEAN' + _('-english'), es)
     plt.savefig(graph_filename, dpi=600)
 
 
@@ -225,7 +227,6 @@ def plot_conf_matrix(matrix, tags, prefix):
     plt.savefig(filename, dpi=600)
 
 
-
 def get_label(memories, entropies = None):
     # Random selection
     if entropies is None:
@@ -252,7 +253,7 @@ def conf_sum(cms, t):
     return np.sum([cms[i][t] for i in range(len(cms))])
 
 
-def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance=0):
+def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance):
     # Round the values
     max_value = trf.max()
     other_value = tef.max()
@@ -356,7 +357,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance=0):
     return (midx, measures, behaviour)
     
 
-def test_memories(domain, experiment, tolerance=0):
+def test_memories(domain, es):
     average_entropy = []
     stdev_entropy = []
     precision = []
@@ -370,44 +371,43 @@ def test_memories(domain, experiment, tolerance=0):
     correct_chosen = []
     total_responses = []
 
-    labels_x_memory = constants.labels_per_memory[experiment]
-    n_memories = int(constants.n_labels/labels_x_memory)
+    labels_x_memory = constants.labels_per_memory
+
+    print('Testing the memories')
 
     for fold in range(constants.n_folds):
         gc.collect()
 
         suffix = constants.filling_suffix
-        training_features_filename = constants.features_name() + suffix        
-        training_features_filename = constants.data_filename(training_features_filename, fold)
-        training_labels_filename = constants.labels_name() + suffix        
-        training_labels_filename = constants.data_filename(training_labels_filename, fold)
+        filling_features_filename = constants.features_name() + suffix        
+        filling_features_filename = constants.data_filename(filling_features_filename, es, fold)
+        filling_labels_filename = constants.labels_name() + suffix        
+        filling_labels_filename = constants.data_filename(filling_labels_filename, es, fold)
 
         suffix = constants.testing_suffix
         testing_features_filename = constants.features_name() + suffix        
-        testing_features_filename = constants.data_filename(testing_features_filename, fold)
+        testing_features_filename = constants.data_filename(testing_features_filename, es, fold)
         testing_labels_filename = constants.labels_name() + suffix        
-        testing_labels_filename = constants.data_filename(testing_labels_filename, fold)
+        testing_labels_filename = constants.data_filename(testing_labels_filename, es, fold)
 
-        training_features = np.load(training_features_filename)
-        training_labels = np.load(training_labels_filename)
+        filling_features = np.load(filling_features_filename)
+        filling_labels = np.load(filling_labels_filename)
         testing_features = np.load(testing_features_filename)
         testing_labels = np.load(testing_labels_filename)
 
         measures_per_size = np.zeros((len(constants.memory_sizes), constants.n_measures), dtype=np.float64)
         behaviours = np.zeros((len(constants.memory_sizes), constants.n_behaviours))
 
-        print('Train the different co-domain memories -- NxM: ',experiment,' run: ',fold)
+        print(f'Fold: {fold}')
         # Processes running in parallel.
         list_measures = Parallel(n_jobs=constants.n_jobs, verbose=50)(
             delayed(get_ams_results)(midx, msize, domain, labels_x_memory, \
-                training_features, testing_features, training_labels, testing_labels, tolerance) \
+                filling_features, testing_features, filling_labels, testing_labels, es.tolerance) \
                     for midx, msize in enumerate(constants.memory_sizes))
-
         for j, measures, behaviour in list_measures:
             measures_per_size[j, :] = measures
             behaviours[j, :] = behaviour
         
-
         ###################################################################3##
         # Measures by memory size
 
@@ -461,7 +461,6 @@ def test_memories(domain, experiment, tolerance=0):
     main_total_responses = []
     main_total_responses_stdev = []
 
-
     for fold in range(len(constants.memory_sizes)):
         main_average_entropy.append( average_entropy[:,fold].mean() )
         main_stdev_entropy.append( stdev_entropy[:,fold].mean() )
@@ -478,40 +477,33 @@ def test_memories(domain, experiment, tolerance=0):
         main_total_responses.append(total_responses[:, fold].mean())
         main_total_responses_stdev.append(total_responses[:, fold].std())
 
+    best_memory_size = constants.memory_sizes[
+        main_correct_chosen.index(max(main_correct_chosen))]
     main_behaviours = [main_no_response, main_no_correct_response, \
         main_no_correct_chosen, main_correct_chosen, main_total_responses]
 
-    np.savetxt(constants.csv_filename('memory_average_precision', experiment=experiment,
-        tolerance=tolerance), precision, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_average_recall', experiment=experiment,
-        tolerance=tolerance), recall, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_average_entropy', experiment=experiment,
-        tolerance=tolerance), average_entropy, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_average_precision', es), precision, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_average_recall', es), recall, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_average_entropy', es), average_entropy, delimiter=',')
 
-    np.savetxt(constants.csv_filename('memory_stdev_precision', experiment=experiment,
-        tolerance=tolerance), stdev_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_stdev_recall', experiment=experiment,
-        tolerance=tolerance), stdev_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('memory_stdev_entropy', experiment=experiment,
-        tolerance=tolerance), stdev_entropy, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_stdev_precision', es), stdev_precision, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_stdev_recall', es), stdev_recall, delimiter=',')
+    np.savetxt(constants.csv_filename('memory_stdev_entropy', es), stdev_entropy, delimiter=',')
 
-    np.savetxt(constants.csv_filename('all_precision', experiment=experiment,
-        tolerance=tolerance), all_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('all_recall', experiment=experiment,
-        tolerance=tolerance), all_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_behaviours', experiment=experiment,
-        tolerance=tolerance), main_behaviours, delimiter=',')
+    np.savetxt(constants.csv_filename('all_precision', es), all_precision, delimiter=',')
+    np.savetxt(constants.csv_filename('all_recall', es), all_recall, delimiter=',')
+    np.savetxt(constants.csv_filename('main_behaviours', es), main_behaviours, delimiter=',')
 
     plot_pre_graph(average_precision, average_recall, main_average_entropy,\
-        stdev_precision, stdev_recall, main_stdev_entropy, action=experiment, \
-        tolerance=tolerance)
+        stdev_precision, stdev_recall, main_stdev_entropy, es)
     plot_pre_graph(all_precision_average, all_recall_average, \
         main_average_entropy, all_precision_stdev, all_recall_stdev,\
-            main_stdev_entropy, 'overall', action=experiment, tolerance=tolerance)
-    plot_size_graph(main_total_responses, main_total_responses_stdev, action=experiment, tolerance=tolerance)
+            main_stdev_entropy, es, 'overall')
+    plot_size_graph(main_total_responses, main_total_responses_stdev, es)
     plot_behs_graph(main_no_response, main_no_correct_response, main_no_correct_chosen,\
-        main_correct_chosen, action=experiment, tolerance=tolerance)
-    print(f'Experiment {experiment} completed!')
+        main_correct_chosen, es)
+    print('Memory size evaluation completed!')
+    return best_memory_size
 
 
 def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, idx, fill):
@@ -701,23 +693,23 @@ def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, toleranc
         fold_recall, total_precisions, total_recalls, mismatches
 
 
-def test_recalling(domain, mem_size, experiment, tolerance = 0):
+def test_recalling(domain, mem_size, es):
     n_memories = constants.n_labels
     memory_fills = constants.memory_fills
-    training_folds = constants.n_folds
+    testing_folds = constants.n_folds
     # All recalls, per memory fill and fold.
     all_memories = {}
     # All entropies, precision, and recall, per fold, and fill.
-    total_avg_entropies = np.zeros((training_folds, len(memory_fills)))
-    total_std_entropies = np.zeros((training_folds, len(memory_fills)))
-    total_precisions = np.zeros((training_folds, len(memory_fills)))
-    total_recalls = np.zeros((training_folds, len(memory_fills)))
-    sys_precisions = np.zeros((training_folds, len(memory_fills)))
-    sys_recalls = np.zeros((training_folds, len(memory_fills)))
-    total_mismatches = np.zeros((training_folds, len(memory_fills)))
+    total_avg_entropies = np.zeros((testing_folds, len(memory_fills)))
+    total_std_entropies = np.zeros((testing_folds, len(memory_fills)))
+    total_precisions = np.zeros((testing_folds, len(memory_fills)))
+    total_recalls = np.zeros((testing_folds, len(memory_fills)))
+    sys_precisions = np.zeros((testing_folds, len(memory_fills)))
+    sys_recalls = np.zeros((testing_folds, len(memory_fills)))
+    total_mismatches = np.zeros((testing_folds, len(memory_fills)))
 
     list_results = Parallel(n_jobs=constants.n_jobs, verbose=50)(
-        delayed(test_recalling_fold)(n_memories, mem_size, domain, fold, experiment, tolerance) \
+        delayed(test_recalling_fold)(n_memories, mem_size, domain, fold, es.tolerance) \
             for fold in range(constants.n_folds))
 
     for fold, memories, avg_entropy, std_entropy, precision, recall,\
@@ -741,11 +733,11 @@ def test_recalling(domain, mem_size, experiment, tolerance = 0):
             memories.append(np.array(features))
         tags = np.array(tags)
         memories = np.array(memories)
-        memories_filename = constants.memories_name(experiment, tolerance)
-        memories_filename = constants.data_filename(memories_filename, fold)
+        memories_filename = constants.memories_name(es)
+        memories_filename = constants.data_filename(memories_filename, es, fold)
         np.save(memories_filename, memories)
-        tags_filename = constants.labels_name(experiment) + constants.memory_suffix
-        tags_filename = constants.data_filename(tags_filename, fold)
+        tags_filename = constants.labels_name(es) + constants.memory_suffix
+        tags_filename = constants.data_filename(tags_filename, es, fold)
         np.save(tags_filename, tags)
     
     main_avrge_entropies = np.mean(total_avg_entropies,axis=0)
@@ -760,35 +752,33 @@ def test_recalling(domain, mem_size, experiment, tolerance = 0):
     main_stdev_sys_recall = np.std(sys_recalls,axis=0)
     
     
-    np.savetxt(constants.csv_filename('main_average_precision',experiment=experiment, tolerance=tolerance), \
+    np.savetxt(constants.csv_filename('main_average_precision', es), \
         main_avrge_mprecision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_average_recall',experiment=experiment, tolerance=tolerance), \
+    np.savetxt(constants.csv_filename('main_average_recall', es), \
         main_avrge_mrecall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_average_entropy',experiment=experiment, tolerance=tolerance), \
+    np.savetxt(constants.csv_filename('main_average_entropy', es), \
         main_avrge_entropies, delimiter=',')
-    np.savetxt(constants.csv_filename('main_stdev_precision',experiment=experiment, tolerance=tolerance), \
+    np.savetxt(constants.csv_filename('main_stdev_precision', es), \
         main_stdev_mprecision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_stdev_recall',experiment=experiment, tolerance=tolerance), \
+    np.savetxt(constants.csv_filename('main_stdev_recall', es), \
         main_stdev_mrecall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_stdev_entropy',experiment=experiment, tolerance=tolerance), \
+    np.savetxt(constants.csv_filename('main_stdev_entropy', es), \
         main_stdev_entropies, delimiter=',')
-    np.savetxt(constants.csv_filename('main_total_recalls',experiment=experiment, tolerance=tolerance), \
+    np.savetxt(constants.csv_filename('main_total_recalls', es), \
         main_avrge_sys_recall, delimiter=',')
-    np.savetxt(constants.csv_filename('main_total_precision',experiment=experiment, tolerance=tolerance), \
+    np.savetxt(constants.csv_filename('main_total_precision', es), \
         main_avrge_sys_precision, delimiter=',')
-    np.savetxt(constants.csv_filename('main_total_mismatches',experiment=experiment, tolerance=tolerance), \
+    np.savetxt(constants.csv_filename('main_total_mismatches', es), \
         total_mismatches, delimiter=',')
 
     plot_pre_graph(main_avrge_mprecision*100, main_avrge_mrecall*100, main_avrge_entropies,\
-        main_stdev_mprecision*100, main_stdev_mrecall*100, main_stdev_entropies, 'recall-', \
-            xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'), action = experiment,
-            tolerance = tolerance)
+        main_stdev_mprecision*100, main_stdev_mrecall*100, main_stdev_entropies, es, 'recall-', \
+            xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'))
     plot_pre_graph(main_avrge_sys_precision*100, main_avrge_sys_recall*100, main_avrge_entropies, \
-        main_stdev_sys_precision*100, main_stdev_sys_recall*100, main_stdev_entropies, 'total_recall-', \
-            xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'), action=experiment,
-            tolerance = tolerance)
+        main_stdev_sys_precision*100, main_stdev_sys_recall*100, main_stdev_entropies, es, 'total_recall-', \
+            xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'))
 
-    print(f'Experiment {experiment} completed!')
+    print('Filling evaluation completed!')
 
 
 def get_all_data(prefix, es):
@@ -1062,24 +1052,16 @@ def characterize_features(es):
     plot_features_graph(constants.domain, means, stdevs, es)
     
 
+def run_evaluation(es):
+    best_memory_size = test_memories(constants.domain, es)
+    print(f'Best memory size: {best_memory_size}')
+    test_recalling(constants.domain, best_memory_size, es)
 
-def run_evaluation(ec):
-    pass
-
-def extend_data(stage, learned, tolerance):
+def extend_data(es):
     pass
  
 def main(action, tolerance = 0):
-    if action == constants.CHARACTERIZE:
-        # Generates graphs of mean and standard distributions of feature values,
-        # per digit class.
-        characterize_features(constants.domain, action)
-    elif action == constants.EXP_1 :
-        # The domain size, equal to the size of the output layer of the network.
-        test_memories(constants.domain, action, tolerance)
-    elif (action == constants.EXP_3):
-        test_recalling(constants.domain, constants.ideal_memory_size, action, tolerance=tolerance)
-    elif (action == constants.EXP_4):
+    if (action == constants.EXP_4):
         test_recognition(constants.domain, constants.ideal_memory_size, action, tolerance=tolerance)
     elif (constants.EXP_5 <= action) and (action <= constants.EXP_10):
         # Generates features for the data sections using the previously generate
