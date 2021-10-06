@@ -171,10 +171,10 @@ def train_classifier(prefix, es):
                 verbose=2)
         histories.append(history)
         history = model.evaluate(testing_data, testing_labels, return_dict=True)
+        histories.append(history)
         predicted_labels = model.predict(testing_data)
         confusion_matrix += tf.math.confusion_matrix(np.argmax(testing_labels, axis=1), 
             np.argmax(predicted_labels, axis=1), num_classes=constants.n_labels)
-        histories.append(history)
         model.save(constants.classifier_filename(prefix, es, fold))
     confusion_matrix = confusion_matrix.numpy()
     totals = confusion_matrix.sum(axis=1).reshape(-1,1)
@@ -224,59 +224,48 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix, e
             np.save(labels_filename, labels)    
 
 
-def train_decoder(filename, experiment):
-    (labels, _) = get_data(experiment)
-    total = len(labels)
-    step = total/constants.n_folds
+def train_decoder(prefix, features_prefix, data_prefix, es):
     histories = []
     for fold in range(constants.n_folds):
         suffix = constants.training_suffix
-        training_features_filename = constants.features_name(experiment) + suffix        
-        training_features_filename = constants.data_filename(training_features_filename, fold)
-
-        suffix = constants.filling_suffix
-        filling_features_filename = constants.features_name(experiment) + suffix        
-        filling_features_filename = constants.data_filename(filling_features_filename, fold)
+        training_features_prefix = features_prefix + suffix        
+        training_features_filename = constants.data_filename(training_features_prefix, es, fold)
+        training_data_prefix = data_prefix + suffix
+        training_data_filename = constants.data_filename(training_data_prefix, es, fold)
 
         suffix = constants.testing_suffix
-        testing_features_filename = constants.features_name(experiment) + suffix        
-        testing_features_filename = constants.data_filename(testing_features_filename, fold)
+        testing_features_prefix = features_prefix + suffix        
+        testing_features_filename = constants.data_filename(testing_features_prefix, es, fold)
+        testing_data_prefix = data_prefix + suffix
+        testing_data_filename = constants.data_filename(testing_data_prefix, es, fold)
 
         training_features = np.load(training_features_filename)
-        filling_features = np.load(filling_features_filename)
+        training_data = np.load(training_data_filename)
         testing_features = np.load(testing_features_filename)
-        testing_features = np.concatenate((filling_features, testing_features), axis=0)
+        testing_data = np.load(testing_data_filename)
 
         truly_training = int(len(training_features)*truly_training_percentage)
-        validation_data = training_features[truly_training:]
-        training_data = training_features[:truly_training]
-        testing_data = testing_features
-
-        i = int(fold*step)
-        j = (i+len(training_data)) % total
-        training_labels = constants.get_data_in_range(labels,i, j)
-        k = (j+len(validation_data)) % total
-        validation_labels = constants.get_data_in_range(labels,j, k)
-        l = (k+len(testing_data)) % total
-        testing_labels = constants.get_data_in_range(labels, k, l)
+        validation_features = training_features[truly_training:]
+        validation_data = training_data[truly_training:]
+        training_features = training_features[:truly_training]
+        training_data = training_data[:truly_training]
 
         input_data = Input(shape=(constants.domain))
         decoded = get_decoder(input_data)
         model = Model(inputs=input_data, outputs=decoded)
         model.compile(loss='mean_squared_error', optimizer='adam', metrics='accuracy')
         model.summary()
-        history = model.fit(training_data,
-                training_labels,
+        history = model.fit(training_features,
+                training_data,
                 batch_size=batch_size,
                 epochs=epochs,
-                validation_data= (validation_data, validation_labels),
+                validation_data= (validation_features, validation_data),
                 callbacks=[EarlyStoppingAtLossCrossing(patience)],
                 verbose=2)
         histories.append(history)
-        history = model.evaluate(testing_data,
-            (testing_labels, testing_data),return_dict=True)
+        history = model.evaluate(testing_features, testing_data, return_dict=True)
         histories.append(history)
-        model.save(constants.decoder_filename(filename, fold, experiment))
+        model.save(constants.decoder_filename(prefix, es, fold))
     return histories
 
 

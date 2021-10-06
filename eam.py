@@ -1062,11 +1062,13 @@ def produce_features_from_data(es):
     recnet.obtain_features(
         model_prefix, features_prefix, labels_prefix, data_prefix, es)
 
-def create_and_train_autoencoder(experiment):
-    model_prefix = constants.model_name(experiment)
-    stats_prefix = constants.stats_model_name + constants.decoder_suffix
-    history = recnet.train_decoder(model_prefix, experiment)
-    save_history(history, stats_prefix, experiment)
+def create_and_train_autoencoder(es):
+    model_prefix = constants.model_name(es)
+    stats_prefix = model_prefix + constants.decoder_suffix
+    features_prefix = constants.features_name(es)
+    data_prefix = constants.data_name(es)
+    history = recnet.train_decoder(model_prefix, features_prefix, data_prefix, es)
+    save_history(history, stats_prefix, es)
 
 def run_evaluation(ec):
     pass
