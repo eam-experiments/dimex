@@ -145,7 +145,7 @@ def print_counter(n, every, step = 1, symbol = '.'):
     print(counter, end = '', flush=True)
 
 def extended_suffix(extended):
-    return '' if extended is None else '-ext'    
+    return '-ext' if extended else ''    
 
 def fold_suffix(fold):
     return '' if fold is None else '-fld_' + str(fold).zfill(3)
@@ -174,7 +174,7 @@ def get_full_name(prefix, es):
         return prefix
     name = get_name_w_suffix(prefix, True, es.stage, stage_suffix)
     name = get_name_w_suffix(name, es.stage > 0, es.learned, learned_suffix)
-    name = get_name_w_suffix(name, es.stage > 0, es.extended, learned_suffix)
+    name = get_name_w_suffix(name, es.stage > 0, es.extended, extended_suffix)
     name = get_name_w_suffix(name, True, es.tolerance, tolerance_suffix)
     return name
 
@@ -221,6 +221,9 @@ def data_filename(name_prefix, es = None, fold = None):
 def json_filename(name_prefix, es):
     return filename(name_prefix, es, extension='.json')
 
+def pickle_filename(name_prefix, es, fold = None):
+    return filename(name_prefix, es, fold, '.pkl')
+
 def picture_filename(name_prefix, es):
     return filename(name_prefix, es, extension='.svg')
 
@@ -250,9 +253,6 @@ def decoder_filename(name_prefix, es, fold):
 
 def stats_name(experiment = -1):
     return get_name_w_suffix(stats_prefix, experiment >= EXP_1, experiment, experiment_suffix)
-
-def pickle_filename(name_prefix, fold = None, stage = None):
-    return filename(name_prefix, fold, extension='.pkl', stage=stage)
 
 def recog_filename(name_prefix, experiment = None, fold = None, tolerance = None, stage = None):
     return csv_filename(name_prefix, fold, tolerance, experiment, stage)

@@ -36,8 +36,9 @@ Options:
 The parameter <stage> indicates the stage of learning from which data is used.
 Default is the last one.
 """
-from pickle import EMPTY_SET
 from docopt import docopt
+from pickle import EMPTY_SET
+import copy
 import csv
 import sys
 import gc
@@ -217,13 +218,13 @@ def plot_features_graph(domain, means, stdevs, es):
         plt.savefig(constants.picture_filename(filename, es), dpi=600)
 
 
-def plot_conf_matrix(matrix, tags, prefix):
+def plot_conf_matrix(matrix, tags, prefix, es):
     plt.clf()
     plt.figure(figsize=(6.4,4.8))
     seaborn.heatmap(matrix, xticklabels=tags, yticklabels=tags, vmin = 0.0, vmax=1.0, annot=False, cmap='Blues')
     plt.xlabel(_('Prediction'))
     plt.ylabel(_('Label'))
-    filename = constants.picture_filename(prefix)
+    filename = constants.picture_filename(prefix, es)
     plt.savefig(filename, dpi=600)
 
 
@@ -810,7 +811,7 @@ def save_history(history, prefix, es):
 
 def save_conf_matrix(matrix, prefix, es):
     name = constants.matrix_name(es)
-    plot_conf_matrix(matrix, dimex.phonemes, name)
+    plot_conf_matrix(matrix, dimex.phonemes, name, es)
     filename = constants.data_filename(prefix, es)
     np.save(filename, matrix)
 
@@ -914,10 +915,12 @@ def recognition_on_ciempiess(data, es, fold):
     print(f'Original: {len(original)}')
     print(f'Memory: {len(amsys)}')
     print(f'NNetwork: {len(nnet)}')
-    save_learned_data(agreed, constants.agreed_suffix, es, fold)
-    save_learned_data(original, constants.original_suffix, es, fold)
-    save_learned_data(amsys, constants.amsystem_suffix, es, fold)
-    save_learned_data(nnet, constants.nnetwork_suffix, es, fold)
+    les = copy.copy(es)
+    les.stage += 1
+    save_learned_data(agreed, constants.agreed_suffix, les, fold)
+    save_learned_data(original, constants.original_suffix, les, fold)
+    save_learned_data(amsys, constants.amsystem_suffix, les, fold)
+    save_learned_data(nnet, constants.nnetwork_suffix, les, fold)
 
 def list_chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
@@ -959,10 +962,10 @@ def learn_new_data(domain, mem_size, es):
     for fold in range(constants.n_folds):
         print(f'Learning new data at stage {es.stage}')
         suffix = constants.filling_suffix
-        filling_features_filename = constants.features_name() + suffix        
-        filling_features_filename = constants.data_filename(filling_features_filename, fold)
-        filling_labels_filename = constants.labels_name() + suffix        
-        filling_labels_filename = constants.data_filename(filling_labels_filename, fold)
+        filling_features_filename = constants.features_name(es) + suffix        
+        filling_features_filename = constants.data_filename(filling_features_filename, es, fold)
+        filling_labels_filename = constants.labels_name(es) + suffix        
+        filling_labels_filename = constants.data_filename(filling_labels_filename, es, fold)
         filling_features = np.load(filling_features_filename)
         filling_labels = np.load(filling_labels_filename)        
         maximum = filling_features.max()
@@ -973,7 +976,7 @@ def learn_new_data(domain, mem_size, es):
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
 
-        nds = ciempiess.NextDataSet(stage)
+        nds = ciempiess.NextDataSet(es)
         new_data = nds.get_data()
         new_data = recnet.process_samples(new_data, model_prefix, es, fold, decode=True)
         new_data = ams_process_samples(new_data, ams, minimum, maximum, decode=True)

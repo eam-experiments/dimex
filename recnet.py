@@ -308,10 +308,10 @@ def process_samples(samples, prefix, es, fold, decode=False):
         constants.print_counter(n,100,10)
     return new_samples
 
-def reprocess_samples(samples, prefix, fold, tolerance, stage, decode=False):
+def reprocess_samples(samples, prefix, es, fold, decode=False):
     print('Reprocessing samples with neural network.')
     n = 0
-    snnet = SplittedNeuralNetwork(prefix, fold, tolerance, stage)
+    snnet = SplittedNeuralNetwork(prefix, es, fold)
     for sample in samples: 
         features = np.array(sample.ams_features)
         sample.ams_segments = snnet.decoder.predict(features)

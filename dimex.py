@@ -377,8 +377,9 @@ class LearnedDataSet:
         self.es = es
         self.fold = fold
         self.seed_data, self.seed_labels = self._get_seed_data()
-        learned_data, learned_labels = self._get_learned_data(es, fold)
-        self.learned_data, self.learned_labels  = balance(learned_data, learned_labels)
+        self.learned_data, self.learned_labels = self._get_learned_data(es, fold)
+        if self.learned_data and self.learned_labels:
+            self.learned_data, self.learned_labels  = balance(learned_data, learned_labels)
 
     def _get_data_segment(self, data, labels, segment, fold):
         total = len(labels)

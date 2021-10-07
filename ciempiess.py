@@ -39,9 +39,9 @@ class NextDataSet:
     _AUDIO_LIST_FILENAME = 'ciempiess.txt'
     _SEGMENT_MILLISECONDS = 90
     _NEXTDATA_PREFIX = 'ciempiess_data'
-    def __init__(self, stage):
-        self._stage = stage
-        nextdata_filename = constants.pickle_filename(self._NEXTDATA_PREFIX, stage=stage)
+    def __init__(self, es):
+        self._stage = es.stage
+        nextdata_filename = constants.pickle_filename(self._NEXTDATA_PREFIX, es)
         try:
             with open(nextdata_filename, 'rb') as f:
                 self._next_data = pickle.load(f)
