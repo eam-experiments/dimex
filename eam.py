@@ -866,25 +866,26 @@ def save_recognitions(samples: list, dp: dimex.PostProcessor, experiment: int,
             writer.writerow(row)
 
 
-def recognition_on_dimex(samples, experiment, fold, tolerance, stage):
+def recognition_on_dimex(samples, es, fold):
     dp = dimex.PostProcessor()
     for sample in samples:
         sample.net_labels = dp.process(sample.net_labels)
         sample.ams_labels = dp.process(sample.ams_labels)
-    save_recognitions(samples, dp, experiment, fold, tolerance, stage)
+    save_recognitions(samples, dp, es, fold)
 
 
-def save_learned_data(pairs, suffix, experiment, fold, tolerance, stage):
-    labels = [p[0] for p in pairs]
-    filename = constants.learned_labels_filename(suffix, fold, stage)
-    np.save(filename, labels)
-
-    data = [p[1] for p in pairs]
-    filename = constants.learned_data_filename(suffix, fold, stage)
+def save_learned_data(pairs, suffix, es, fold):
+    random.shuffle(pairs)
+    data = [p[0] for p in pairs]
+    filename = constants.learned_data_filename(suffix, es, fold)
     np.save(filename, data)
 
- 
-def recognition_on_ciempiess(data, experiment, fold, tolerance, stage):
+    labels = [p[1] for p in pairs]
+    filename = constants.learned_labels_filename(suffix, es, fold)
+    np.save(filename, labels)
+
+
+def recognition_on_ciempiess(data, es, fold):
     agreed = []
     nnet = []
     amsys = []
@@ -902,21 +903,21 @@ def recognition_on_ciempiess(data, experiment, fold, tolerance, stage):
             
             if mem_label == net_label:
                 mfcc = (orig_mfcc + mem_mfcc + net_mfcc)/3
-                agreed.append((mem_label, mfcc))
-                original.append((mem_label, orig_mfcc))
+                agreed.append((mfcc, mem_label))
+                original.append((orig_mfcc, mem_label))
             mfcc = (orig_mfcc + net_mfcc)/2
-            nnet.append((net_label, mfcc))
+            nnet.append((mfcc, net_label))
             if mem_label < constants.n_labels:
                 mfcc = (orig_mfcc + mem_mfcc)/2
-                amsys.append((mem_label, mfcc))
+                amsys.append((mfcc, mem_label))
     print(f'Agreed: {len(agreed)}')
     print(f'Original: {len(original)}')
     print(f'Memory: {len(amsys)}')
     print(f'NNetwork: {len(nnet)}')
-    save_learned_data(agreed, constants.agreed_suffix, experiment, fold, tolerance, stage)
-    save_learned_data(original, constants.original_suffix, experiment, fold, tolerance, stage)
-    save_learned_data(amsys, constants.amsystem_suffix, experiment, fold, tolerance, stage)
-    save_learned_data(nnet, constants.nnetwork_suffix, experiment, fold, tolerance, stage)
+    save_learned_data(agreed, constants.agreed_suffix, es, fold)
+    save_learned_data(original, constants.original_suffix, es, fold)
+    save_learned_data(amsys, constants.amsystem_suffix, es, fold)
+    save_learned_data(nnet, constants.nnetwork_suffix, es, fold)
 
 def list_chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
@@ -949,55 +950,36 @@ def ams_process_samples(samples, ams, minimum, maximum, decode=False):
                 for chunk in chunks)
     return [sample for chunk in processed for sample in chunk]
 
-def test_recognition(domain, mem_size, experiment, tolerance = 0):
+def learn_new_data(domain, mem_size, es):
     histories = []
-    model_prefix = constants.model_name(experiment)
-    features_prefix = constants.features_name(experiment)
-    labels_prefix = constants.labels_name(experiment)
+    model_prefix = constants.model_name(es)
+    features_prefix = constants.features_name(es)
+    labels_prefix = constants.labels_name(es)
 
     for fold in range(constants.n_folds):
-        ds = dimex.LearnedDataSet(fold, tolerance)
-        data, labels, stage = ds.get_data()
-        print(f'Running experiment {experiment} on stage {stage}')
-        total = len(labels)
-        step = total / constants.n_folds
-        training_size = int(total*(constants.nn_training_percent+constants.am_testing_percent))
-        truly_training = int(training_size*recnet.truly_training_percentage)
-
-        training_data = data[:truly_training]
-        training_labels = labels[:truly_training]
-        validation_data = data[truly_training:training_size]
-        validation_labels = labels[truly_training:training_size]
-        filling_data = data[training_size:]
-        filling_labels = labels[training_size:]
-
-        filling_features, history = recnet.train_next_network(training_data, training_labels,
-            validation_data, validation_labels, filling_data, filling_labels,
-            model_prefix, fold, tolerance, stage)
-        histories.append(history)
+        print(f'Learning new data at stage {es.stage}')
+        suffix = constants.filling_suffix
+        filling_features_filename = constants.features_name() + suffix        
+        filling_features_filename = constants.data_filename(filling_features_filename, fold)
+        filling_labels_filename = constants.labels_name() + suffix        
+        filling_labels_filename = constants.data_filename(filling_labels_filename, fold)
+        filling_features = np.load(filling_features_filename)
+        filling_labels = np.load(filling_labels_filename)        
         maximum = filling_features.max()
         minimum = filling_features.min()
         filling_features = msize_features(filling_features, mem_size, minimum, maximum)
 
-        ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size)
+        ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size, es.tolerance)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
-        # tds = dimex.TestingDataSet()
-        # testing_data = tds.get_data()
-        # testing_data = recnet.process_samples(testing_data, model_prefix, fold, tolerance, stage)
-        # testing_data = ams_process_samples(testing_data, ams, minimum, maximum)
-        # recognition_on_dimex(testing_data, experiment, fold, tolerance, stage)
 
         nds = ciempiess.NextDataSet(stage)
-        new_data = nds = nds.get_data()
-        new_data = recnet.process_samples(new_data, model_prefix, fold, tolerance, stage, decode=True)
+        new_data = nds.get_data()
+        new_data = recnet.process_samples(new_data, model_prefix, es, fold, decode=True)
         new_data = ams_process_samples(new_data, ams, minimum, maximum, decode=True)
-        new_data = recnet.reprocess_samples(new_data, model_prefix, fold, tolerance, stage)
-        recognition_on_ciempiess(new_data, experiment, fold, tolerance, stage)
-
-    stats_prefix = constants.stats_name(experiment)
-    save_history(histories, stats_prefix)
-    print(f'Experiment {experiment} round {stage} completed!')
+        new_data = recnet.reprocess_samples(new_data, model_prefix, es, fold)
+        recognition_on_ciempiess(new_data, es, fold)
+    print(f'Learning at stage {es.stage} completed!')
 
         
 
@@ -1058,7 +1040,7 @@ def run_evaluation(es):
     test_recalling(constants.domain, best_memory_size, es)
 
 def extend_data(es):
-    pass
+    learn_new_data(constants.domain, constants.ideal_memory_size, es)
  
 def main(action, tolerance = 0):
     if (action == constants.EXP_4):

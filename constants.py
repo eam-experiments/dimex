@@ -224,13 +224,13 @@ def json_filename(name_prefix, es):
 def picture_filename(name_prefix, es):
     return filename(name_prefix, es, extension='.svg')
 
-def learned_data_filename(suffix, es):
+def learned_data_filename(suffix, es, fold):
     prefix = learning_data_learned + suffix + data_suffix
-    return data_filename(prefix, es)
+    return data_filename(prefix, es, fold)
 
-def learned_labels_filename(suffix, es):
+def learned_labels_filename(suffix, es, fold):
     prefix = learning_data_learned + suffix + labels_suffix
-    return data_filename(prefix, es)
+    return data_filename(prefix, es, fold)
 
 def seed_data_filename():
     return data_filename(learning_data_seed + data_suffix)
