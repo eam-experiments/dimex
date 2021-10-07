@@ -379,15 +379,15 @@ def test_memories(domain, es):
         gc.collect()
 
         suffix = constants.filling_suffix
-        filling_features_filename = constants.features_name() + suffix        
+        filling_features_filename = constants.features_name(es) + suffix        
         filling_features_filename = constants.data_filename(filling_features_filename, es, fold)
-        filling_labels_filename = constants.labels_name() + suffix        
+        filling_labels_filename = constants.labels_name(es) + suffix        
         filling_labels_filename = constants.data_filename(filling_labels_filename, es, fold)
 
         suffix = constants.testing_suffix
-        testing_features_filename = constants.features_name() + suffix        
+        testing_features_filename = constants.features_name(es) + suffix        
         testing_features_filename = constants.data_filename(testing_features_filename, es, fold)
-        testing_labels_filename = constants.labels_name() + suffix        
+        testing_labels_filename = constants.labels_name(es) + suffix        
         testing_labels_filename = constants.data_filename(testing_labels_filename, es, fold)
 
         filling_features = np.load(filling_features_filename)
@@ -609,23 +609,23 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
     return all_recalls, measures, total_precision, total_recall, mismatches
     
 
-def test_recalling_fold(n_memories, mem_size, domain, fold, experiment, tolerance = 0):
+def test_recalling_fold(n_memories, mem_size, domain, es, fold):
     # Create the required associative memories.
     ams = dict.fromkeys(range(n_memories))
     for j in ams:
-        ams[j] = AssociativeMemory(domain, mem_size, tolerance)
+        ams[j] = AssociativeMemory(domain, mem_size, es.tolerance)
 
     suffix = constants.filling_suffix
-    filling_features_filename = constants.features_name() + suffix        
-    filling_features_filename = constants.data_filename(filling_features_filename, fold)
-    filling_labels_filename = constants.labels_name() + suffix        
-    filling_labels_filename = constants.data_filename(filling_labels_filename, fold)
+    filling_features_filename = constants.features_name(es) + suffix        
+    filling_features_filename = constants.data_filename(filling_features_filename, es, fold)
+    filling_labels_filename = constants.labels_name(es) + suffix        
+    filling_labels_filename = constants.data_filename(filling_labels_filename, es, fold)
 
     suffix = constants.testing_suffix
-    testing_features_filename = constants.features_name() + suffix        
-    testing_features_filename = constants.data_filename(testing_features_filename, fold)
-    testing_labels_filename = constants.labels_name() + suffix        
-    testing_labels_filename = constants.data_filename(testing_labels_filename, fold)
+    testing_features_filename = constants.features_name(es) + suffix        
+    testing_features_filename = constants.data_filename(testing_features_filename, es, fold)
+    testing_labels_filename = constants.labels_name(es) + suffix        
+    testing_labels_filename = constants.data_filename(testing_labels_filename, es, fold)
 
     filling_features = np.load(filling_features_filename)
     filling_labels = np.load(filling_labels_filename)
@@ -709,7 +709,7 @@ def test_recalling(domain, mem_size, es):
     total_mismatches = np.zeros((testing_folds, len(memory_fills)))
 
     list_results = Parallel(n_jobs=constants.n_jobs, verbose=50)(
-        delayed(test_recalling_fold)(n_memories, mem_size, domain, fold, es.tolerance) \
+        delayed(test_recalling_fold)(n_memories, mem_size, domain, es, fold) \
             for fold in range(constants.n_folds))
 
     for fold, memories, avg_entropy, std_entropy, precision, recall,\
