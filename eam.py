@@ -1066,7 +1066,6 @@ def main(action, tolerance = 0):
 
 if __name__== "__main__" :
     args = docopt(__doc__)
-    print(args)
 
     # Processing language.
     lang = 'en'

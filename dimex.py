@@ -378,8 +378,8 @@ class LearnedDataSet:
         self.fold = fold
         self.seed_data, self.seed_labels = self._get_seed_data()
         self.learned_data, self.learned_labels = self._get_learned_data(es, fold)
-        if self.learned_data and self.learned_labels:
-            self.learned_data, self.learned_labels  = balance(learned_data, learned_labels)
+        if not ((self.learned_data is None) or (self.learned_labels is None)):
+            self.learned_data, self.learned_labels  = balance(self.learned_data, self.learned_labels)
 
     def _get_data_segment(self, data, labels, segment, fold):
         total = len(labels)
@@ -408,7 +408,7 @@ class LearnedDataSet:
     def get_data_segment(self, segment, fold):
         seed_data, seed_labels = \
             self._get_data_segment(self.seed_data, self.seed_labels, segment, fold)
-        if not (self.learned_data or self.learned_labels):
+        if not ((self.learned_data is None) or (self.learned_labels is None)):
             return seed_data, seed_labels
         elif (segment == self._TESTING_SEGMENT) and not self.es.extended:
             return seed_data, seed_labels

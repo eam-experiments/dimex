@@ -1,5 +1,5 @@
 #!/bin/bash
-for i in 0 1; do
+for i in 1; do
     echo "=================== Starting stage ${i}..."
     python eam.py -n $i && \
     python eam.py -f $i && \
