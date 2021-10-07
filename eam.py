@@ -915,12 +915,10 @@ def recognition_on_ciempiess(data, es, fold):
     print(f'Original: {len(original)}')
     print(f'Memory: {len(amsys)}')
     print(f'NNetwork: {len(nnet)}')
-    les = copy.copy(es)
-    les.stage += 1
-    save_learned_data(agreed, constants.agreed_suffix, les, fold)
-    save_learned_data(original, constants.original_suffix, les, fold)
-    save_learned_data(amsys, constants.amsystem_suffix, les, fold)
-    save_learned_data(nnet, constants.nnetwork_suffix, les, fold)
+    save_learned_data(agreed, constants.agreed_suffix, es, fold)
+    save_learned_data(original, constants.original_suffix, es, fold)
+    save_learned_data(amsys, constants.amsystem_suffix, es, fold)
+    save_learned_data(nnet, constants.nnetwork_suffix, es, fold)
 
 def list_chunks(lst, n):
     """Yield successive n-sized chunks from lst."""

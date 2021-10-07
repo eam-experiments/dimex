@@ -1,7 +1,10 @@
 #!/bin/bash
-python main_test_associative.py -n && \
-python main_test_associative.py -f && \
-python main_test_associative.py -a && \
-python main_test_associative.py -e 1 && \
-python main_test_associative.py -e 3 && \
-python main_test_associative.py -e 4
+for i in 0 1; do
+    echo "=================== Starting stage ${i}..."
+    python eam.py -n $i && \
+    python eam.py -f $i && \
+    python eam.py -a $i && \
+    python eam.py -e $i && \
+    python eam.py -i $i && 
+    echo "=================== Stage $i finished."
+done

@@ -173,8 +173,8 @@ def get_full_name(prefix, es):
     if es is None:
         return prefix
     name = get_name_w_suffix(prefix, True, es.stage, stage_suffix)
-    name = get_name_w_suffix(name, es.stage > 0, es.learned, learned_suffix)
-    name = get_name_w_suffix(name, es.stage > 0, es.extended, extended_suffix)
+    name = get_name_w_suffix(name, True, es.learned, learned_suffix)
+    name = get_name_w_suffix(name, True, es.extended, extended_suffix)
     name = get_name_w_suffix(name, True, es.tolerance, tolerance_suffix)
     return name
 

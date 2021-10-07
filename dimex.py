@@ -470,6 +470,7 @@ class LearnedDataSet:
             data_filename = constants.learned_data_filename(s, les, fold)
             labels_filename = constants.learned_labels_filename(s, les, fold)
             try:
+                print(f'Getting learned data from {data_filename} and {labels_filename}')
                 new_data = np.load(data_filename)
                 new_labels = np.load(labels_filename)
             except:
