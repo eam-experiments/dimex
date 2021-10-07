@@ -135,12 +135,12 @@ class EarlyStoppingAtLossCrossing(Callback):
 
 
 def train_classifier(prefix, es):
-    lds = dimex.LearnedDataSet(es)
     confusion_matrix = np.zeros((constants.n_labels, constants.n_labels))
     histories = []
     for fold in range(constants.n_folds):
-        training_data, training_labels = lds.get_training_data(fold)
-        testing_data, testing_labels = lds.get_testing_data(fold)
+        lds = dimex.LearnedDataSet(es, fold)
+        training_data, training_labels = lds.get_training_data()
+        testing_data, testing_labels = lds.get_testing_data()
         truly_training = int(len(training_labels)*truly_training_percentage)
 
         validation_data = training_data[truly_training:]
@@ -186,11 +186,11 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix, e
     
     Uses the previously trained neural networks for generating the features.
     """
-    lds = dimex.LearnedDataSet(es)
     for fold in range(constants.n_folds):
-        training_data, training_labels = lds.get_training_data(fold)
-        filling_data, filling_labels = lds.get_filling_data(fold)
-        testing_data, testing_labels = lds.get_testing_data(fold)
+        lds = dimex.LearnedDataSet(es, fold)
+        training_data, training_labels = lds.get_training_data()
+        filling_data, filling_labels = lds.get_filling_data()
+        testing_data, testing_labels = lds.get_testing_data()
 
         # Recreate the exact same model, including its weights and the optimizer
         filename = constants.classifier_filename(model_prefix, es, fold)
@@ -268,89 +268,21 @@ def train_decoder(prefix, features_prefix, data_prefix, es):
         model.save(constants.decoder_filename(prefix, es, fold))
     return histories
 
-
-def train_next_encoder(training_data, training_labels,
-    validation_data, validation_labels, model_prefix, fold, tolerance, stage):
-    input_data = Input(shape=(n_frames, n_mfcc))
-    weights = get_weights(training_labels)
-    training_labels = to_categorical(training_labels, constants.n_labels, dtype='int')
-    validation_labels = to_categorical(validation_labels, constants.n_labels, dtype='int')
-    encoded = get_encoder(input_data)
-    classified = get_classifier(encoded)
-    model = Model(inputs=input_data, outputs=classified)
-    model.compile(loss='categorical_crossentropy',
-                optimizer='adam',
-                metrics='accuracy')
-    model.summary()
-    history = model.fit(training_data,
-            training_labels,
-            batch_size = batch_size,
-            epochs = epochs,
-            class_weight = weights, # Only supported for single output models.
-            validation_data = (validation_data, validation_labels),
-            callbacks=[EarlyStoppingAtLossCrossing(patience)],
-            verbose=2)
-    model.save(constants.classifier_filename(model_prefix, fold, tolerance, stage))
-    model = Model(inputs=input_data, outputs=encoded)
-    return model, history
-
-def train_next_decoder(training_data, training_labels,
-    validation_data, validation_labels, model_prefix, fold, tolerance, stage):
-    input_data = Input(shape=(constants.domain))
-    decoded = get_decoder(input_data)
-    model = Model(inputs=input_data, outputs=decoded)
-    model.compile(loss='mean_squared_error', optimizer='adam', metrics='accuracy')
-    model.summary()
-    history = model.fit(training_data,
-            training_labels,
-            batch_size = batch_size,
-            epochs = epochs,
-            validation_data = (validation_data, validation_labels),
-            callbacks=[EarlyStoppingAtLossCrossing(patience)],
-            verbose=2)
-    model.save(constants.decoder_filename(model_prefix, fold, tolerance=tolerance, stage=stage))
-    return model, history
-
-def train_next_network(training_data, training_labels,
-    validation_data, validation_labels, filling_data, filling_labels,
-    model_prefix, fold, tolerance, stage):
-    histories = []
-    encoder, history = train_next_encoder(training_data, training_labels,
-        validation_data, validation_labels, model_prefix, fold, tolerance, stage)
-    histories.append(history)
-    training_features = encoder.predict(training_data)
-    validation_features = encoder.predict(validation_data)
-    filling_features = encoder.predict(filling_data)
-    _, history = train_next_decoder(training_features, training_data,
-        validation_features, validation_data, model_prefix, fold, tolerance, stage)
-    histories.append(history)
-    return filling_features, histories
-
-
-
-
-
 class SplittedNeuralNetwork:
-    def __init__ (self, prefix, fold, tolerance, stage):
-        model_filename = constants.classifier_filename(prefix, fold, tolerance, stage)
+    def __init__ (self, prefix, es, fold):
+        model_filename = constants.classifier_filename(prefix, es, fold)
         classifier = tf.keras.models.load_model(model_filename)
-        model_filename = constants.decoder_filename(prefix, fold, tolerance=tolerance, stage=stage)
+        model_filename = constants.decoder_filename(prefix, es, fold)
         self.decoder = tf.keras.models.load_model(model_filename)
 
         input_enc = Input(shape=(n_frames, n_mfcc))
         input_cla = Input(shape=(constants.domain))
         encoded = get_encoder(input_enc)
         classified = get_classifier(input_cla)
-
         self.encoder = Model(inputs = input_enc, outputs = encoded)
-        # self.encoder.summary()
         self.classifier = Model(inputs = input_cla, outputs = classified)
-        # self.classifier.summary()
-        # self.decoder.summary()
-
         for from_layer, to_layer in zip(classifier.layers[1:encoder_nlayers+1], self.encoder.layers[1:]):
             to_layer.set_weights(from_layer.get_weights())
-
         for from_layer, to_layer in zip(classifier.layers[encoder_nlayers+1:], self.classifier.layers[1:]):
             to_layer.set_weights(from_layer.get_weights())
 
@@ -364,12 +296,10 @@ def process_sample(sample: dimex.TaggedAudio, snnet: SplittedNeuralNetwork, deco
         sample.net_segments = snnet.decoder.predict(features)
     return sample
 
-
-def process_samples(samples, prefix, fold, tolerance, stage, decode=False):
-    n = 0
+def process_samples(samples, prefix, es, fold, decode=False):
     print('Processing samples with neural network.')
-
-    snnet = SplittedNeuralNetwork(prefix, fold, tolerance, stage)
+    n = 0
+    snnet = SplittedNeuralNetwork(prefix, es, fold)
     new_samples = []
     for sample in samples: 
         new_sample = process_sample(sample, snnet, decode)
@@ -378,11 +308,9 @@ def process_samples(samples, prefix, fold, tolerance, stage, decode=False):
         constants.print_counter(n,100,10)
     return new_samples
 
-
 def reprocess_samples(samples, prefix, fold, tolerance, stage, decode=False):
-    n = 0
     print('Reprocessing samples with neural network.')
-
+    n = 0
     snnet = SplittedNeuralNetwork(prefix, fold, tolerance, stage)
     for sample in samples: 
         features = np.array(sample.ams_features)

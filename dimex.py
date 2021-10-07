@@ -84,7 +84,7 @@ def shuffle(data, labels):
     labels = np.array([p[1] for p in pairs], dtype='int')
     return data, labels
 
-def balance(pairs, cutpoint):
+def balance_pairs(pairs, cutpoint):
     freqs = np.zeros(constants.n_labels, dtype=int)
     balanced = []
     for d, l in pairs:
@@ -104,15 +104,24 @@ def cutpoint(labels):
     freqs = frequencies(labels)
     return np.median(freqs)
 
-
 def shuffle_and_balance(data, labels):
+    print(f'Shuffling and balancing classes with cutpoint of {cp}.')
     pairs = [(data[i], labels[i]) for i in range(len(labels))]
     random.shuffle(pairs)
     cp = cutpoint(labels)
+    pairs = balance_pairs(pairs, cp)
+    balanced_data = np.array([p[0] for p in pairs], dtype = 'float')
+    balanced_labels = np.array([p[1] for p in pairs], dtype = 'int')
+    return balanced_data, balanced_labels
+
+def balance(data, labels):
+    pairs = [(data[i], labels[i]) for i in range(len(labels))]
+    cp = cutpoint(labels)
     print(f'Balancing classes with cutpoint of {cp}.')
-    pairs = balance(pairs, cp)
-    labels = np.array([p[1] for p in pairs], dtype = 'int')
-    return data, labels
+    pairs = balance_pairs(pairs, cp)
+    balanced_data = np.array([p[0] for p in pairs], dtype = 'float')
+    balanced_labels = np.array([p[1] for p in pairs], dtype = 'int')
+    return balanced_data, balanced_labels
 
 def _get_file_name(modifier, id, cls, extension):
     sdir = id[:4]
@@ -364,21 +373,12 @@ class LearnedDataSet:
     _FILLING_SEGMENT = 1
     _TESTING_SEGMENT = 2
 
-    def __init__(self, es):
+    def __init__(self, es, fold):
         self.es = es
-        seed_data, seed_labels = self._get_seed_data()
-        learned_data, learned_labels = self._get_learned_data(es)
-        if es.extended:
-            data = np.concatenate((seed_data, learned_data), axis=0)
-            labels = np.concatenate((seed_labels, learned_labels), axis=0)
-            self.data, self.labels = shuffle_and_balance(data, labels)
-        else:
-            self.seed_data, self.seed_labels = shuffle(seed_data, seed_labels)
-            if learned_data and learned_labels:
-                self.learned_data, self.learned_labels = shuffle_and_balance(learned_data, learned_labels)
-            else:
-                self.learned_data = learned_data
-                self.learned_labels = learned_labels
+        self.fold = fold
+        self.seed_data, self.seed_labels = self._get_seed_data()
+        learned_data, learned_labels = self._get_learned_data(es, fold)
+        self.learned_data, self.learned_labels  = balance(learned_data, learned_labels)
 
     def _get_data_segment(self, data, labels, segment, fold):
         total = len(labels)
@@ -405,28 +405,29 @@ class LearnedDataSet:
                 constants.get_data_in_range(labels, n, m)
 
     def get_data_segment(self, segment, fold):
-        if self.es.extended:
-            return self._get_data_segment(self.data, self.labels, segment, fold)
+        seed_data, seed_labels = \
+            self._get_data_segment(self.seed_data, self.seed_labels, segment, fold)
+        if not (self.learned_data or self.learned_labels):
+            return seed_data, seed_labels
+        elif (segment == self._TESTING_SEGMENT) and not self.es.extended:
+            return seed_data, seed_labels
         else:
-            seed_data, seed_labels = \
-                self._get_data_segment(self.seed_data, self.seed_labels, segment, fold)
-            if self.learned_data and self.learned_labels:
-                learned_data, learned_labels = \
-                    self._get_data_segment(self.learned_data, self.learned_labels, segment, fold)
-                data = np.concatenate((seed_data, learned_data), axis=0)
-                labels = np.concatenate((seed_labels, learned_labels), axis=0)
-                return shuffle(data, labels)
-            else:
-                return seed_data, seed_labels
+            learned_data, learned_labels = \
+                self._get_data_segment(self.learned_data, self.learned_labels,
+                    segment, 0)
+            data = np.concatenate((seed_data, learned_data), axis=0)
+            labels = np.concatenate((seed_labels, learned_labels), axis=0)
+            data, labels = shuffle(data, labels)
+            return data, labels
 
-    def get_training_data(self, fold):
-        return self.get_data_segment(self._TRAINING_SEGMENT, fold)
+    def get_training_data(self):
+        return self.get_data_segment(self._TRAINING_SEGMENT, self.fold)
 
-    def get_filling_data(self, fold):
-        return self.get_data_segment(self._FILLING_SEGMENT, fold)
+    def get_filling_data(self):
+        return self.get_data_segment(self._FILLING_SEGMENT, self.fold)
 
-    def get_testing_data(self, fold):
-        return self.get_data_segment(self._TESTING_SEGMENT, fold)
+    def get_testing_data(self):
+        return self.get_data_segment(self._TESTING_SEGMENT, self.fold)
 
     def _get_seed_data(self):
         data_filename = constants.seed_data_filename()
@@ -435,14 +436,14 @@ class LearnedDataSet:
         labels = np.load(labels_filename)
         return data, labels
 
-    def _get_learned_data(self, es):
+    def _get_learned_data(self, es, fold):
         have_been_data = True
         stage = 0
         data = []
         labels = []
         suffixes = self._RECOG_SUFFIXES[es.learned]
         while have_been_data and (stage < es.stage):
-            new_data, new_labels = self._get_stage_learned_data(suffixes, stage, es)
+            new_data, new_labels = self._get_stage_learned_data(suffixes, stage, es, fold)
             have_been_data = not ((new_data is None) or (new_labels is None))
             if have_been_data:
                 data.append(new_data)
@@ -459,14 +460,14 @@ class LearnedDataSet:
             labels = None
         return data, labels
 
-    def _get_stage_learned_data(self, suffixes, stage, es):
+    def _get_stage_learned_data(self, suffixes, stage, es, fold):
         les = copy.copy(es)
         les.stage = stage
         data = []
         labels = []
         for s in suffixes:
-            data_filename = constants.learned_data_filename(s, les)
-            labels_filename = constants.learned_labels_filename(s, les)
+            data_filename = constants.learned_data_filename(s, les, fold)
+            labels_filename = constants.learned_labels_filename(s, les, fold)
             try:
                 new_data = np.load(data_filename)
                 new_labels = np.load(labels_filename)
