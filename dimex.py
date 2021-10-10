@@ -438,6 +438,11 @@ class LearnedDataSet:
         return data, labels
 
     def _get_learned_data(self, es, fold):
+        les = None
+        # Extended mode can start in any stage.
+        if es.extended:
+            les = copy.copy(es)
+            les.extended = False
         have_been_data = True
         stage = 0
         data = []
@@ -446,6 +451,9 @@ class LearnedDataSet:
         while have_been_data and (stage < es.stage):
             new_data, new_labels = self._get_stage_learned_data(suffixes, stage, es, fold)
             have_been_data = not ((new_data is None) or (new_labels is None))
+            if (not have_been_data) and es.extended:
+                new_data, new_labels = self._get_stage_learned_data(suffixes, stage, les, fold)
+                have_been_data = not ((new_data is None) or (new_labels is None))
             if have_been_data:
                 data.append(new_data)
                 labels.append(new_labels)
@@ -533,7 +541,7 @@ class PostProcessor:
 
     def _get_counters(self):
         """ Constructs the list of counters for processing the labels.
-        
+
             The list of counters includes one extra element to deal with
             None (unrecognized).
         """
