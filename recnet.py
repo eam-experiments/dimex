@@ -30,7 +30,7 @@ import dimex
 
 n_frames = constants.n_frames
 n_mfcc = constants.mfcc_numceps
-encoder_nlayers = 5     # The number of layers defined in get_encoder.
+encoder_nlayers = 7     # The number of layers defined in get_encoder.
 batch_size = 2048
 epochs = 300
 patience = 10
@@ -55,8 +55,8 @@ def get_encoder(input_data):
     # Recurrent encoder
     rnn = Bidirectional(GRU(4*n_mfcc, return_sequences=True, dropout=in_dropout))(input_data)
     drop = Dropout(out_dropout)(rnn)
-    # rnn = GRU(4*n_mfcc, return_sequences=True, dropout=in_dropout)(drop)
-    # drop = Dropout(out_dropout)(rnn)
+    rnn = Bidirectional(GRU(4*n_mfcc, return_sequences=True, dropout=in_dropout))(drop)
+    drop = Dropout(out_dropout)(rnn)
     rnn = Bidirectional(GRU(constants.domain //2, dropout=in_dropout))(drop)
     drop = Dropout(out_dropout)(rnn)
     norm = LayerNormalization()(drop)
@@ -67,6 +67,8 @@ def get_decoder(encoded):
     repeat_1 = RepeatVector(n_frames)(encoded)
     gru_1 = Bidirectional(GRU(constants.domain, activation='relu', return_sequences=True))(repeat_1)
     drop_1 = Dropout(0.4)(gru_1)
+    # gru_1 = Bidirectional(GRU(constants.domain, activation='relu', return_sequences=True))(drop_1)
+    # drop_1 = Dropout(0.4)(gru_1)
     gru_2 = Bidirectional(GRU(constants.domain // 2, activation='relu', return_sequences=True))(drop_1)
     drop_2 = Dropout(0.4)(gru_2)
     output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop_2)
@@ -253,7 +255,7 @@ def train_decoder(prefix, features_prefix, data_prefix, es):
         input_data = Input(shape=(constants.domain))
         decoded = get_decoder(input_data)
         model = Model(inputs=input_data, outputs=decoded)
-        model.compile(loss='mean_squared_error', optimizer='adam', metrics='accuracy')
+        model.compile(loss='huber_loss', optimizer='adam', metrics='accuracy')
         model.summary()
         history = model.fit(training_features,
                 training_data,
