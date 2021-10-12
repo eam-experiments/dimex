@@ -20,6 +20,9 @@ _BALANCED = 0
 _SEED = 1
 _FULL = 2
 
+# milliseconds
+left_padding = 45
+right_padding = 35
 
 def create_balanced_data(cut_point, in_prefix, out_prefix, convert=False):
    # Load original data
@@ -82,7 +85,6 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
 
         with open(phnms_filename) as file:
             reader=csv.reader(file, delimiter=' ')
-            anterior='-'
             row = next(reader)
             # skip the headers
             while (len(row) == 0) or (row[0] != 'END'):
@@ -96,6 +98,10 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
                     continue
                 start = float(row[0])
                 end = float(row[1])
+                if crop_pad:
+                    start -= left_padding
+                    start = 0 if start < 0 else start
+                    end += right_padding
                 # Duration in milliseconds
                 duration = float(end)-float(start)
                 ns = signal[int(float(start)/1000 * sample_rate):int(float(end)/1000 * sample_rate)]
@@ -105,11 +111,15 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
                     resampling = int(duration/1000*dimex.IDEAL_SRATE)
                     ns = scipy.signal.resample(ns,resampling)
                 features = mfcc(ns,dimex.IDEAL_SRATE,numcep=26)
-                if crop_pad:
-                    features = constants.padding_cropping(features, constants.n_frames)
                 label = dimex.phns_to_labels[phn]
-                data.append(features)
-                labels.append(label)
+                if crop_pad:
+                    feat_list = constants.padding_cropping(features, constants.n_frames)
+                    data += feat_list
+                    labels += [label for i in range(len(feat_list))]
+                    frequencies[label] += len(feat_list)
+                else:
+                    data.append(features)
+                    labels.append(label)
                 frequencies[label] += 1
         counter += 1
         constants.print_counter(counter,100,10)    

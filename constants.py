@@ -264,18 +264,18 @@ def std_idx(m):
     return m+1
 
 def padding_cropping(data, n_frames):
-
     frames, _  = data.shape
-    df = n_frames - frames
-    if df == 0:
-        return data
-    elif df < 0:
-        return data[:n_frames]
+    df = frames - n_frames
+    if df < 0:
+        print_warning(f'Number of frames too small: {frames}. Skipped')
+        return []
+    elif df == 0:
+        return [data]
     else:
-        top_padding = df // 2
-        bottom_padding = df - top_padding
-        return np.pad(data, ((top_padding, bottom_padding),(0,0)),
-            'constant', constant_values=((0,0),(0,0)))
+        features = []
+        for i in range(df+1):
+            features.append(data[i:i+n_frames,:])
+        return features
 
 def get_data_in_range(data, i, j):
     if j >= i:
