@@ -67,8 +67,8 @@ def get_decoder(encoded):
     repeat_1 = RepeatVector(n_frames)(encoded)
     gru_1 = Bidirectional(GRU(constants.domain, activation='relu', return_sequences=True))(repeat_1)
     drop_1 = Dropout(0.4)(gru_1)
-    # gru_1 = Bidirectional(GRU(constants.domain, activation='relu', return_sequences=True))(drop_1)
-    # drop_1 = Dropout(0.4)(gru_1)
+    gru_1 = Bidirectional(GRU(constants.domain, activation='relu', return_sequences=True))(drop_1)
+    drop_1 = Dropout(0.4)(gru_1)
     gru_2 = Bidirectional(GRU(constants.domain // 2, activation='relu', return_sequences=True))(drop_1)
     drop_2 = Dropout(0.4)(gru_2)
     output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop_2)
@@ -100,8 +100,9 @@ class EarlyStoppingAtLossCrossing(Callback):
 
     def __init__(self, patience=0):
         super(EarlyStoppingAtLossCrossing, self).__init__()
-        self.patience = patience
-        self.prev_loss = float('inf')
+        self.patience = max(epochs // 20, 3)
+        self.prev_val_loss = float('inf')
+        self.prev_val_accuracy = 0.0
         # best_weights to store the weights at which the loss crossing occurs.
         self.best_weights = None
         self.start = max(epochs // 20, 3)
@@ -119,17 +120,25 @@ class EarlyStoppingAtLossCrossing(Callback):
         accuracy = logs.get('accuracy')
         val_accuracy = logs.get('val_accuracy')
 
-        if (epoch < self.start) or ((val_loss < self.prev_loss) and (val_loss < loss) and (accuracy < val_accuracy)) :
+        if epoch < self.start:
+            self.best_weights = self.model.get_weights()
+        elif (loss < val_loss) or (accuracy > val_accuracy):
+            self.wait += 1
+        elif (val_accuracy > self.prev_val_accuracy):
             self.wait = 0
-            self.prev_loss = val_loss
+            self.prev_val_accuracy = val_accuracy
+            self.best_weights = self.model.get_weights()
+        elif (val_loss < self.prev_val_loss):
+            self.wait = 0
+            self.prev_val_loss = val_loss
             self.best_weights = self.model.get_weights()
         else:
             self.wait += 1
-            if self.wait >= self.patience:
-                self.stopped_epoch = epoch
-                self.model.stop_training = True
-                print("Restoring model weights from the end of the best epoch.")
-                self.model.set_weights(self.best_weights)
+        if self.wait >= self.patience:
+            self.stopped_epoch = epoch
+            self.model.stop_training = True
+            print("Restoring model weights from the end of the best epoch.")
+            self.model.set_weights(self.best_weights)
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0:
