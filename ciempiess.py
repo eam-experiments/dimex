@@ -37,7 +37,7 @@ def get_full_filename(fn):
 
 class NextDataSet:
     _AUDIO_LIST_FILENAME = 'ciempiess.txt'
-    _SEGMENT_MILLISECONDS = 90
+    _SEGMENT_MILLISECONDS = 95
     _NEXTDATA_PREFIX = 'ciempiess_data'
     def __init__(self, es):
         self._stage = es.stage
@@ -95,15 +95,12 @@ class NextDataSet:
         step = int(sample_rate/100)
         i = 0
         end = len(signal)
-        stop = False
-        while not stop:
+        while True:
             j = i + seg_len
             if j > end:
-                j = end
-                stop = True
+                break
             segment = signal[i:j]
             features = mfcc(segment, sample_rate, numcep=constants.mfcc_numceps)
-            features = constants.padding_cropping(features, constants.n_frames)
             segments.append(features)
             i += step
         return segments

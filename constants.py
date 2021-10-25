@@ -65,7 +65,7 @@ recognition_suffixes = [[agreed_suffix], [agreed_suffix, original_suffix],
 
 mfcc_numceps = 26
 n_folds = 10 
-domain = 64
+domain = 128
 n_frames = 8
 n_jobs = 4
 
@@ -94,7 +94,7 @@ mean_responses_idx = 6
 
 n_behaviours = 7
 
-memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]
+memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
 memory_fills = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 100.0]
 ideal_memory_size = 256
 
