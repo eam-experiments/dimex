@@ -57,9 +57,8 @@ agreed_suffix = '-agr'
 original_suffix = '-ori'
 amsystem_suffix = '-ams'
 nnetwork_suffix = '-rnn'
-recognition_suffixes = [[agreed_suffix], [agreed_suffix, original_suffix],
+recognition_suffixes = [[original_suffix], [agreed_suffix], [original_suffix, agreed_suffix],
     [agreed_suffix, original_suffix, amsystem_suffix],
-    [agreed_suffix, original_suffix, nnetwork_suffix],
     [agreed_suffix, original_suffix, amsystem_suffix, nnetwork_suffix]]
 
 

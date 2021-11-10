@@ -366,9 +366,7 @@ class TestingDataSet:
 class LearnedDataSet:
     _TRAINING_PREFIX = 'seed'
     _LEARNED_PREFIX = 'learned'
-    _RECOG_SUFFIXES = [['-agr'], ['-agr', '-ori'], ['-agr', '-ams'],
-                       ['-agr', '-rnn'], ['-agr', '-ams', '-rnn'],
-                       ['-agr', '-ams', '-rnn', '-ori']]
+    _RECOG_SUFFIXES = constants.recognition_suffixes
     _TRAINING_SEGMENT = 0
     _FILLING_SEGMENT = 1
     _TESTING_SEGMENT = 2
