@@ -15,7 +15,7 @@
 import csv
 import numpy as np
 import pickle
-from python_speech_features import mfcc
+from librosa.feature import mfcc
 import random
 import re
 import scipy.signal
@@ -100,7 +100,7 @@ class NextDataSet:
             if j > end:
                 break
             segment = signal[i:j]
-            features = mfcc(segment, sample_rate, numcep=constants.mfcc_numceps)
+            features = mfcc(segment, sample_rate, n_mfcc=constants.mfcc_numceps)
             segments.append(features)
             i += step
         return segments

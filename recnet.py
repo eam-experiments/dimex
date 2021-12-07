@@ -14,7 +14,6 @@
 import sys
 import math
 import numpy as np
-from python_speech_features.base import mfcc
 from sklearn.utils.class_weight import compute_class_weight
 import tensorflow as tf
 from tensorflow.keras import Model
@@ -23,7 +22,6 @@ from tensorflow.keras.layers import Input, GRU, LSTM, SimpleRNN, Dropout, Dense,
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import Callback
 from joblib import Parallel, delayed
-import png
 
 import constants
 import dimex

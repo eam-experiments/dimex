@@ -4,7 +4,7 @@ import scipy.io.wavfile as wav
 import scipy.signal
 import numpy as np
 import csv
-from python_speech_features import mfcc
+from librosa.feature import mfcc
 
 # Media lenght and lenght standard deviation by phoneme,
 # calculated previously, as ‘structured arrays’
@@ -73,7 +73,7 @@ for t22file in glob.iglob('Corpus/*/T22/*/*.phn',recursive=False):
 								ns=scipy.signal.resample(ns,sampls)
 							try:                          
 								#feat=ns
-								feat=mfcc(ns,16000,numcep=26)
+								feat=mfcc(ns,16000,n_mfcc=26)
 								print(feat.shape)                                
 							except:
 								print("_MFCC_ERROR_")                            

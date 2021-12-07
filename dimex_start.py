@@ -3,7 +3,7 @@ import csv
 import numpy as np
 import os.path
 import pickle
-from python_speech_features import mfcc
+from librosa.feature import mfcc
 import random
 import scipy.io.wavfile as wav
 import scipy.signal
@@ -110,7 +110,7 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
                 if sample_rate!=dimex.IDEAL_SRATE:
                     resampling = int(duration/1000*dimex.IDEAL_SRATE)
                     ns = scipy.signal.resample(ns,resampling)
-                features = mfcc(ns,dimex.IDEAL_SRATE,numcep=26)
+                features = mfcc(ns,dimex.IDEAL_SRATE,n_mfcc=26)
                 label = dimex.phns_to_labels[phn]
                 if crop_pad:
                     feat_list = constants.padding_cropping(features, constants.n_frames)
