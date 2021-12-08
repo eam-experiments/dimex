@@ -31,7 +31,7 @@ n_mfcc = constants.mfcc_numceps
 encoder_nlayers = 7     # The number of layers defined in get_encoder.
 batch_size = 2048
 epochs = 300
-patience = 10
+patience = 5
 
 TOP_SIDE = 0
 BOTTOM_SIDE = 1
@@ -51,9 +51,9 @@ def get_encoder(input_data):
     in_dropout=0.2
     out_dropout=0.4
     # Recurrent encoder
-    rnn = Bidirectional(GRU(4*n_mfcc, return_sequences=True, dropout=in_dropout))(input_data)
+    rnn = Bidirectional(GRU(constants.domain //2, return_sequences=True, dropout=in_dropout))(input_data)
     drop = Dropout(out_dropout)(rnn)
-    rnn = Bidirectional(GRU(4*n_mfcc, return_sequences=True, dropout=in_dropout))(drop)
+    rnn = Bidirectional(GRU(constants.domain //2, return_sequences=True, dropout=in_dropout))(drop)
     drop = Dropout(out_dropout)(rnn)
     rnn = Bidirectional(GRU(constants.domain //2, dropout=in_dropout))(drop)
     drop = Dropout(out_dropout)(rnn)
@@ -96,14 +96,14 @@ class EarlyStoppingAtLossCrossing(Callback):
             It starts working after 10% of epochs have taken place.
     """
 
-    def __init__(self, patience=0):
+    def __init__(self):
         super(EarlyStoppingAtLossCrossing, self).__init__()
-        self.patience = max(epochs // 20, 3)
+        self.patience = patience
         self.prev_val_loss = float('inf')
         self.prev_val_accuracy = 0.0
         # best_weights to store the weights at which the loss crossing occurs.
         self.best_weights = None
-        self.start = max(epochs // 20, 3)
+        self.start = min(epochs // 20, 3)
         self.wait = 0
 
     def on_train_begin(self, logs=None):
@@ -176,7 +176,7 @@ def train_classifier(prefix, es):
                 epochs=epochs,
                 class_weight=weights, # Only supported for single output models.
                 validation_data= (validation_data, validation_labels),
-                callbacks=[EarlyStoppingAtLossCrossing(patience)],
+                callbacks=[EarlyStoppingAtLossCrossing()],
                 verbose=2)
         histories.append(history)
         history = model.evaluate(testing_data, testing_labels, return_dict=True)
@@ -269,7 +269,7 @@ def train_decoder(prefix, features_prefix, data_prefix, es):
                 batch_size=batch_size,
                 epochs=epochs,
                 validation_data= (validation_features, validation_data),
-                callbacks=[EarlyStoppingAtLossCrossing(patience)],
+                callbacks=[EarlyStoppingAtLossCrossing()],
                 verbose=2)
         histories.append(history)
         history = model.evaluate(testing_features, testing_data, return_dict=True)

@@ -64,9 +64,9 @@ recognition_suffixes = [[original_suffix], [agreed_suffix], [original_suffix, ag
 
 mfcc_numceps = 26
 n_folds = 10 
-domain = 128
+domain = 256
 n_frames = 8
-n_jobs = 4
+n_jobs = 16
 
 nn_training_percent = 0.69
 am_filling_percent = 0.21
