@@ -238,7 +238,7 @@ def get_label(memories, entropies = None):
         entropy = entropies[i]
 
         for j in memories[1:]:
-            if entropy > entropies[j]:
+            if entropy < entropies[j]:
                 i = j
                 entropy = entropies[i]
     return i
@@ -260,15 +260,23 @@ def conf_sum(cms, t):
 
 def memories_precision(cms):
     total = conf_sum(cms, TP) + conf_sum(cms, FN)
+    if total == 0:
+        return 0.0
     precision = 0.0
     for m in range(len(cms)):
-        m_precision = cms[m][TP] / (cms[m][TP] + cms[m][FP])
+        denominator = (cms[m][TP] + cms[m][FP])
+        if denominator == 0:
+            m_precision = 1.0
+        else:
+            m_precision = cms[m][TP] / denominator
         weight = (cms[m][TP] + cms[m][FN]) / total
         precision += weight*m_precision
     return precision
 
 def memories_recall(cms):
     total = conf_sum(cms, TP) + conf_sum(cms, FN)
+    if total == 0:
+        return 0.0
     recall = 0.0
     for m in range(len(cms)):
         m_recall = cms[m][TP] / (cms[m][TP] + cms[m][FN])
