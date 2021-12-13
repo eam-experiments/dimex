@@ -120,8 +120,10 @@ MIN_EXPERIMENT = 1
 MAX_EXPERIMENT = 10
 
 class ExperimentSettings:
-    def __init__(self, stage = 0, learned = 0, extended = False, tolerance = 0):
+    def __init__(self, stage = 0, fill_percent = 1.0,
+        learned = 0, extended = False, tolerance = 0):
         self.stage = stage
+        self.fill_percent = fill_percent
         self.learned = learned
         self.extended = extended
         self.tolerance = tolerance

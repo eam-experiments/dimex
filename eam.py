@@ -17,7 +17,7 @@
 
 Usage:
   eam -h | --help
-  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [-d <learned_data>] [-x] [-t <tolerance>] [ -l (en | es) ]
+  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [-m <memfill>] [-d <learned_data>] [-x] [-t <tolerance>] [ -l (en | es) ]
 
 Options:
   -h        Show this screen.
@@ -28,9 +28,10 @@ Options:
   -e        Run the experiment 1 (Evaluation).
   -i        Increase the amount of data (learning).
   -r        Run the experiment 2 (Recognition).
-  -t        Allow Tolerance (unmatched features) in memory.
+  -m        Percent memory filling data should be reduced.
   -d        Selects which learneD Data is used for evaluation, recognition or learning.
   -x        Use the eXtended data set as testing data for memory.
+  -t        Allow Tolerance (unmatched features) in memory.
   -l        Chooses Language for graphs.            
 
 The parameter <stage> indicates the stage of learning from which data is used.
@@ -432,6 +433,11 @@ def test_memories(domain, es):
 
         filling_features = np.load(filling_features_filename)
         filling_labels = np.load(filling_labels_filename)
+        # Apply reduction to given percent of filling data.
+        n = len(filling_labels)*es.fill_percent
+        filling_features = filling_features[:n]
+        filling_labels = filling_labels[:n]
+
         testing_features = np.load(testing_features_filename)
         testing_labels = np.load(testing_labels_filename)
 
@@ -662,6 +668,11 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
 
     filling_features = np.load(filling_features_filename)
     filling_labels = np.load(filling_labels_filename)
+    # Apply reduction to given percent of filling data.
+    n = len(filling_labels)*es.fill_percent
+    filling_features = filling_features[:n]
+    filling_labels = filling_labels[:n]
+
     testing_features = np.load(testing_features_filename)
     testing_labels = np.load(testing_labels_filename)
 
@@ -1099,6 +1110,18 @@ if __name__== "__main__" :
             constants.print_error('<stage> must be a positive integer.')
             exit(1)
 
+    # Processing memory fill percent reduction.
+    fill_percent = 1.0
+    if args['<memfill>']:
+        try:
+            fill_percent = float(args['<memfill>'])
+            if (fill_percent < 0) or (fill_percent > 100):
+                raise Exception('Out of range number.')
+            fill_percent /= 100
+        except:
+            constants.print_error('<memfill> must be a number in [0-100] range.')
+            exit(1)
+
     # Processing learned data.
     learned = 0
     if args['<learned_data>']:
@@ -1124,7 +1147,7 @@ if __name__== "__main__" :
             constants.print_error('<tolerance> must be a positive integer.')
             exit(1)
 
-    exp_set = constants.ExperimentSettings(stage, learned, extended, tolerance)
+    exp_set = constants.ExperimentSettings(stage, fill_percent, learned, extended, tolerance)
     # PROCESSING OF MAIN OPTIONS.
 
     if args['-n']:
