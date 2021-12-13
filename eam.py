@@ -86,7 +86,7 @@ def plot_pre_graph (pre_mean, rec_mean, acc_mean, ent_mean, \
     plt.errorbar(x, pre_mean, fmt='r-o', yerr=pre_std, label=_('Precision'))
     plt.errorbar(x, rec_mean, fmt='b--s', yerr=rec_std, label=_('Recall'))
     if not ((acc_mean is None) or (acc_std is None)):
-        plt.errorbar(x, acc_mean, fmt='g--d', yerr=acc_std, label=_('Accuracy'))
+        plt.errorbar(x, acc_mean, fmt='y:d', yerr=acc_std, label=_('Accuracy'))
 
     plt.xlim(0, xmax)
     plt.ylim(0, ymax)
