@@ -434,7 +434,7 @@ def test_memories(domain, es):
         filling_features = np.load(filling_features_filename)
         filling_labels = np.load(filling_labels_filename)
         # Apply reduction to given percent of filling data.
-        n = len(filling_labels)*es.fill_percent
+        n = int(len(filling_labels)*es.fill_percent)
         filling_features = filling_features[:n]
         filling_labels = filling_labels[:n]
 
@@ -669,7 +669,7 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
     filling_features = np.load(filling_features_filename)
     filling_labels = np.load(filling_labels_filename)
     # Apply reduction to given percent of filling data.
-    n = len(filling_labels)*es.fill_percent
+    n = int(len(filling_labels)*es.fill_percent)
     filling_features = filling_features[:n]
     filling_labels = filling_labels[:n]
 
@@ -1012,6 +1012,11 @@ def learn_new_data(domain, mem_size, es):
         filling_labels_filename = constants.data_filename(filling_labels_filename, es, fold)
         filling_features = np.load(filling_features_filename)
         filling_labels = np.load(filling_labels_filename)        
+        # Apply reduction to given percent of filling data.
+        n = int(len(filling_labels)*es.fill_percent)
+        filling_features = filling_features[:n]
+        filling_labels = filling_labels[:n]
+
         maximum = filling_features.max()
         minimum = filling_features.min()
         filling_features = msize_features(filling_features, mem_size, minimum, maximum)

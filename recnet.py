@@ -63,9 +63,9 @@ def get_encoder(input_data):
 
 def get_decoder(encoded):
     repeat_1 = RepeatVector(n_frames)(encoded)
-    gru_1 = Bidirectional(GRU(constants.domain, activation='relu', return_sequences=True))(repeat_1)
+    gru_1 = Bidirectional(GRU(constants.domain // 2, activation='relu', return_sequences=True))(repeat_1)
     drop_1 = Dropout(0.4)(gru_1)
-    gru_1 = Bidirectional(GRU(constants.domain, activation='relu', return_sequences=True))(drop_1)
+    gru_1 = Bidirectional(GRU(constants.domain // 2, activation='relu', return_sequences=True))(drop_1)
     drop_1 = Dropout(0.4)(gru_1)
     gru_2 = Bidirectional(GRU(constants.domain // 2, activation='relu', return_sequences=True))(drop_1)
     drop_2 = Dropout(0.4)(gru_2)
