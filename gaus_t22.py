@@ -1,7 +1,7 @@
 import glob
 import scipy.io.wavfile as wav
 import numpy as np
-#from librosa.feature import mfcc
+#from python_speech_features import mfcc
 import csv
 
 

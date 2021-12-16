@@ -16,7 +16,7 @@ import copy
 import csv
 import numpy as np
 import pickle
-from librosa.feature import mfcc
+from python_speech_features import mfcc
 import random
 import re
 import scipy.io.wavfile as wav
@@ -239,7 +239,7 @@ class Sampler:
             segment = signal[i:j]
             features = mfcc(segment,
                             sample_rate,
-                            n_mfcc=constants.mfcc_numceps)
+                            numcep=constants.mfcc_numceps)
             features = constants.padding_cropping(features, constants.n_frames)
             segments.append(features)
             i += step
