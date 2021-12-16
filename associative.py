@@ -100,8 +100,19 @@ class AssociativeMemory(object):
         if len(values) == 1:
             return v
         else:
-            vj = np.where(values == v)[0][0]
-            j = round(random.triangular(0, len(values)-1, vj))
+            u = v
+            for i in range(len(values)):
+                if (u-1) in values:
+                    u -= 1
+                else:
+                    break
+            w = v
+            for i in range(len(values)):
+                if (w+1) in values:
+                    w += 1
+                else:
+                    break
+            value = round(random.triangular(u, w, v))
             return values[j]
                  
 
@@ -115,8 +126,7 @@ class AssociativeMemory(object):
 
     # Reduces a relation to a function
     def lreduce(self, vector):
-        v = [self.choose(i, vector[i]) for i in range(self.n)]
-        v = np.array(v)
+        v = np.array([self.choose(i, vector[i]) for i in range(self.n)])
         return v
 
 
