@@ -89,33 +89,22 @@ class AssociativeMemory(object):
 
     # Choose a value for feature i.
     def choose(self, i, v):
-        if not (self.is_undefined(v) or self.relation[v, i]):
+        if not (self.relation[v, i] or self.is_undefined(v)):
             return self.undefined
-
-        values = np.where(self.relation[:self.m,i])[0]
-        if len(values) == 0:
-            return self.undefined
-        if self.is_undefined(v) or not (v in values):
+        if self.is_undefined(v):
+            values = np.where(self.relation[:self.m,i])[0]
             return random.choice(values)
-        if len(values) == 1:
-            return v
-        else:
-            u = v
-            for i in range(len(values)):
-                if (u-1) in values:
-                    u -= 1
-                else:
-                    break
-            w = v
-            for i in range(len(values)):
-                if (w+1) in values:
-                    w += 1
-                else:
-                    break
-            if u == w:
-                return v
-            value = random.triangular(u, w, v)
-            return round(value)
+        bottom = 0
+        for j in range(v, -1, -1):
+            if not self.relation[j,i]:
+                bottom = j + 1
+                break
+        top = self.m - 1
+        for j in range(v, self.m):
+            if not self.relation[j,i]:
+                top = j - 1
+                break
+        return v if bottom == top else round(random.triangular(bottom, top, v))
                  
 
     def abstract(self, r_io) -> None:
