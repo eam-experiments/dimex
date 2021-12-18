@@ -112,8 +112,10 @@ class AssociativeMemory(object):
                     w += 1
                 else:
                     break
-            value = round(random.triangular(u, w, v))
-            return values[j]
+            if u == w:
+                return v
+            value = random.triangular(u, w, v)
+            return round(value)
                  
 
     def abstract(self, r_io) -> None:
