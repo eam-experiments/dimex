@@ -949,7 +949,7 @@ def recognition_on_ciempiess(data, es, fold):
                 mem_label = constants.n_labels
             
             if mem_label == net_label:
-                mfcc = (orig_mfcc + mem_mfcc + net_mfcc)/3
+                mfcc = (orig_mfcc + mem_mfcc)/2
                 agreed.append((mfcc, mem_label))
                 original.append((orig_mfcc, mem_label))
             mfcc = (orig_mfcc + net_mfcc)/2
