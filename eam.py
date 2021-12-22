@@ -573,21 +573,22 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
         entropy[j] = ams[j].entropy
 
     # The list of recalls recovered from memory.
-    all_recalls = []
+    # all_recalls = []
     # Total number of differences between features and memories.
     mismatches = 0
 
     # Recover memories
     for n, features, label in zip(range(len(tef)), tef, tel):
         memories = []
-        recalls ={}
+        # recalls ={}
 
         # How much it was needed for the right memory to recognize
         # the features.
         mismatches += ams[label].mismatches(features)
 
         for k in ams:
-            recall, recognized = ams[k].recall(features)
+            # recall, recognized = ams[k].recall(features)
+            recognized = ams[k].recognize(features)
 
             # For calculation of per memory precision and recall
             if (k == label) and recognized:
@@ -601,17 +602,17 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
 
             if recognized:
                 memories.append(k)
-                recalls[k] = recall
+                # recalls[k] = recall
 
         if (len(memories) == 0):
             # Register empty case
             undefined = np.full(domain, ams[0].undefined)
-            all_recalls.append((n, label, undefined))
+            # all_recalls.append((n, label, undefined))
             cmatrix[FN] += 1
         else:
             l = get_label(memories, entropy)
-            features = recalls[l]*(max_value-min_value)*1.0/(msize-1) + min_value
-            all_recalls.append((n, label, features))
+            # features = recalls[l]*(max_value-min_value)*1.0/(msize-1) + min_value
+            # all_recalls.append((n, label, features))
 
             if l == label:
                 cmatrix[TP] += 1
@@ -645,7 +646,8 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
     total_recall = cmatrix[TP] / len(tef)
     mismatches /= len(tel)
 
-    return all_recalls, measures, total_precision, total_recall, mismatches
+    # return all_recalls, measures, total_precision, total_recall, mismatches
+    return measures, total_precision, total_recall, mismatches
     
 
 def test_recalling_fold(n_memories, mem_size, domain, es, fold):
@@ -705,11 +707,12 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
         features = filling_features[start:end]
         labels = filling_labels[start:end]
 
-        recalls, measures, step_precision, step_recall, mis_count = get_recalls(ams, mem_size, domain, \
+        # recalls, measures, step_precision, step_recall, mis_count = get_recalls(ams, mem_size, domain, \
+        measures, step_precision, step_recall, mis_count = get_recalls(ams, mem_size, domain, \
             minimum, maximum, features, labels, testing_features, testing_labels, fold, end)
 
         # A list of tuples (position, label, features)
-        fold_recalls += recalls
+        # fold_recalls += recalls
         # An array with average entropy per step.
         fold_entropies.append(measures[constants.entropy_idx])
         # Arrays with precision, recall and accuracy per step
@@ -730,7 +733,8 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
     total_recalls = np.array(total_recalls)
     mismatches = np.array(mismatches)
 
-    return fold, fold_recalls, fold_entropies, fold_precision, \
+    # return fold, fold_recalls, fold_entropies, fold_precision, \
+    return fold, fold_entropies, fold_precision, \
         fold_recall, fold_accuracy, total_precisions, total_recalls, mismatches
 
 
@@ -739,7 +743,7 @@ def test_recalling(domain, mem_size, es):
     memory_fills = constants.memory_fills
     testing_folds = constants.n_folds
     # All recalls, per memory fill and fold.
-    all_memories = {}
+    # all_memories = {}
     # All entropies, precision, and recall, per fold, and fill.
     total_entropies = np.zeros((testing_folds, len(memory_fills)))
     total_precisions = np.zeros((testing_folds, len(memory_fills)))
@@ -753,10 +757,11 @@ def test_recalling(domain, mem_size, es):
         delayed(test_recalling_fold)(n_memories, mem_size, domain, es, fold) \
             for fold in range(testing_folds))
 
-    for fold, memories, entropy, precision, recall, accuracy, \
+    # for fold, memories, entropy, precision, recall, accuracy, \
+    for fold, entropy, precision, recall, accuracy, \
         sys_precision, sys_recall, mismatches in list_results:
 
-        all_memories[fold] = memories
+        # all_memories[fold] = memories
         total_precisions[fold] = precision
         total_recalls[fold] = recall
         total_accuracies[fold] = accuracy
@@ -765,21 +770,21 @@ def test_recalling(domain, mem_size, es):
         sys_precisions[fold] = sys_precision
         sys_recalls[fold] = sys_recall
 
-    for fold in all_memories:
-        list_tups = all_memories[fold]
-        tags = []
-        memories = []
-        for (idx, label, features) in list_tups:
-            tags.append((idx, label))
-            memories.append(np.array(features))
-        tags = np.array(tags)
-        memories = np.array(memories)
-        memories_filename = constants.memories_name(es)
-        memories_filename = constants.data_filename(memories_filename, es, fold)
-        np.save(memories_filename, memories)
-        tags_filename = constants.labels_name(es) + constants.memory_suffix
-        tags_filename = constants.data_filename(tags_filename, es, fold)
-        np.save(tags_filename, tags)
+    # for fold in all_memories:
+    #     list_tups = all_memories[fold]
+    #     tags = []
+    #     memories = []
+    #     for (idx, label, features) in list_tups:
+    #         tags.append((idx, label))
+    #         memories.append(np.array(features))
+    #     tags = np.array(tags)
+    #     memories = np.array(memories)
+    #     memories_filename = constants.memories_name(es)
+    #     memories_filename = constants.data_filename(memories_filename, es, fold)
+    #     np.save(memories_filename, memories)
+    #     tags_filename = constants.labels_name(es) + constants.memory_suffix
+    #     tags_filename = constants.data_filename(tags_filename, es, fold)
+    #     np.save(tags_filename, tags)
     
     main_avrge_entropies = np.mean(total_entropies,axis=0)
     main_stdev_entropies = np.std(total_entropies, axis=0)
