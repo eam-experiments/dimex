@@ -89,11 +89,11 @@ class AssociativeMemory(object):
 
     # Choose a value for feature i.
     def choose(self, i, v):
-        if not (self.relation[v, i] or self.is_undefined(v)):
-            return self.undefined
         if self.is_undefined(v):
             values = np.where(self.relation[:self.m,i])[0]
             return random.choice(values)
+        if not self.relation[v, i]:
+            return self.undefined
         bottom = 0
         for j in range(v, -1, -1):
             if not self.relation[j,i]:
@@ -199,14 +199,16 @@ class AssociativeMemorySystem:
         return False
 
     def recall(self, vector):
-        resp_mems = []
+        entropy = float('inf')
+        memory = None
+        mem_recall = self.full_undefined
         for k in self._memories:
             recalled, recognized = self._memories[k].recall(vector)
             if recognized:
-                entropy = self._memories[k].entropy
-                resp_mems.append((entropy, k, recalled))
-        t = (float('inf'), None, self.full_undefined)
-        t = min(resp_mems, key=itemgetter(0), default=t) 
-        return (t[1], t[2])        
-
+                new_entropy = self._memories[k].entropy
+                if new_entropy < entropy:
+                    entropy = new_entropy
+                    memory = k
+                    mem_recall = recalled
+        return (memory, mem_recall)
 
