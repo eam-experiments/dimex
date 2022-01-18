@@ -348,14 +348,10 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fol
                 memories.append(k)
 
             # For calculation of per memory precision and recall
-            if (k == correct) and recognized:
-                cms[k][TP] += 1
-            elif k == correct:
-                cms[k][FN] += 1
-            elif recognized:
-                cms[k][FP] += 1
-            else:
-                cms[k][TN] += 1
+            cms[k][TP] += (k == correct) and recognized
+            cms[k][FP] += (k != correct) and recognized
+            cms[k][TN] += not ((k == correct) or recognized)
+            cms[k][FN] += (k == correct) and not recognized
  
         response_size += len(memories)
         if len(memories) == 0:
@@ -591,14 +587,10 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
             recognized = ams[k].recognize(features)
 
             # For calculation of per memory precision and recall
-            if (k == label) and recognized:
-                cms[k][TP] += 1
-            elif k == label:
-                cms[k][FN] += 1
-            elif recognized:
-                cms[k][FP] += 1
-            else:
-                cms[k][TN] += 1
+            cms[k][TP] += (k == label) and recognized
+            cms[k][FP] += (k != label) and recognized
+            cms[k][TN] += not ((k == label) or recognized)
+            cms[k][FN] += (k == label) and not recognized
 
             if recognized:
                 memories.append(k)
