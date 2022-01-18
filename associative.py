@@ -61,7 +61,7 @@ class AssociativeMemory(object):
 
     @property
     def relation(self):
-        return self._relation[:self.m,:self.n]
+        return self._relation[:self.m,:]
 
     @property
     def entropy(self) -> float:
@@ -112,7 +112,7 @@ class AssociativeMemory(object):
 
 
     def containment(self, r_io):
-        return ~r_io[:self.m, :self.n] | self.relation
+        return ~r_io[:self.m, :] | self.relation
 
 
     # Reduces a relation to a function
@@ -123,7 +123,7 @@ class AssociativeMemory(object):
 
     def validate(self, vector):
         # Forces it to be a vector.
-        v = np.ravel(vector)
+        v = np.copy(vector)
 
         if len(v) != self.n:
             raise ValueError('Invalid size of the input data. Expected', self.n, 'and given', vector.size)
