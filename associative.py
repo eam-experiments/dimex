@@ -39,17 +39,13 @@ class AssociativeMemory(object):
         self._n = n
         self._m = m+1
         self._t = tolerance
+        self._max = 256
 
         # it is m+1 to handle partial functions.
-        self._relation = np.zeros((self._m, self._n), dtype=np.bool)
+        self._relation = np.zeros((self._m, self._n), dtype=np.int)
 
     def __str__(self):
-        relation = np.zeros((self.m, self.n), dtype=np.unicode)
-        relation[:] = 'O'
-        r, c = np.nonzero(self.relation)
-        for i in zip(r, c):
-            relation[i] = 'X'
-        return str(relation)
+        return str(self.relation)
 
     @property
     def n(self):
@@ -66,50 +62,62 @@ class AssociativeMemory(object):
     @property
     def entropy(self) -> float:
         """Return the entropy of the Associative Memory."""
-        e = 0.0  # entropy
-        v = self.relation.sum(axis=0)  # number of marked cells in the columns
-        v = np.where(v == 0, 1, v)
-        v = np.log2(v)
-        e = v.sum()/self.n
-        return e
+        entropies = self.entropies()
+        return entropies.sum()/self.n
 
     @property
     def undefined(self):
         return self.m
 
+    def entropies(self):
+        """Return the entropy of the Associative Memory."""
+        matrix = np.copy(self.relation)
+        totals = matrix.sum(axis=0)  # sum of cell values by columns
+        totals = np.where(totals == 0, 1, totals)
+        matrix = matrix/totals
+        matrix = -matrix*np.log2(np.where(matrix == 0.0, 1.0, matrix))
+        return matrix.sum(axis=0)
+
     def is_undefined(self, value):
         return value == self.undefined
-
 
     def vector_to_relation(self, vector):
         relation = np.zeros((self._m, self._n), np.bool)
         relation[vector, range(self.n)] = True
         return relation
 
-
     # Choose a value for feature i.
-    def choose(self, i, v):
+    def choose(self, j, v):
         if self.is_undefined(v):
-            values = np.where(self.relation[:self.m,i])[0]
+            values = np.where(self.relation[:self.m,j])[0]
             return random.choice(values)
-        if not self.relation[v, i]:
+        if not self.relation[v, j]:
             return self.undefined
         bottom = 0
-        for j in range(v, -1, -1):
-            if not self.relation[j,i]:
-                bottom = j + 1
+        for i in range(v, -1, -1):
+            if not self.relation[i,j]:
+                bottom = i + 1
                 break
-        top = self.m - 1
-        for j in range(v, self.m):
-            if not self.relation[j,i]:
-                top = j - 1
+        top = self.m-1
+        for i in range(v, self.m):
+            if not self.relation[i,j]:
+                top = i - 1
                 break
-        return v if bottom == top else round(random.triangular(bottom, top, v))
+        if bottom == top:
+            return v
+        else:
+            sum = self.relation[bottom:top+1, j].sum()
+            print(f'Sum: {sum}')
+            n = int(sum*random.random())
+            print(f'n: {n}')
+            for i in range(bottom,top):
+                if n < self.relation[i,j]:
+                    return i
+                n -= self.relation[i,j]
+            return top
                  
-
     def abstract(self, r_io) -> None:
-        self._relation = self._relation | r_io
-
+        self._relation = (self._relation + r_io) % self._max
 
     def containment(self, r_io):
         return ~r_io[:self.m, :] | self.relation
@@ -120,7 +128,6 @@ class AssociativeMemory(object):
         v = np.array([self.choose(i, vector[i]) for i in range(self.n)])
         return v
 
-
     def validate(self, vector):
         # Forces it to be a vector.
         v = np.copy(vector)
@@ -130,19 +137,15 @@ class AssociativeMemory(object):
         v = np.nan_to_num(v, copy=False, nan=self.undefined)
         v = np.where((v > self.m) | (v < 0), self.undefined, v)
         return v.astype('int')
-        
 
     def revalidate(self, vector):
         v = vector.astype('float')
         return np.where(v == float(self.undefined), np.nan, v)
 
-
     def register(self, vector) -> None:
         vector = self.validate(vector)
-
         r_io = self.vector_to_relation(vector)
         self.abstract(r_io)
-
 
     def recognize(self, vector):
         vector = self.validate(vector)
@@ -150,13 +153,11 @@ class AssociativeMemory(object):
         r_io = self.containment(r_io)
         return np.count_nonzero(r_io[:self.m,:self.n] == False) <= self._t
 
-
     def mismatches(self, vector):
         vector = self.validate(vector)
         r_io = self.vector_to_relation(vector)
         r_io = self.containment(r_io)
         return np.count_nonzero(r_io[:self.m,:self.n] == False)
-
 
     def recall(self, vector):
         vector = self.validate(vector)
