@@ -232,8 +232,11 @@ def plot_conf_matrix(matrix, tags, prefix, es):
     plt.savefig(filename, dpi=600)
 
 
-def get_label(memories, entropies = None):
-    # Random selection
+def get_label(memories, suggestion = None, entropies = None):
+    if len(memories) == 1:
+        return memories[0]
+    if suggestion in memories:
+        return suggestion
     if entropies is None:
         i = random.atddrange(len(memories))
         return memories[i]
@@ -245,7 +248,7 @@ def get_label(memories, entropies = None):
             if entropy > entropies[j]:
                 i = j
                 entropy = entropies[i]
-    return i
+        return i
 
 
 def msize_features(features, msize, min_value, max_value):
@@ -299,8 +302,9 @@ def memories_accuracy(cms):
         accuracy += weight*m_accuracy
     return accuracy
 
-def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fold):
+def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, rnn, tolerance, fold):
     # Round the values
+    rnn_labels = rnn.predict(tef)
     max_value = trf.max()
     other_value = tef.max()
     max_value = max_value if max_value > other_value else other_value
@@ -338,7 +342,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fol
     # Recognition
     response_size = 0
 
-    for features, label in zip(tef_rounded, tel):
+    for features, label, nn_label in zip(tef_rounded, tel, rnn_labels):
         correct = int(label/lpm)
 
         memories = []
@@ -360,7 +364,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fol
         elif not (correct in memories):
             behaviour[constants.no_correct_response_idx] += 1
         else:
-            l = get_label(memories, entropy)
+            l = get_label(memories, nn_label, entropy)
             if l != correct:
                 behaviour[constants.no_correct_chosen_idx] += 1
             else:
@@ -440,11 +444,12 @@ def test_memories(domain, es):
         measures_per_size = np.zeros((len(constants.memory_sizes), constants.n_measures), dtype=np.float64)
         behaviours = np.zeros((len(constants.memory_sizes), constants.n_behaviours))
 
+        rnn = recnet.getClassifier(es, fold)
         print(f'Fold: {fold}')
         # Processes running in parallel.
         list_measures = Parallel(n_jobs=constants.n_jobs, verbose=50)(
             delayed(get_ams_results)(midx, msize, domain, labels_x_memory, \
-                filling_features, testing_features, filling_labels, testing_labels, es.tolerance, fold) \
+                filling_features, testing_features, filling_labels, testing_labels, rnn, es.tolerance, fold) \
                     for midx, msize in enumerate(constants.memory_sizes))
         for j, measures, behaviour in list_measures:
             measures_per_size[j, :] = measures
@@ -542,7 +547,7 @@ def test_memories(domain, es):
     return best_memory_size
 
 
-def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, idx, fill):
+def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, nnl, idx, fill):
     n_mems = constants.n_labels
 
     # To store precisión, recall, accuracy and entropies
@@ -561,7 +566,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
     cmatrix = np.zeros((2,2))
 
     # Registration
-    for features, label in zip(trf, trl):
+    for features, label, nn_label in zip(trf, trl, nnl):
         ams[label].register(features)
 
     # Calculate entropies
@@ -602,7 +607,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
             # all_recalls.append((n, label, undefined))
             cmatrix[FN] += 1
         else:
-            l = get_label(memories, entropy)
+            l = get_label(memories, nn_label, entropy)
             # features = recalls[l]*(max_value-min_value)*1.0/(msize-1) + min_value
             # all_recalls.append((n, label, features))
 
@@ -669,6 +674,8 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
 
     testing_features = np.load(testing_features_filename)
     testing_labels = np.load(testing_labels_filename)
+    rnn = recnet.getClassifier(es, fold)
+    rnn_labels = rnn.predict(testing_features)
 
     filling_max = filling_features.max()
     testing_max = testing_features.max()
@@ -701,7 +708,7 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
 
         # recalls, measures, step_precision, step_recall, mis_count = get_recalls(ams, mem_size, domain, \
         measures, step_precision, step_recall, mis_count = get_recalls(ams, mem_size, domain, \
-            minimum, maximum, features, labels, testing_features, testing_labels, fold, end)
+            minimum, maximum, features, labels, testing_features, testing_labels, rnn_labels, fold, end)
 
         # A list of tuples (position, label, features)
         # fold_recalls += recalls
@@ -1117,11 +1124,11 @@ if __name__== "__main__" :
     if args['<memfill>']:
         try:
             fill_percent = float(args['<memfill>'])
-            if (fill_percent < 0) or (fill_percent > 100):
+            if (fill_percent <= 0) or (fill_percent > 100):
                 raise Exception('Out of range number.')
             fill_percent /= 100
         except:
-            constants.print_error('<memfill> must be a number in [0-100] range.')
+            constants.print_error('<memfill> must be a number in (0-100] range.')
             exit(1)
 
     # Processing learned data.

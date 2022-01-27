@@ -295,6 +295,10 @@ class SplittedNeuralNetwork:
         for from_layer, to_layer in zip(classifier.layers[encoder_nlayers+1:], self.classifier.layers[1:]):
             to_layer.set_weights(from_layer.get_weights())
 
+def getClassifier(es, fold):
+    model_prefix = constants.model_name(es)
+    snnet = SplittedNeuralNetwork(model_prefix, es, fold)
+    return snnet.classifier
 
 def process_sample(sample: dimex.TaggedAudio, snnet: SplittedNeuralNetwork, decode):
     features = snnet.encoder.predict(sample.segments)
