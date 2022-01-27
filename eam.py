@@ -302,9 +302,8 @@ def memories_accuracy(cms):
         accuracy += weight*m_accuracy
     return accuracy
 
-def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, rnn, tolerance, fold):
+def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, nnl, tolerance, fold):
     # Round the values
-    rnn_labels = rnn.predict(tef)
     max_value = trf.max()
     other_value = tef.max()
     max_value = max_value if max_value > other_value else other_value
@@ -342,7 +341,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, rnn, tolerance
     # Recognition
     response_size = 0
 
-    for features, label, nn_label in zip(tef_rounded, tel, rnn_labels):
+    for features, label, nn_label in zip(tef_rounded, tel, nnl):
         correct = int(label/lpm)
 
         memories = []
@@ -445,11 +444,13 @@ def test_memories(domain, es):
         behaviours = np.zeros((len(constants.memory_sizes), constants.n_behaviours))
 
         rnn = recnet.getClassifier(es, fold)
+        rnn_labels = rnn.predict(testing_features)
+
         print(f'Fold: {fold}')
         # Processes running in parallel.
         list_measures = Parallel(n_jobs=constants.n_jobs, verbose=50)(
             delayed(get_ams_results)(midx, msize, domain, labels_x_memory, \
-                filling_features, testing_features, filling_labels, testing_labels, rnn, es.tolerance, fold) \
+                filling_features, testing_features, filling_labels, testing_labels, rnn_labels, es.tolerance, fold) \
                     for midx, msize in enumerate(constants.memory_sizes))
         for j, measures, behaviour in list_measures:
             measures_per_size[j, :] = measures
