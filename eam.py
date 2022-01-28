@@ -567,7 +567,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, nn
     cmatrix = np.zeros((2,2))
 
     # Registration
-    for features, label, nn_label in zip(trf, trl, nnl):
+    for features, label in zip(trf, trl):
         ams[label].register(features)
 
     # Calculate entropies
@@ -580,7 +580,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, nn
     mismatches = 0
 
     # Recover memories
-    for n, features, label in zip(range(len(tef)), tef, tel):
+    for n, features, label, nn_label in zip(range(len(tef)), tef, tel, nnl):
         memories = []
         # recalls ={}
 
