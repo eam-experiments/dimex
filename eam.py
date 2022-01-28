@@ -247,7 +247,7 @@ def get_label(memories, suggestion = None, entropies = None):
         for j in memories[1:]:
             if entropy > entropies[j]:
                 i = j
-                entropy = entropies[i]
+                entropy = entropies[j]
         return i
 
 
