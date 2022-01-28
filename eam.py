@@ -444,7 +444,7 @@ def test_memories(domain, es):
         behaviours = np.zeros((len(constants.memory_sizes), constants.n_behaviours))
 
         rnn = recnet.getClassifier(es, fold)
-        rnn_labels = rnn.predict(testing_features)
+        rnn_labels = np.argmax(rnn.predict(testing_features), axis=1)
 
         print(f'Fold: {fold}')
         # Processes running in parallel.
@@ -676,7 +676,7 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
     testing_features = np.load(testing_features_filename)
     testing_labels = np.load(testing_labels_filename)
     rnn = recnet.getClassifier(es, fold)
-    rnn_labels = rnn.predict(testing_features)
+    rnn_labels = np.argmax(rnn.predict(testing_features), axis=1)
 
     filling_max = filling_features.max()
     testing_max = testing_features.max()
