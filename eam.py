@@ -234,6 +234,8 @@ def plot_conf_matrix(matrix, tags, prefix, es):
 
 def get_label(memories, entropies = None):
     # Random selection
+    if len(memories) == 1:
+        return memories[0]
     if entropies is None:
         i = random.atddrange(len(memories))
         return memories[i]
@@ -244,7 +246,7 @@ def get_label(memories, entropies = None):
         for j in memories[1:]:
             if entropy > entropies[j]:
                 i = j
-                entropy = entropies[i]
+                entropy = entropies[j]
     return i
 
 
