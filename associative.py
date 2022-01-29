@@ -107,9 +107,7 @@ class AssociativeMemory(object):
             return v
         else:
             sum = self.relation[bottom:top+1, j].sum()
-            print(f'Sum: {sum}')
             n = int(sum*random.random())
-            print(f'n: {n}')
             for i in range(bottom,top):
                 if n < self.relation[i,j]:
                     return i
