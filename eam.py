@@ -47,11 +47,7 @@ import gettext
 
 import numpy as np
 from numpy.core.einsumfunc import einsum_path
-
 from joblib import Parallel, delayed
-from ray.util.joblib import register_ray
-register_ray()
-
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import random
@@ -447,11 +443,10 @@ def test_memories(domain, es):
 
         print(f'Fold: {fold}')
         # Processes running in parallel.
-        with joblib.parallel_backend('ray'):
-            list_measures = Parallel(n_jobs=constants.n_jobs, verbose=50)(
-                delayed(get_ams_results)(midx, msize, domain, labels_x_memory, \
-                    filling_features, testing_features, filling_labels, testing_labels, es.tolerance, fold) \
-                        for midx, msize in enumerate(constants.memory_sizes))
+        list_measures = Parallel(n_jobs=constants.n_jobs, verbose=50)(
+            delayed(get_ams_results)(midx, msize, domain, labels_x_memory, \
+                filling_features, testing_features, filling_labels, testing_labels, es.tolerance, fold) \
+                    for midx, msize in enumerate(constants.memory_sizes))
         for j, measures, behaviour in list_measures:
             measures_per_size[j, :] = measures
             behaviours[j, :] = behaviour
@@ -751,10 +746,9 @@ def test_recalling(domain, mem_size, es):
     sys_recalls = np.zeros((testing_folds, len(memory_fills)))
     total_mismatches = np.zeros((testing_folds, len(memory_fills)))
 
-    with joblib.parallel_backend('ray'):
-        list_results = Parallel(n_jobs=constants.n_jobs, verbose=50)(
-            delayed(test_recalling_fold)(n_memories, mem_size, domain, es, fold) \
-                for fold in range(testing_folds))
+    list_results = Parallel(n_jobs=constants.n_jobs, verbose=50)(
+        delayed(test_recalling_fold)(n_memories, mem_size, domain, es, fold) \
+            for fold in range(testing_folds))
 
     # for fold, memories, entropy, precision, recall, accuracy, \
     for fold, entropy, precision, recall, accuracy, \

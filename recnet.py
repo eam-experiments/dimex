@@ -21,6 +21,7 @@ from tensorflow.keras.layers import Input, GRU, LSTM, SimpleRNN, Dropout, Dense,
     MaxPool1D, Bidirectional, LayerNormalization, Reshape, RepeatVector, TimeDistributed
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import Callback
+from joblib import Parallel, delayed
 
 import constants
 import dimex
