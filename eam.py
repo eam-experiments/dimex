@@ -247,8 +247,7 @@ def get_label(memories, entropies = None):
             if entropy > entropies[j]:
                 i = j
                 entropy = entropies[j]
-    return i
-
+        return i
 
 def msize_features(features, msize, min_value, max_value):
     return np.round((msize-1)*(features-min_value) / (max_value-min_value)).astype(np.int16)

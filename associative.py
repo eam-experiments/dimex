@@ -115,7 +115,7 @@ class AssociativeMemory(object):
             return top
                  
     def abstract(self, r_io) -> None:
-        self._relation = (self._relation + r_io) % self._max
+        self._relation = np.where(self._relation == 255, self._relation, self._relation + r_io)
 
     def containment(self, r_io):
         return ~r_io[:self.m, :] | self.relation
@@ -127,6 +127,11 @@ class AssociativeMemory(object):
         return v
 
     def validate(self, vector):
+        """ It asumes vector is an array of floats, and np.nan
+            is used to register an undefined value, but it also 
+            considerers any negative number or out of range number
+            as undefined.
+        """
         # Forces it to be a vector.
         v = np.copy(vector)
 
