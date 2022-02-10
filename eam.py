@@ -1184,7 +1184,8 @@ def run_evaluation(es):
     for mem_size in constants.memory_sizes:
         b_filling_percent = test_recalling(constants.domain, mem_size, es)
         best_fillings[mem_size] = b_filling_percent
-    test_memories(constants.domain, best_fillings, es)
+    best_memory_size = test_memories(constants.domain, best_fillings, es)
+    print('Best memory size: ' + str(best_memory_size))
     save_best_fillings(best_fillings)
 
 
