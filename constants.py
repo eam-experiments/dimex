@@ -130,10 +130,10 @@ class ExperimentSettings:
         self.tolerance = tolerance
     def __str__(self):
         s = 'Stage: ' + str(self.stage) + \
-            'Fill: ' + str(self.fill_percent) + \
-            'Learned: ' + str(self.learned) + \
-            'Extended: ' + str(self.extended) + \
-            'Tolerance: ' + str(self.tolerance)
+            ', Fill: ' + str(self.fill_percent) + \
+            ', Learned: ' + str(self.learned) + \
+            ', Extended: ' + str(self.extended) + \
+            ', Tolerance: ' + str(self.tolerance)
         return s
 
 def print_warning(*s):
