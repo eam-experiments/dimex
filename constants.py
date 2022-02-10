@@ -32,6 +32,7 @@ memories_prefix = 'memories'
 model_prefix = 'model'
 recognition_prefix = 'recognition'
 stats_prefix = 'model_stats'
+fillings_prefix = 'fillings'
 
 balanced_data = 'balanced'
 seed_data = 'seed'
@@ -200,6 +201,9 @@ def labels_name(es):
 
 def memories_name(es):
     return memories_prefix
+
+def fillings_name(es):
+    return fillings_prefix
 
 def filename(name_prefix, es = None, fold = None, extension = ''):
     """ Returns a file name in run_path directory with a given extension and an index
