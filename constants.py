@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
 import sys
 import numpy as np
 
@@ -65,10 +64,10 @@ recognition_suffixes = [[original_suffix], [agreed_suffix], [original_suffix, ag
 
 
 mfcc_numceps = 26
-n_folds = 1 
+n_folds = 10 
 domain = 512
 n_frames = 8
-n_jobs = 4
+n_jobs = 16
 
 nn_training_percent = 0.69
 am_filling_percent = 0.21
