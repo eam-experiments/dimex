@@ -71,10 +71,9 @@ class AssociativeMemory(object):
 
     def entropies(self):
         """Return the entropy of the Associative Memory."""
-        matrix = np.copy(self.relation)
-        totals = matrix.sum(axis=0)  # sum of cell values by columns
+        totals = self.relation.sum(axis=0)  # sum of cell values by columns
         totals = np.where(totals == 0, 1, totals)
-        matrix = matrix/totals
+        matrix = self.relation/totals
         matrix = -matrix*np.log2(np.where(matrix == 0.0, 1.0, matrix))
         return matrix.sum(axis=0)
 
@@ -132,12 +131,9 @@ class AssociativeMemory(object):
             considerers any negative number or out of range number
             as undefined.
         """
-        # Forces it to be a vector.
-        v = np.copy(vector)
-
-        if len(v) != self.n:
+        if len(vector) != self.n:
             raise ValueError('Invalid size of the input data. Expected', self.n, 'and given', vector.size)
-        v = np.nan_to_num(v, copy=False, nan=self.undefined)
+        v = np.nan_to_num(vector, copy=True, nan=self.undefined)
         v = np.where((v > self.m) | (v < 0), self.undefined, v)
         return v.astype('int')
 
