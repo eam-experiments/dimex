@@ -17,7 +17,7 @@
 
 Usage:
   eam -h | --help
-  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [-m <memfill>] [-d <learned_data>] [-x] [-t <tolerance>] [ -l (en | es) ]
+  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [--learned=<learned_data>] [-x] [--tolerance=<tolerance>] [ -l (en | es) ]
 
 Options:
   -h        Show this screen.
@@ -28,10 +28,9 @@ Options:
   -e        Run the experiment 1 (Evaluation).
   -i        Increase the amount of data (learning).
   -r        Run the experiment 2 (Recognition).
-  -m        Percent memory filling data should be reduced.
-  -d        Selects which learneD Data is used for evaluation, recognition or learning.
+  --learned=<learned_data>        Selects which learneD Data is used for evaluation, recognition or learning [default: 0].
   -x        Use the eXtended data set as testing data for memory.
-  -t        Allow Tolerance (unmatched features) in memory.
+  --tolerance=<tolerance>        Allow Tolerance (unmatched features) in memory [default: 0].
   -l        Chooses Language for graphs.            
 
 The parameter <stage> indicates the stage of learning from which data is used.
@@ -228,6 +227,17 @@ def plot_conf_matrix(matrix, tags, prefix, es):
     seaborn.heatmap(matrix, xticklabels=tags, yticklabels=tags, vmin = 0.0, vmax=1.0, annot=False, cmap='Blues')
     plt.xlabel(_('Prediction'))
     plt.ylabel(_('Label'))
+    filename = constants.picture_filename(prefix, es)
+    plt.savefig(filename, dpi=600)
+
+
+def plot_memory(relation, prefix, es):
+    plt.clf()
+    plt.figure(figsize=(6.4, 4.8))
+    seaborn.heatmap(relation, vmin=0.0, vmax=1.0,
+                    annot=False, cmap='coolwarm')
+    plt.xlabel(_('Characteristics'))
+    plt.ylabel(_('Values'))
     filename = constants.picture_filename(prefix, es)
     plt.savefig(filename, dpi=600)
 
@@ -430,11 +440,6 @@ def test_memories(domain, es):
 
         filling_features = np.load(filling_features_filename)
         filling_labels = np.load(filling_labels_filename)
-        # Apply reduction to given percent of filling data.
-        n = int(len(filling_labels)*es.fill_percent)
-        filling_features = filling_features[:n]
-        filling_labels = filling_labels[:n]
-
         testing_features = np.load(testing_features_filename)
         testing_labels = np.load(testing_labels_filename)
 
@@ -663,11 +668,6 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
 
     filling_features = np.load(filling_features_filename)
     filling_labels = np.load(filling_labels_filename)
-    # Apply reduction to given percent of filling data.
-    n = int(len(filling_labels)*es.fill_percent)
-    filling_features = filling_features[:n]
-    filling_labels = filling_labels[:n]
-
     testing_features = np.load(testing_features_filename)
     testing_labels = np.load(testing_labels_filename)
 
@@ -792,7 +792,6 @@ def test_recalling(domain, mem_size, es):
     main_avrge_sys_recall = np.mean(sys_recalls,axis=0)
     main_stdev_sys_recall = np.std(sys_recalls,axis=0)
     
-    
     np.savetxt(constants.csv_filename('main_average_precision', es), \
         main_avrge_mprecision, delimiter=',')
     np.savetxt(constants.csv_filename('main_average_recall', es), \
@@ -823,7 +822,23 @@ def test_recalling(domain, mem_size, es):
         main_stdev_sys_precision*100, main_stdev_sys_recall*100, None, main_stdev_entropies, es, 'total_recall-', \
             xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'))
 
+    bfp = best_filling_percentage(main_avrge_mrecall, main_avrge_mprecision)
+    print('Best filling percent: ' + str(bfp))
     print('Filling evaluation completed!')
+    return bfp
+
+
+def best_filling_percentage(m_recall, m_precision):
+    i = 0
+    n = 0
+    distance = float('inf')
+    for recall, precision in zip(m_recall, m_precision):
+        new_distance = abs(recall - precision)
+        if new_distance < distance:
+            n = i
+            distance = new_distance
+        i += 1
+    return constants.memory_fills[n]
 
 
 def get_all_data(prefix, es):
@@ -852,6 +867,16 @@ def save_history(history, prefix, es):
     with open(constants.json_filename(prefix,es), 'w') as outfile:
         json.dump(stats, outfile)
 
+def save_learn_params(mem_size, fill_percent, es):
+    name = constants.learn_params_name(es)
+    filename = constants.data_filename(name, es)
+    np.save(filename, np.array([mem_size, fill_percent], dtype=int))
+
+def load_learn_params(es):
+    name = constants.learn_params_name(es)
+    filename = constants.data_filename(name, es)
+    lp = np.load(filename)
+    return (int)(lp[0]), (int)(lp[1])
 
 def save_conf_matrix(matrix, prefix, es):
     name = constants.matrix_name(es)
@@ -995,7 +1020,7 @@ def ams_process_samples(samples, ams, minimum, maximum, decode=False):
                 for chunk in chunks)
     return [sample for chunk in processed for sample in chunk]
 
-def learn_new_data(domain, mem_size, es):
+def learn_new_data(domain, mem_size, fill_percent, es):
     histories = []
     model_prefix = constants.model_name(es)
     features_prefix = constants.features_name(es)
@@ -1011,7 +1036,7 @@ def learn_new_data(domain, mem_size, es):
         filling_features = np.load(filling_features_filename)
         filling_labels = np.load(filling_labels_filename)        
         # Apply reduction to given percent of filling data.
-        n = int(len(filling_labels)*es.fill_percent)
+        n = int(len(filling_labels)*fill_percent)
         filling_features = filling_features[:n]
         filling_labels = filling_labels[:n]
 
@@ -1083,17 +1108,20 @@ def characterize_features(es):
         stdevs[i] = np.std(d[i], axis=0)
     plot_features_graph(constants.domain, means, stdevs, es)
     
-
 def run_evaluation(es):
     best_memory_size = test_memories(constants.domain, es)
     print(f'Best memory size: {best_memory_size}')
     best_filling_percent = test_recalling(constants.domain, best_memory_size, es)
+    save_learn_params(best_memory_size, best_filling_percent, es)
 
 def extend_data(es):
-    learn_new_data(constants.domain, constants.ideal_memory_size, es)
+    mem_size, fill_percent = load_learn_params(es)
+    print(f'Learning data with memory size of {mem_size} and fill of {fill_percent}%')
+    learn_new_data(constants.domain, mem_size, fill_percent, es)
  
 if __name__== "__main__" :
     args = docopt(__doc__)
+    print(args)
 
     # Processing language.
     lang = 'en'
@@ -1113,23 +1141,11 @@ if __name__== "__main__" :
             constants.print_error('<stage> must be a positive integer.')
             exit(1)
 
-    # Processing memory fill percent reduction.
-    fill_percent = 1.0
-    if args['<memfill>']:
-        try:
-            fill_percent = float(args['<memfill>'])
-            if (fill_percent < 0) or (fill_percent > 100):
-                raise Exception('Out of range number.')
-            fill_percent /= 100
-        except:
-            constants.print_error('<memfill> must be a number in [0-100] range.')
-            exit(1)
-
     # Processing learned data.
     learned = 0
-    if args['<learned_data>']:
+    if args['--learned']:
         try:
-            learned = int(args['<learned_data>'])
+            learned = int(args['--learned'])
             if (learned < 0) or (learned >= constants.learned_data_groups):
                 raise Exception('Number out of range.')
         except:
@@ -1141,16 +1157,18 @@ if __name__== "__main__" :
 
     # Processing tolerance.
     tolerance = 0
-    if args['<tolerance>']:
+    if args['--tolerance']:
         try:
-            tolerance = int(args['<tolerance>'])
+            tolerance = int(args['--tolerance'])
             if (tolerance < 0) or (tolerance > constants.domain):
                 raise Exception('Number out of range.')
         except:
             constants.print_error('<tolerance> must be a positive integer.')
             exit(1)
 
-    exp_set = constants.ExperimentSettings(stage, fill_percent, learned, extended, tolerance)
+    exp_set = constants.ExperimentSettings(stage, learned, extended, tolerance)
+    print(f'Experimental settings: {exp_set}')
+
     # PROCESSING OF MAIN OPTIONS.
 
     if args['-n']:

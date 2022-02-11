@@ -32,6 +32,7 @@ memories_prefix = 'memories'
 model_prefix = 'model'
 recognition_prefix = 'recognition'
 stats_prefix = 'model_stats'
+learn_params_prefix ='learn_params'
 
 balanced_data = 'balanced'
 seed_data = 'seed'
@@ -120,13 +121,18 @@ MIN_EXPERIMENT = 1
 MAX_EXPERIMENT = 10
 
 class ExperimentSettings:
-    def __init__(self, stage = 0, fill_percent = 1.0,
-        learned = 0, extended = False, tolerance = 0):
+    def __init__(self, stage = 0, learned = 0, 
+        extended = False, tolerance = 0):
         self.stage = stage
-        self.fill_percent = fill_percent
         self.learned = learned
         self.extended = extended
         self.tolerance = tolerance
+    def __str__(self):
+        s = '{Stage: ' + str(self.stage) + \
+            ', Learned: ' + str(self.learned) + \
+            ', Extended: ' + str(self.extended) + \
+            ', Tolerance: ' + str(self.tolerance) + '}'
+        return s
 
 
 def print_warning(*s):
@@ -200,6 +206,9 @@ def labels_name(es):
 
 def memories_name(es):
     return memories_prefix
+
+def learn_params_name(es):
+    return learn_params_prefix
 
 def filename(name_prefix, es = None, fold = None, extension = ''):
     """ Returns a file name in run_path directory with a given extension and an index
