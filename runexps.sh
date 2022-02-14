@@ -2,6 +2,7 @@
 
 if [ $# != 2 ]; then
     echo "Usage: $0 learned tolerance"
+    exit 1
 fi
 learned=$1
 tolerance=$2

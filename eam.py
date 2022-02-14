@@ -1013,7 +1013,7 @@ def ams_process_samples_batch(samples, ams, minimum, maximum, decode=False):
     return samples
 
 def ams_process_samples(samples, ams, minimum, maximum, decode=False):
-    chunk_size = 100
+    chunk_size = 10
     chunks = list_chunks(samples, chunk_size)
     processed = Parallel(n_jobs=constants.n_jobs, verbose=50)(
         delayed(ams_process_samples_batch)(chunk, ams, minimum, maximum, decode) \
