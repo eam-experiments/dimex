@@ -67,7 +67,7 @@ mfcc_numceps = 26
 n_folds = 10 
 domain = 512
 n_frames = 8
-n_jobs = 16
+n_jobs = 22
 
 nn_training_percent = 0.69
 am_filling_percent = 0.21
