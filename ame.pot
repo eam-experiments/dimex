@@ -81,3 +81,6 @@ msgstr ""
 msgid "Percentage of memory corpus"
 msgstr ""
 
+#: mismatches.py:48
+msgid "Mismatches"
+msgstr ""

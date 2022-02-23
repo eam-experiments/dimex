@@ -83,6 +83,10 @@ msgstr "Valores"
 msgid "Percentage of memory corpus"
 msgstr "Porcentaje del corpus de la memoria"
 
+# mistmatches.py
+msgid "Mismatches"
+msgstr "Discrepancias"
+
 #, fuzzy
 #~| msgid "-english"
 #~ msgid "english"
