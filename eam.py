@@ -312,6 +312,21 @@ def memories_accuracy(cms):
         accuracy += weight*m_accuracy
     return accuracy
 
+def register_in_memory(memory, features):
+    memory.register(features)
+
+def recognize_by_memory(k, correct, memory, cm, features):
+    recognized = memory.recognize(features)
+    # For calculation of per memory precision and recall
+    cm[TP] += (k == correct) and recognized
+    cm[FP] += (k != correct) and recognized
+    cm[TN] += not ((k == correct) or recognized)
+    cm[FN] += (k == correct) and not recognized
+    return k if recognized else None
+
+def memory_entropy(m, memory: AssociativeMemory):
+    return m, memory.entropy
+
 def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fold):
     # Round the values
     max_value = trf.max()
@@ -340,13 +355,15 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fol
     for m in ams:
         ams[m] = AssociativeMemory(domain, msize, tolerance)
     # Registration
-    for features, label in zip(trf_rounded, trl):
-        m = int(label/lpm)
-        ams[m].register(features)
+    Parallel(n_jobs=constants.n_jobs, verbose=50)(
+        delayed(register_in_memory)(ams[int(label/lpm)], features) \
+            for features, label in zip(trf_rounded, trl))
 
     # Calculate entropies
-    for m in ams:
-        entropy[m] = ams[m].entropy
+    entropies = Parallel(n_jobs=constants.n_jobs, verbose=50)(
+        delayed(memory_entropy)(m, ams[m]) for m in ams)
+    for m, e in entropies:
+        entropy[m] = e
 
     # Recognition
     response_size = 0
@@ -354,18 +371,10 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fol
     for features, label in zip(tef_rounded, tel):
         correct = int(label/lpm)
 
-        memories = []
-        for k in ams:
-            recognized = ams[k].recognize(features)
-            if recognized:
-                memories.append(k)
-
-            # For calculation of per memory precision and recall
-            cms[k][TP] += (k == correct) and recognized
-            cms[k][FP] += (k != correct) and recognized
-            cms[k][TN] += not ((k == correct) or recognized)
-            cms[k][FN] += (k == correct) and not recognized
- 
+        memories =  Parallel(n_jobs=constants.n_jobs, verbose=50)(
+                        delayed(recognize_by_memory)(k, correct, ams[k], cms[k], features) \
+            for k in ams)
+        memories = list(filter(lambda v: v is not None, memories))
         response_size += len(memories)
         if len(memories) == 0:
             # Register empty case
@@ -449,11 +458,11 @@ def test_memories(domain, es):
         behaviours = np.zeros((len(constants.memory_sizes), constants.n_behaviours))
 
         print(f'Fold: {fold}')
-        # Processes running in parallel.
-        list_measures = Parallel(n_jobs=constants.n_jobs, verbose=50)(
-            delayed(get_ams_results)(midx, msize, domain, labels_x_memory, \
-                filling_features, testing_features, filling_labels, testing_labels, es.tolerance, fold) \
-                    for midx, msize in enumerate(constants.memory_sizes))
+        list_measures = []
+        for midx, msize in enumerate(constants.memory_sizes):
+            results = get_ams_results(midx, msize, domain, labels_x_memory,
+                filling_features, testing_features, filling_labels, testing_labels, es.tolerance, fold)
+            list_measures.append(results)
         for j, measures, behaviour in list_measures:
             measures_per_size[j, :] = measures
             behaviours[j, :] = behaviour
@@ -568,13 +577,14 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
     # Confusion matrix for calculating overall precision and recall.
     cmatrix = np.zeros((2,2))
 
-    # Registration
-    for features, label in zip(trf, trl):
-        ams[label].register(features)
+    Parallel(n_jobs=constants.n_jobs, verbose=50)(
+        delayed(register_in_memory)(ams[label], features) \
+            for features, label in zip(trf, trl))
 
-    # Calculate entropies
-    for j in ams:
-        entropy[j] = ams[j].entropy
+    entropies = Parallel(n_jobs=constants.n_jobs, verbose=50)(
+        delayed(memory_entropy)(m, ams[m]) for m in ams)
+    for m, e in entropies:
+        entropy[m] = e
 
     # The list of recalls recovered from memory.
     # all_recalls = []
@@ -590,20 +600,10 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
         # the features.
         mismatches += ams[label].mismatches(features)
 
-        for k in ams:
-            # recall, recognized = ams[k].recall(features)
-            recognized = ams[k].recognize(features)
-
-            # For calculation of per memory precision and recall
-            cms[k][TP] += (k == label) and recognized
-            cms[k][FP] += (k != label) and recognized
-            cms[k][TN] += not ((k == label) or recognized)
-            cms[k][FN] += (k == label) and not recognized
-
-            if recognized:
-                memories.append(k)
-                # recalls[k] = recall
-
+        memories =  Parallel(n_jobs=constants.n_jobs, verbose=50)(
+                        delayed(recognize_by_memory)(k, label, ams[k], cms[k], features) \
+            for k in ams)
+        memories = list(filter(lambda v: v is not None, memories))
         if (len(memories) == 0):
             # Register empty case
             undefined = np.full(domain, ams[0].undefined)
@@ -748,10 +748,10 @@ def test_recalling(domain, mem_size, es):
     sys_recalls = np.zeros((testing_folds, len(memory_fills)))
     total_mismatches = np.zeros((testing_folds, len(memory_fills)))
 
-    list_results = Parallel(n_jobs=constants.n_jobs, verbose=50)(
-        delayed(test_recalling_fold)(n_memories, mem_size, domain, es, fold) \
-            for fold in range(testing_folds))
-
+    list_results = []
+    for fold in range(testing_folds):
+        results = test_recalling_fold(n_memories, mem_size, domain, es, fold)
+        list_results.append(results)
     # for fold, memories, entropy, precision, recall, accuracy, \
     for fold, entropy, precision, recall, accuracy, \
         sys_precision, sys_recall, mismatches in list_results:
