@@ -36,3 +36,20 @@ vd = np.array([0, 1, 2, 1])
 # 2: 0 1 0 0
 
 vi = np.array([1, 2, 1, 0])
+
+
+def testing_recognize():
+    m = AssociativeMemory(4,3)
+    m.register(vd)
+    m.register(vi)
+    m.register(v1)
+    vs = [v0, v1, v2, vi, vd]
+    n = 500*1000
+    start = time.perf_counter()
+    for _ in range(n):
+        for v in vs:
+            m.recognize(v)
+    end = time.perf_counter()
+    return end - start
+
+
