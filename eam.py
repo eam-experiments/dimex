@@ -36,6 +36,7 @@ Options:
 The parameter <stage> indicates the stage of learning from which data is used.
 Default is the last one.
 """
+from socket import SCM_CREDS
 from docopt import docopt
 from pickle import EMPTY_SET
 import copy
@@ -43,7 +44,7 @@ import csv
 import sys
 import gc
 import gettext
-
+from itertools import islice
 import numpy as np
 from numpy.core.einsumfunc import einsum_path
 from joblib import Parallel, delayed
@@ -312,20 +313,58 @@ def memories_accuracy(cms):
         accuracy += weight*m_accuracy
     return accuracy
 
-def register_in_memory(memory, features):
-    memory.register(features)
-
-def recognize_by_memory(k, correct, memory, cm, features):
-    recognized = memory.recognize(features)
-    # For calculation of per memory precision and recall
-    cm[TP] += (k == correct) and recognized
-    cm[FP] += (k != correct) and recognized
-    cm[TN] += not ((k == correct) or recognized)
-    cm[FN] += (k == correct) and not recognized
-    return k if recognized else None
+def register_in_memory(memory, features_iterator):
+    for features in features_iterator:
+        memory.register(features)
 
 def memory_entropy(m, memory: AssociativeMemory):
     return m, memory.entropy
+
+def recognize_by_memory(fl_pairs, ams, lpm, entropy):
+    response_size = 0
+    n_mems = int(constants.n_labels/lpm)
+    cms = np.zeros((n_mems, 2, 2), dtype='int')
+    behaviour = np.zeros(constants.n_behaviours, dtype=np.float64)
+
+    for features, label in fl_pairs:
+        correct = int(label/lpm)
+        memories = []
+        for k in ams:
+            recognized = ams[k].recognize(features)
+            if recognized:
+                memories.append(k)
+            # For calculation of per memory precision and recall
+            cms[k][TP] += (k == correct) and recognized
+            cms[k][FP] += (k != correct) and recognized
+            cms[k][TN] += not ((k == correct) or recognized)
+            cms[k][FN] += (k == correct) and not recognized
+        response_size += len(memories)
+        if len(memories) == 0:
+            # Register empty case
+            behaviour[constants.no_response_idx] += 1
+        elif not (correct in memories):
+            behaviour[constants.no_correct_response_idx] += 1
+        else:
+            l = get_label(memories, entropy)
+            if l != correct:
+                behaviour[constants.no_correct_chosen_idx] += 1
+            else:
+                behaviour[constants.correct_response_idx] += 1
+    return response_size, cms, behaviour
+
+def split_by_label(fl_pairs):
+    label_dict = {}
+    for label in range(10):
+        label_dict[label] = \
+            filter(lambda fl: fl[1] == label, fl_pairs)
+    return label_dict.items
+
+def split_every(n, iterable):
+    i = iter(iterable)
+    piece = list(islice(i, n))
+    while piece:
+        yield piece
+        piece = list(islice(i, n))
 
 def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fold):
     # Round the values
@@ -354,39 +393,26 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fol
     ams = dict.fromkeys(range(n_mems))
     for m in ams:
         ams[m] = AssociativeMemory(domain, msize, tolerance)
-    # Registration
+
+    # Registration in parallel, per label.
     Parallel(n_jobs=constants.n_jobs, verbose=50)(
-        delayed(register_in_memory)(ams[int(label/lpm)], features) \
-            for features, label in zip(trf_rounded, trl))
+        delayed(register_in_memory)(ams[label], features_iterator) \
+            for label, features_iterator in split_by_label(zip(trf_rounded, trl))
 
     # Calculate entropies
-    entropies = Parallel(n_jobs=constants.n_jobs, verbose=50)(
-        delayed(memory_entropy)(m, ams[m]) for m in ams)
-    for m, e in entropies:
-        entropy[m] = e
+    for m in ams:
+        entropy[m] = ams[m].entropy
 
     # Recognition
     response_size = 0
-
-    for features, label in zip(tef_rounded, tel):
-        correct = int(label/lpm)
-
-        memories =  Parallel(n_jobs=constants.n_jobs, verbose=50)(
-                        delayed(recognize_by_memory)(k, correct, ams[k], cms[k], features) \
-            for k in ams)
-        memories = list(filter(lambda v: v is not None, memories))
-        response_size += len(memories)
-        if len(memories) == 0:
-            # Register empty case
-            behaviour[constants.no_response_idx] += 1
-        elif not (correct in memories):
-            behaviour[constants.no_correct_response_idx] += 1
-        else:
-            l = get_label(memories, entropy)
-            if l != correct:
-                behaviour[constants.no_correct_chosen_idx] += 1
-            else:
-                behaviour[constants.correct_response_idx] += 1
+    split_size = 500
+    for rsize, scms, sbehavs in \
+         Parallel(n_jobs=constants.n_jobs, verbose=50)(
+            delayed(recognize_by_memory)(fl_pairs, ams, lpm, entropy) \
+            for fl_pairs in split_every(split_size, zip(tef_rounded, tel))):
+        response_size += rsize
+        cms  = cms + scms
+        behaviour = behaviour + sbehavs
 
     behaviour[constants.mean_responses_idx] = response_size /float(len(tef_rounded))
     all_responses = len(tef_rounded) - behaviour[constants.no_response_idx]
