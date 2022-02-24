@@ -36,9 +36,7 @@ Options:
 The parameter <stage> indicates the stage of learning from which data is used.
 Default is the last one.
 """
-from socket import SCM_CREDS
 from docopt import docopt
-from pickle import EMPTY_SET
 import copy
 import csv
 import sys
@@ -314,7 +312,7 @@ def memories_accuracy(cms):
     return accuracy
 
 def register_in_memory(memory, features_iterator):
-    for features in features_iterator:
+    for features, _ in features_iterator:
         memory.register(features)
 
 def memory_entropy(m, memory: AssociativeMemory):
@@ -354,10 +352,10 @@ def recognize_by_memory(fl_pairs, ams, lpm, entropy):
 
 def split_by_label(fl_pairs):
     label_dict = {}
-    for label in range(10):
+    for label in range(constants.n_labels):
         label_dict[label] = \
             filter(lambda fl: fl[1] == label, fl_pairs)
-    return label_dict.items
+    return label_dict.items()
 
 def split_every(n, iterable):
     i = iter(iterable)
@@ -397,8 +395,9 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fol
     # Registration in parallel, per label.
     Parallel(n_jobs=constants.n_jobs, verbose=50)(
         delayed(register_in_memory)(ams[label], features_iterator) \
-            for label, features_iterator in split_by_label(zip(trf_rounded, trl))
+            for label, features_iterator in split_by_label(zip(trf_rounded, trl)))
 
+    print(f'Filling of memories done for fold {fold}')
     # Calculate entropies
     for m in ams:
         entropy[m] = ams[m].entropy
