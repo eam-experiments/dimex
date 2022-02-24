@@ -312,18 +312,17 @@ def memories_accuracy(cms):
     return accuracy
 
 def register_in_memory(memory, features_iterator):
-    for features, _ in features_iterator:
+    for features in features_iterator:
         memory.register(features)
 
 def memory_entropy(m, memory: AssociativeMemory):
     return m, memory.entropy
 
-def recognize_by_memory(fl_pairs, ams, lpm, entropy):
+def recognize_by_memory(fl_pairs, ams, entropy, lpm):
     response_size = 0
     n_mems = int(constants.n_labels/lpm)
     cms = np.zeros((n_mems, 2, 2), dtype='int')
     behaviour = np.zeros(constants.n_behaviours, dtype=np.float64)
-
     for features, label in fl_pairs:
         correct = int(label/lpm)
         memories = []
@@ -352,9 +351,10 @@ def recognize_by_memory(fl_pairs, ams, lpm, entropy):
 
 def split_by_label(fl_pairs):
     label_dict = {}
-    for label in range(constants.n_labels):
-        label_dict[label] = \
-            filter(lambda fl: fl[1] == label, fl_pairs)
+    for label in range(10):
+        label_dict[label] = []
+    for features, label in fl_pairs:
+        label_dict[label].append(features)
     return label_dict.items()
 
 def split_every(n, iterable):
@@ -394,8 +394,8 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fol
 
     # Registration in parallel, per label.
     Parallel(n_jobs=constants.n_jobs, verbose=50)(
-        delayed(register_in_memory)(ams[label], features_iterator) \
-            for label, features_iterator in split_by_label(zip(trf_rounded, trl)))
+        delayed(register_in_memory)(ams[label], features_list) \
+            for label, features_list in split_by_label(zip(trf_rounded, trl)))
 
     print(f'Filling of memories done for fold {fold}')
     # Calculate entropies
@@ -407,7 +407,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fol
     split_size = 500
     for rsize, scms, sbehavs in \
          Parallel(n_jobs=constants.n_jobs, verbose=50)(
-            delayed(recognize_by_memory)(fl_pairs, ams, lpm, entropy) \
+            delayed(recognize_by_memory)(fl_pairs, ams, entropy, lpm) \
             for fl_pairs in split_every(split_size, zip(tef_rounded, tel))):
         response_size += rsize
         cms  = cms + scms
@@ -583,6 +583,32 @@ def test_memories(domain, es):
     print('Memory size evaluation completed!')
     return best_memory_size
 
+def remember_by_memory(fl_pairs, ams, entropy):
+    cms = np.zeros((n_mems, 2, 2), dtype='int')
+    cmatrix = np.zeros((2,2))
+    mismatches = 0
+    for features, label in fl_pairs:
+        mismatches += ams[label].mismatches(features)
+        memories = []
+        for k in ams:
+            recognized = ams[k].recognize(features)
+            if recognized:
+                memories.append(k)
+            # For calculation of per memory precision and recall
+            cms[k][TP] += (k == label) and recognized
+            cms[k][FP] += (k != label) and recognized
+            cms[k][TN] += not ((k == label) or recognized)
+            cms[k][FN] += (k == label) and not recognized
+            if (len(memories) == 0):
+                cmatrix[FN] += 1
+            else:
+                l = get_label(memories, entropy)
+                if l == label:
+                    cmatrix[TP] += 1
+                else:
+                    cmatrix[FP] += 1
+    return mismatches, cms, cmatrix
+
 
 def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, idx, fill):
     n_mems = constants.n_labels
@@ -602,48 +628,28 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
     # Confusion matrix for calculating overall precision and recall.
     cmatrix = np.zeros((2,2))
 
+    # Registration in parallel, per label.
     Parallel(n_jobs=constants.n_jobs, verbose=50)(
-        delayed(register_in_memory)(ams[label], features) \
-            for features, label in zip(trf, trl))
+        delayed(register_in_memory)(ams[label], features_list) \
+            for label, features_list in split_by_label(zip(trf, trl)))
 
-    entropies = Parallel(n_jobs=constants.n_jobs, verbose=50)(
-        delayed(memory_entropy)(m, ams[m]) for m in ams)
-    for m, e in entropies:
-        entropy[m] = e
+    print(f'Filling of memories done for idx {idx}')
+    # Calculate entropies
+    for m in ams:
+        entropy[m] = ams[m].entropy
 
     # The list of recalls recovered from memory.
     # all_recalls = []
     # Total number of differences between features and memories.
     mismatches = 0
-
-    # Recover memories
-    for n, features, label in zip(range(len(tef)), tef, tel):
-        memories = []
-        # recalls ={}
-
-        # How much it was needed for the right memory to recognize
-        # the features.
-        mismatches += ams[label].mismatches(features)
-
-        memories =  Parallel(n_jobs=constants.n_jobs, verbose=50)(
-                        delayed(recognize_by_memory)(k, label, ams[k], cms[k], features) \
-            for k in ams)
-        memories = list(filter(lambda v: v is not None, memories))
-        if (len(memories) == 0):
-            # Register empty case
-            undefined = np.full(domain, ams[0].undefined)
-            # all_recalls.append((n, label, undefined))
-            cmatrix[FN] += 1
-        else:
-            l = get_label(memories, entropy)
-            # features = recalls[l]*(max_value-min_value)*1.0/(msize-1) + min_value
-            # all_recalls.append((n, label, features))
-
-            if l == label:
-                cmatrix[TP] += 1
-            else:
-                cmatrix[FP] += 1
-
+    split_size = 500
+    for mmatches, scms, cmatx in \
+         Parallel(n_jobs=constants.n_jobs, verbose=50)(
+            delayed(recognize_by_memory)(fl_pairs, ams, entropy, lpm) \
+            for fl_pairs in split_every(split_size, zip(tef_rounded, tel))):
+        mismatches += mmatches
+        cms  = cms + scms
+        cmatrix = cmatrix + cmatx
     positives = conf_sum(cms, TP) + conf_sum(cms, FP)
     details = True
     if positives == 0:
@@ -661,7 +667,6 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
             positives = cms[i][TP] + cms[i][FP]
             if positives == 0:
                 print(f'Memory {i} filled with {fill} in run {idx} did not respond.')
-
     positives = cmatrix[TP] + cmatrix[FP]
     if positives == 0:
         print(f'System filled with {fill} in run {idx} did not respond.')
@@ -670,10 +675,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
         total_precision = cmatrix[TP] / positives
     total_recall = cmatrix[TP] / len(tef)
     mismatches /= len(tel)
-
-    # return all_recalls, measures, total_precision, total_recall, mismatches
     return measures, total_precision, total_recall, mismatches
-    
 
 def test_recalling_fold(n_memories, mem_size, domain, es, fold):
     # Create the required associative memories.
@@ -744,7 +746,6 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
         total_precisions.append(step_precision)
         mismatches.append(mis_count)
         start = end
-
     fold_entropies = np.array(fold_entropies)
     fold_precision = np.array(fold_precision)
     fold_recall = np.array(fold_recall)
@@ -752,11 +753,8 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
     total_precisions = np.array(total_precisions)
     total_recalls = np.array(total_recalls)
     mismatches = np.array(mismatches)
-
-    # return fold, fold_recalls, fold_entropies, fold_precision, \
     return fold, fold_entropies, fold_precision, \
         fold_recall, fold_accuracy, total_precisions, total_recalls, mismatches
-
 
 def test_recalling(domain, mem_size, es):
     n_memories = constants.n_labels
