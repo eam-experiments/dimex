@@ -233,7 +233,7 @@ def plot_conf_matrix(matrix, tags, prefix, es):
 def plot_memory(relation, prefix, es):
     plt.clf()
     plt.figure(figsize=(6.4, 4.8))
-    seaborn.heatmap(relation, vmin=0.0, vmax=1.0,
+    seaborn.heatmap(relation/256, vmin=0.0, vmax=1.0,
                     annot=False, cmap='coolwarm')
     plt.xlabel(_('Characteristics'))
     plt.ylabel(_('Values'))
@@ -393,16 +393,16 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, es, fold):
     for m in ams:
         ams[m] = AssociativeMemory(domain, msize, es.tolerance)
     # Registration in parallel, per label.
-    Parallel(n_jobs=constants.n_jobs, verbose=50)(
+    Parallel(n_jobs=constants.n_jobs, require='sharedmem', verbose=50)(
         delayed(register_in_memory)(ams[label], features_list) \
             for label, features_list in split_by_label(zip(trf_rounded, trl)))
-    for m in ams:
-        plot_memory(ams[m].relation, f'memory_{m:03}-sze_{msize:03}', es)
     print(f'Filling of memories done for fold {fold}')
+    m = random.randrange(constants.n_labels)
+    plot_memory(ams[m].relation, f'memory_{m:03}-sze_{msize:03}', es)
+
     # Calculate entropies
     for m in ams:
         entropy[m] = ams[m].entropy
-
     # Recognition
     response_size = 0
     split_size = 500
@@ -632,7 +632,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
     cmatrix = np.zeros((2,2))
 
     # Registration in parallel, per label.
-    Parallel(n_jobs=constants.n_jobs, verbose=50)(
+    Parallel(n_jobs=constants.n_jobs, require='sharedmem', verbose=50)(
         delayed(register_in_memory)(ams[label], features_list) \
             for label, features_list in split_by_label(zip(trf, trl)))
 
@@ -1139,7 +1139,6 @@ def characterize_features(es):
 def run_evaluation(es):
     best_memory_size = test_memories(constants.domain, es)
     print(f'Best memory size: {best_memory_size}')
-    exit()
     best_filling_percent = test_recalling(constants.domain, best_memory_size, es)
     save_learn_params(best_memory_size, best_filling_percent, es)
 
