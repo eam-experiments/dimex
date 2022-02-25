@@ -330,12 +330,12 @@ def recognize_by_memory(fl_pairs, ams, entropy, lpm):
             recognized = ams[k].recognize(features)
             if recognized:
                 memories.append(k)
+                response_size += 1
             # For calculation of per memory precision and recall
             cms[k][TP] += (k == correct) and recognized
             cms[k][FP] += (k != correct) and recognized
             cms[k][TN] += not ((k == correct) or recognized)
             cms[k][FN] += (k == correct) and not recognized
-        response_size += len(memories)
         if len(memories) == 0:
             # Register empty case
             behaviour[constants.no_response_idx] += 1
@@ -365,7 +365,7 @@ def split_every(n, iterable):
         yield piece
         piece = list(islice(i, n))
 
-def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fold):
+def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, es, fold):
     # Round the values
     max_value = trf.max()
     other_value = tef.max()
@@ -391,13 +391,13 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fol
     # Create the required associative memories.
     ams = dict.fromkeys(range(n_mems))
     for m in ams:
-        ams[m] = AssociativeMemory(domain, msize, tolerance)
-
+        ams[m] = AssociativeMemory(domain, msize, es.tolerance)
     # Registration in parallel, per label.
     Parallel(n_jobs=constants.n_jobs, verbose=50)(
         delayed(register_in_memory)(ams[label], features_list) \
             for label, features_list in split_by_label(zip(trf_rounded, trl)))
-
+    for m in ams:
+        plot_memory(ams[m].relation, f'memory_{m:03}-sze_{msize:03}', es)
     print(f'Filling of memories done for fold {fold}')
     # Calculate entropies
     for m in ams:
@@ -489,7 +489,7 @@ def test_memories(domain, es):
         list_measures = []
         for midx, msize in enumerate(constants.memory_sizes):
             results = get_ams_results(midx, msize, domain, labels_x_memory,
-                filling_features, testing_features, filling_labels, testing_labels, es.tolerance, fold)
+                filling_features, testing_features, filling_labels, testing_labels, es, fold)
             list_measures.append(results)
         for j, measures, behaviour in list_measures:
             measures_per_size[j, :] = measures
