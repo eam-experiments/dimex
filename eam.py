@@ -347,11 +347,12 @@ def recognize_by_memory(fl_pairs, ams, entropy, lpm):
                 behaviour[constants.no_correct_chosen_idx] += 1
             else:
                 behaviour[constants.correct_response_idx] += 1
+    print(f'Response size: {response_size}')
     return response_size, cms, behaviour
 
 def split_by_label(fl_pairs):
     label_dict = {}
-    for label in range(10):
+    for label in range(constants.n_labels):
         label_dict[label] = []
     for features, label in fl_pairs:
         label_dict[label].append(features)
@@ -412,7 +413,9 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, tolerance, fol
         response_size += rsize
         cms  = cms + scms
         behaviour = behaviour + sbehavs
-
+    print(f'General response size: {response_size}')
+    print(f'General CMS: {cms}')
+    print(f'General Behaviours: {behaviour}')
     behaviour[constants.mean_responses_idx] = response_size /float(len(tef_rounded))
     all_responses = len(tef_rounded) - behaviour[constants.no_response_idx]
     all_precision = (behaviour[constants.correct_response_idx])/float(all_responses)
@@ -646,7 +649,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
     for mmatches, scms, cmatx in \
          Parallel(n_jobs=constants.n_jobs, verbose=50)(
             delayed(recognize_by_memory)(fl_pairs, ams, entropy, lpm) \
-            for fl_pairs in split_every(split_size, zip(tef_rounded, tel))):
+            for fl_pairs in split_every(split_size, zip(tef, tel))):
         mismatches += mmatches
         cms  = cms + scms
         cmatrix = cmatrix + cmatx
@@ -1136,6 +1139,7 @@ def characterize_features(es):
 def run_evaluation(es):
     best_memory_size = test_memories(constants.domain, es)
     print(f'Best memory size: {best_memory_size}')
+    exit()
     best_filling_percent = test_recalling(constants.domain, best_memory_size, es)
     save_learn_params(best_memory_size, best_filling_percent, es)
 
