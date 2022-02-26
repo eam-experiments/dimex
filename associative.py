@@ -44,6 +44,11 @@ class AssociativeMemory(object):
         # it is m+1 to handle partial functions.
         self._relation = np.zeros((self._m, self._n), dtype=np.int)
 
+        # This is to measure the proportion of the columns used.
+        # in remembering.
+        self._seg_size = 0
+        self._counter = 0
+
     def __str__(self):
         return str(self.relation)
 
@@ -68,6 +73,13 @@ class AssociativeMemory(object):
     @property
     def undefined(self):
         return self.m
+
+    def get_recall_segment_size(self):
+        return self._seg_size if self._counter == 0 else self._seg_size / self._counter
+
+    def reset_recall_segment_size(self):
+        self._seg_size = 0
+        self._counter = 0
 
     def entropies(self):
         """Return the entropy of the Associative Memory."""
@@ -102,6 +114,8 @@ class AssociativeMemory(object):
             if not self.relation[i,j]:
                 top = i - 1
                 break
+        self._seg_size += (top - bottom + 1)
+        self._counter += 1
         if bottom == top:
             return v
         else:
@@ -175,6 +189,7 @@ class AssociativeMemorySystem:
         self.n = n
         self.m = m
         self.tolerance = tolerance
+        self._labels = labels
         for label in labels:
             self._memories[label] = AssociativeMemory(n, m, tolerance)
 
@@ -185,6 +200,17 @@ class AssociativeMemorySystem:
     @property
     def full_undefined(self):
         return np.full(self.n, np.nan)
+
+    def get_recall_segments_size(self):
+        seg_sizes = []
+        for label in self._labels:
+            memory = self._memories[label]
+            seg_sizes.append(memory.get_recall_segment_size())
+        return seg_sizes
+
+    def reset_recall_segments_size(self):
+        for memory in self._memories.values():
+            memory.reset_recall_segment_size()
 
     def register(self, mem, vector):
         if not (mem in self._memories):

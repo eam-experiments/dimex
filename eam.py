@@ -1022,7 +1022,8 @@ def list_chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
-def ams_process_samples_batch(samples, ams, minimum, maximum, decode=False):
+def ams_process_samples_batch(samples, ams: AssociativeMemorySystem,
+    minimum, maximum, decode=False):
     print(f'\nProcessing {len(samples)} samples with memories.')
     for sample in samples:
         features = msize_features(sample.features, ams.m, minimum, maximum)
@@ -1038,22 +1039,29 @@ def ams_process_samples_batch(samples, ams, minimum, maximum, decode=False):
                 recalls.append(recall)
             sample.ams_labels = labels
             sample.ams_features = recalls
-    return samples
+    recall_segsizes = ams.get_recall_segments_size()
+    return samples, recall_segsizes
 
 def ams_process_samples(samples, ams, minimum, maximum, decode=False):
     chunk_size = 10
     chunks = list_chunks(samples, chunk_size)
-    processed = Parallel(n_jobs=constants.n_jobs, verbose=50)(
+    processed = []
+    segment_sizes = []
+    for p, s in Parallel(n_jobs=constants.n_jobs, verbose=50)(
         delayed(ams_process_samples_batch)(chunk, ams, minimum, maximum, decode) \
-                for chunk in chunks)
-    return [sample for chunk in processed for sample in chunk]
+                for chunk in chunks):
+        processed.append(p)
+        segment_sizes.append(s)
+    segment_sizes = np.mean(np.array(segment_sizes), axis= 0)
+    return [sample for chunk in processed for sample in chunk], segment_sizes
 
 def learn_new_data(domain, mem_size, fill_percent, es):
     histories = []
+    segment_sizes = []
     model_prefix = constants.model_name(es)
     features_prefix = constants.features_name(es)
     labels_prefix = constants.labels_name(es)
-
+    segment_sizes_prefix = 'segment_sizes'
     for fold in range(constants.n_folds):
         print(f'Learning new data at stage {es.stage}')
         suffix = constants.filling_suffix
@@ -1079,12 +1087,14 @@ def learn_new_data(domain, mem_size, fill_percent, es):
         nds = ciempiess.NextDataSet(es)
         new_data = nds.get_data()
         new_data = recnet.process_samples(new_data, model_prefix, es, fold, decode=True)
-        new_data = ams_process_samples(new_data, ams, minimum, maximum, decode=True)
+        new_data, seg_sizes = ams_process_samples(new_data, ams, minimum, maximum, decode=True)
+        segment_sizes.append(seg_sizes)
         new_data = recnet.reprocess_samples(new_data, model_prefix, es, fold)
         recognition_on_ciempiess(new_data, es, fold)
+    filename = constants.csv_filename(segment_sizes_prefix, es)
+    np.savetxt(filename,  np.array(segment_sizes), delimiter=',')
     print(f'Learning at stage {es.stage} completed!')
-
-        
+q
 
 ##############################################################################
 # Main section
