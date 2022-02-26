@@ -641,14 +641,12 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
     for m in ams:
         entropy[m] = ams[m].entropy
 
-    # The list of recalls recovered from memory.
-    # all_recalls = []
     # Total number of differences between features and memories.
     mismatches = 0
     split_size = 500
     for mmatches, scms, cmatx in \
          Parallel(n_jobs=constants.n_jobs, verbose=50)(
-            delayed(recognize_by_memory)(fl_pairs, ams, entropy, lpm) \
+            delayed(remember_by_memory)(fl_pairs, ams, entropy) \
             for fl_pairs in split_every(split_size, zip(tef, tel))):
         mismatches += mmatches
         cms  = cms + scms
