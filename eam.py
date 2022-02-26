@@ -1092,7 +1092,6 @@ def learn_new_data(domain, mem_size, fill_percent, es):
     filename = constants.csv_filename(segment_sizes_prefix, es)
     np.savetxt(filename,  np.array(segment_sizes), delimiter=',')
     print(f'Learning at stage {es.stage} completed!')
-q
 
 ##############################################################################
 # Main section
@@ -1157,7 +1156,6 @@ def extend_data(es):
  
 if __name__== "__main__" :
     args = docopt(__doc__)
-    print(args)
 
     # Processing language.
     lang = 'en'
