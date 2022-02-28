@@ -251,6 +251,7 @@ def get_label(memories, entropies = None):
         i = random.atddrange(len(memories))
         return memories[i]
     else:
+        random.shuffle(memories)
         i = memories[0] 
         entropy = entropies[i]
 
@@ -1094,7 +1095,6 @@ def learn_new_data(domain, mem_size, fill_percent, es):
     np.savetxt(filename,  np.array(segment_sizes), delimiter=',')
     print(f'Learning at stage {es.stage} completed!')
 
-
 ##############################################################################
 # Main section
 
@@ -1158,7 +1158,6 @@ def extend_data(es):
  
 if __name__== "__main__" :
     args = docopt(__doc__)
-    print(args)
 
     # Processing language.
     lang = 'en'
