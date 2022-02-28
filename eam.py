@@ -675,7 +675,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
         total_precision = 1.0
     else: 
         total_precision = cmatrix[TP] / positives
-    total_recall = cmatrix[TP] / len(tef)
+    total_recall = cmatrix[TP] / len(tel)
     mismatches /= len(tel)
     return measures, total_precision, total_recall, mismatches
 
@@ -717,7 +717,6 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
     percents = np.array(constants.memory_fills)
     steps = np.round(total*percents/100.0).astype(int)
 
-    fold_recalls = []
     fold_entropies = []
     fold_precision = []
     fold_recall = []
@@ -780,7 +779,6 @@ def test_recalling(domain, mem_size, es):
     # for fold, memories, entropy, precision, recall, accuracy, \
     for fold, entropy, precision, recall, accuracy, \
         sys_precision, sys_recall, mismatches in list_results:
-
         # all_memories[fold] = memories
         total_precisions[fold] = precision
         total_recalls[fold] = recall
@@ -789,23 +787,6 @@ def test_recalling(domain, mem_size, es):
         total_entropies[fold] = entropy
         sys_precisions[fold] = sys_precision
         sys_recalls[fold] = sys_recall
-
-    # for fold in all_memories:
-    #     list_tups = all_memories[fold]
-    #     tags = []
-    #     memories = []
-    #     for (idx, label, features) in list_tups:
-    #         tags.append((idx, label))
-    #         memories.append(np.array(features))
-    #     tags = np.array(tags)
-    #     memories = np.array(memories)
-    #     memories_filename = constants.memories_name(es)
-    #     memories_filename = constants.data_filename(memories_filename, es, fold)
-    #     np.save(memories_filename, memories)
-    #     tags_filename = constants.labels_name(es) + constants.memory_suffix
-    #     tags_filename = constants.data_filename(tags_filename, es, fold)
-    #     np.save(tags_filename, tags)
-    
     main_avrge_entropies = np.mean(total_entropies,axis=0)
     main_stdev_entropies = np.std(total_entropies, axis=0)
     main_avrge_mprecision = np.mean(total_precisions,axis=0)

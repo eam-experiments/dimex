@@ -1,4 +1,4 @@
-#! /bin/sh
+#! /bin/bash
 
 prse=graph_prse_MEAN-english-stg_00
 overall=overallgraph_prse_MEAN-english-stg_00
@@ -6,9 +6,14 @@ gsize=graph_size_MEAN-english-stg_00
 behav=graph_behaviours_MEAN-english-stg_00
 recall=recall-graph_prse_MEAN-english-stg_00
 totalr=total_recall-graph_prse_MEAN-english-stg_00
-suffix=lrn_000-tol_000.png
-
-for i in 0 1 2 3 4 5 6 7 8; do
+suffix_gral=lrn_001-tol_003.png
+suffix_nine=lrn_001-ext-tol_003.png
+for i in 0 1 2 3 4 5 6 7 8 9; do
+   if [ $i == 9 ]; then
+        suffix=$suffix_nine
+    else
+        suffix=$suffix_gral
+    fi
     cd runs/stage_$i
 	for f in *.svg; do
 		g=`basename $f .svg`
@@ -19,7 +24,6 @@ for i in 0 1 2 3 4 5 6 7 8; do
 	convert $gsize${i}-$suffix $behav${i}-$suffix +append row2.png
 	convert $recall${i}-$suffix $totalr${i}-$suffix +append row3.png
 	convert row1.png row2.png row3.png -append stage_${i}.png
-	rm row?.png
         cp stage_${i}.png ..
 	cd ../..
 done
