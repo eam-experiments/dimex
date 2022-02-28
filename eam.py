@@ -587,6 +587,7 @@ def test_memories(domain, es):
     return best_memory_size
 
 def remember_by_memory(fl_pairs, ams, entropy):
+    n_mems = constants.n_labels
     cms = np.zeros((n_mems, 2, 2), dtype='int')
     cmatrix = np.zeros((2,2))
     mismatches = 0
@@ -1092,7 +1093,7 @@ def learn_new_data(domain, mem_size, fill_percent, es):
     filename = constants.csv_filename(segment_sizes_prefix, es)
     np.savetxt(filename,  np.array(segment_sizes), delimiter=',')
     print(f'Learning at stage {es.stage} completed!')
-q
+
 
 ##############################################################################
 # Main section
