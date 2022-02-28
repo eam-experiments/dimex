@@ -588,6 +588,7 @@ def test_memories(domain, es):
     return best_memory_size
 
 def remember_by_memory(fl_pairs, ams, entropy):
+    n_mems = constants.n_labels
     cms = np.zeros((n_mems, 2, 2), dtype='int')
     cmatrix = np.zeros((2,2))
     mismatches = 0
