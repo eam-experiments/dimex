@@ -251,6 +251,7 @@ def get_label(memories, entropies = None):
         i = random.atddrange(len(memories))
         return memories[i]
     else:
+        random.shuffle(memories)
         i = memories[0] 
         entropy = entropies[i]
 
