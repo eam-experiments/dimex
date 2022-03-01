@@ -17,32 +17,27 @@ import numpy as np
 from associative import *
 
 # Memory for 4 features of size 3
-m = AssociativeMemory(4,3)
+m = AssociativeMemory(5,5)
 
-# 0: 1 1 1 1
-# 1: 0 0 0 0
-# 2: 0 0 0 0
-v0 = np.array([0, 0, 0, 0])
-v1 = np.array([1, 1, 1, 1])
-v2 = np.array([2, 2, 2, 2])
+v0 = np.full(5, 0, dtype=int)
+v1 = np.full(5, 1, dtype=int)
+v2 = np.full(5, 2, dtype=int)
+v3 = np.full(5, 3, dtype=int)
+v4 = np.full(5, 4, dtype=int)
 
-# 0: 1 0 0 0
-# 1: 0 1 0 1
-# 2: 0 0 1 0
-vd = np.array([0, 1, 2, 1])
+vd = np.array([0, 1, 2, 3, 4])
 
 # 0: 0 0 0 1
 # 1: 1 0 1 0
 # 2: 0 1 0 0
 
-vi = np.array([1, 2, 1, 0])
-
+vi = np.array([4, 3, 2, 1, 0])
 
 def testing_recognize():
-    m = AssociativeMemory(4,3)
+    m = AssociativeMemory(5,5)
     m.register(vd)
     m.register(vi)
-    m.register(v1)
+    m.register(v2)
     vs = [v0, v1, v2, vi, vd]
     n = 500*1000
     start = time.perf_counter()
@@ -51,5 +46,26 @@ def testing_recognize():
             m.recognize(v)
     end = time.perf_counter()
     return end - start
+
+m.register(v0)
+m.register(v1)
+m.register(v4)
+for _ in range(10):
+    m.register(vd)
+    m.register(vi)
+
+ams = AssociativeMemorySystem(list(range(3)), 5, 5)
+ams.register(0, v0)
+ams.register(1, v1)
+ams.register(2, v2)
+for i in range(3):
+    ams.register(i, vd)
+    ams.register(i, vi)
+    ams.register(i, v2)
+for i in range(3):
+    ams.register(2, v2)
+
+
+
 
 

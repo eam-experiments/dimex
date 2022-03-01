@@ -241,24 +241,24 @@ def plot_memory(relation, prefix, es):
     plt.savefig(filename, dpi=600)
 
 
-def get_label(memories, entropies = None):
+def get_label(memories, weights = None, entropies = None):
     if len(memories) == 1:
         return memories[0]
-    # Random selection
-    if len(memories) == 1:
+    random.shuffle(memories)
+    if (entropies is None) or (weights is None):
         return memories[0]
-    if entropies is None:
-        i = random.atddrange(len(memories))
-        return memories[i]
     else:
-        random.shuffle(memories)
         i = memories[0] 
         entropy = entropies[i]
-
+        weight = weights[i]
+        penalty = entropy/weight if weight > 0 else float('inf')
         for j in memories[1:]:
-            if entropy > entropies[j]:
+            entropy = entropies[j]
+            weight = weights[j]
+            new_penalty = entropy/weight if weight > 0 else float('inf')
+            if new_penalty < penalty:
                 i = j
-                entropy = entropies[j]
+                penalty = new_penalty
         return i
 
 def msize_features(features, msize, min_value, max_value):
@@ -327,10 +327,12 @@ def recognize_by_memory(fl_pairs, ams, entropy, lpm):
     for features, label in fl_pairs:
         correct = int(label/lpm)
         memories = []
+        weights = {}
         for k in ams:
-            recognized = ams[k].recognize(features)
+            recognized, weight = ams[k].recognize(features)
             if recognized:
                 memories.append(k)
+                weights[k] = weight
                 response_size += 1
             # For calculation of per memory precision and recall
             cms[k][TP] += (k == correct) and recognized
@@ -343,7 +345,7 @@ def recognize_by_memory(fl_pairs, ams, entropy, lpm):
         elif not (correct in memories):
             behaviour[constants.no_correct_response_idx] += 1
         else:
-            l = get_label(memories, entropy)
+            l = get_label(memories, weights, entropy)
             if l != correct:
                 behaviour[constants.no_correct_chosen_idx] += 1
             else:
@@ -595,10 +597,12 @@ def remember_by_memory(fl_pairs, ams, entropy):
     for features, label in fl_pairs:
         mismatches += ams[label].mismatches(features)
         memories = []
+        weights = {}
         for k in ams:
-            recognized = ams[k].recognize(features)
+            recognized, weight = ams[k].recognize(features)
             if recognized:
                 memories.append(k)
+                weights[k] = weight
             # For calculation of per memory precision and recall
             cms[k][TP] += (k == label) and recognized
             cms[k][FP] += (k != label) and recognized
@@ -607,7 +611,7 @@ def remember_by_memory(fl_pairs, ams, entropy):
             if (len(memories) == 0):
                 cmatrix[FN] += 1
             else:
-                l = get_label(memories, entropy)
+                l = get_label(memories, weights, entropy)
                 if l == label:
                     cmatrix[TP] += 1
                 else:

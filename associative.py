@@ -15,6 +15,7 @@
 
 # File originally create by Raul Peralta-Lozada.
 
+import math
 import numpy as np
 from operator import itemgetter
 import random
@@ -22,12 +23,19 @@ import time
 
 import constants
 
+def normpdf(x, mean, sd, scale = 1.0):
+    var = float(sd)**2
+    denom = (2*math.pi*var)**.5
+    num = math.exp(-(float(x)-float(mean))**2/(2*var))
+    return num/(scale*denom)
+
+
 class AssociativeMemoryError(Exception):
     pass
 
 
 class AssociativeMemory(object):
-    def __init__(self, n: int, m: int, tolerance = 0):
+    def __init__(self, n: int, m: int, tolerance = 0, zeta=None):
         """
         Parameters
         ----------
@@ -35,19 +43,25 @@ class AssociativeMemory(object):
             The size of the domain (of properties).
         m : int
             The size of the range (of representation).
+        tolerance: int
+            The number of mismatches allowed between the
+            memory content and the cue.
+        zeta:
+            The standard deviation of the normal distribution
+            used in remembering, as percentage of the number of
+            characteristics. Default: None, in which case
+            half the number of characteristics is used.
         """
         self._n = n
         self._m = m+1
         self._t = tolerance
-        self._max = 256
+        self._max = 255
+        percentage = 0.5 if zeta is None else abs(zeta)
+        self._zeta = percentage*n
+        self._scale = normpdf(0, 0, self._zeta)
 
         # it is m+1 to handle partial functions.
         self._relation = np.zeros((self._m, self._n), dtype=np.int)
-
-        # This is to measure the proportion of the columns used.
-        # in remembering.
-        self._seg_size = 0
-        self._counter = 0
 
     def __str__(self):
         return str(self.relation)
@@ -73,13 +87,15 @@ class AssociativeMemory(object):
     @property
     def undefined(self):
         return self.m
-
-    def get_recall_segment_size(self):
-        return self._seg_size if self._counter == 0 else self._seg_size / self._counter
-
-    def reset_recall_segment_size(self):
-        self._seg_size = 0
-        self._counter = 0
+        
+    @property
+    def zeta(self):
+        return self._zeta / self.n
+    
+    @zeta.setter
+    def zeta(self, z):
+        self._zeta = abs(z*self.n)
+        self._scale = normpdf(0, 0, self._zeta)
 
     def entropies(self):
         """Return the entropy of the Associative Memory."""
@@ -97,42 +113,41 @@ class AssociativeMemory(object):
         relation[vector, range(self.n)] = True
         return relation
 
+    def _normalize(self, column, mean, std, scale):            
+        norm = np.array([normpdf(i, mean, std, scale) for i in range(self.m)])
+        return norm*column
+
+    def normalized(self, j, v):
+        return self._normalize(self.relation[:, j], v, self._zeta, self._scale)
+
     # Choose a value for feature i.
     def choose(self, j, v):
         if self.is_undefined(v):
-            values = np.where(self.relation[:self.m,j])[0]
-            return random.choice(values)
-        if not self.relation[v, j]:
-            return self.undefined
-        bottom = 0
-        for i in range(v, -1, -1):
-            if not self.relation[i,j]:
-                bottom = i + 1
-                break
-        top = self.m-1
-        for i in range(v, self.m):
-            if not self.relation[i,j]:
-                top = i - 1
-                break
-        self._seg_size += (top - bottom + 1)
-        self._counter += 1
-        if bottom == top:
-            return v
+            column = self.relation[:,j]
         else:
-            sum = self.relation[bottom:top+1, j].sum()
-            n = int(sum*random.random())
-            for i in range(bottom,top):
-                if n < self.relation[i,j]:
-                    return i
-                n -= self.relation[i,j]
-            return top
+            column = self._normalize(
+                self.relation[:,j], v, self._zeta, self._scale)
+        sum = self.relation[:, j].sum()
+        n = sum*random.random()
+        for i in range(self.m):
+            if n < self.relation[i,j]:
+                return i
+            n -= self.relation[i,j]
+        return self.m - 1
                  
+    def _weight(self, vector):
+        weights = []
+        for j in range(self.n):
+            w = 0 if self.is_undefined(vector[j]) \
+                else self.relation[vector[j], j]
+            weights.append(w)
+        return np.mean(weights) / self._max
+
     def abstract(self, r_io) -> None:
-        self._relation = np.where(self._relation == 255, self._relation, self._relation + r_io)
+        self._relation = np.where(self._relation == self._max, self._relation, self._relation + r_io)
 
     def containment(self, r_io):
         return ~r_io[:self.m, :] | self.relation
-
 
     # Reduces a relation to a function
     def lreduce(self, vector):
@@ -160,11 +175,16 @@ class AssociativeMemory(object):
         r_io = self.vector_to_relation(vector)
         self.abstract(r_io)
 
-    def recognize(self, vector):
+    def recognize(self, vector, weighted = True):
         vector = self.validate(vector)
         r_io = self.vector_to_relation(vector)
         r_io = self.containment(r_io)
-        return np.count_nonzero(r_io[:self.m,:self.n] == False) <= self._t
+        recognized = np.count_nonzero(r_io[:self.m,:self.n] == False) <= self._t
+        if weighted:
+            weight = self._weight(vector)
+            return recognized, weight
+        else:
+            return recognized
 
     def mismatches(self, vector):
         vector = self.validate(vector)
@@ -175,12 +195,13 @@ class AssociativeMemory(object):
     def recall(self, vector):
         vector = self.validate(vector)
         accept = self.mismatches(vector) <= self._t
+        weight = self._weight(vector)
         if accept:
             r_io = self.lreduce(vector)
         else:
             r_io = np.full(self.n, self.undefined)
         r_io = self.revalidate(r_io)
-        return r_io, accept
+        return r_io, accept, weight
 
 
 class AssociativeMemorySystem:
@@ -201,17 +222,6 @@ class AssociativeMemorySystem:
     def full_undefined(self):
         return np.full(self.n, np.nan)
 
-    def get_recall_segments_size(self):
-        seg_sizes = []
-        for label in self._labels:
-            memory = self._memories[label]
-            seg_sizes.append(memory.get_recall_segment_size())
-        return seg_sizes
-
-    def reset_recall_segments_size(self):
-        for memory in self._memories.values():
-            memory.reset_recall_segment_size()
-
     def register(self, mem, vector):
         if not (mem in self._memories):
             raise ValueError(f'There is no memory for {mem}')
@@ -219,21 +229,25 @@ class AssociativeMemorySystem:
 
     def recognize(self, vector):
         for k in self._memories:
-            recognized = self._memories[k].recognize(vector)
+            recognized = self._memories[k].recognize(vector, False)
             if recognized:
                 return True
         return False
 
     def recall(self, vector):
-        entropy = float('inf')
+        penalty = float('inf')
         memory = None
         mem_recall = self.full_undefined
-        for k in self._memories:
-            recalled, recognized = self._memories[k].recall(vector)
+        keys = list(self._memories)
+        random.shuffle(keys)
+        for k in keys:
+            recalled, recognized, weight = self._memories[k].recall(vector)
+            print(k, recognized, weight, recalled)
             if recognized:
-                new_entropy = self._memories[k].entropy
-                if new_entropy < entropy:
-                    entropy = new_entropy
+                entropy = self._memories[k].entropy
+                new_penalty = entropy/weight if weight > 0 else float('inf')
+                if new_penalty < penalty:
+                    penalty = new_penalty
                     memory = k
                     mem_recall = recalled
         return (memory, mem_recall)
