@@ -588,7 +588,7 @@ def test_memories(domain, es):
 def remember_by_memory(fl_pairs, ams, entropy):
     n_mems = constants.n_labels
     cms = np.zeros((n_mems, 2, 2), dtype='int')
-    cmatrix = np.zeros((2,2))
+    cmatrix = np.zeros((2,2), dtype='int')
     mismatches = 0
     for features, label in fl_pairs:
         mismatches += ams[label].mismatches(features)
@@ -604,14 +604,14 @@ def remember_by_memory(fl_pairs, ams, entropy):
             cms[k][FP] += (k != label) and recognized
             cms[k][TN] += not ((k == label) or recognized)
             cms[k][FN] += (k == label) and not recognized
-            if (len(memories) == 0):
-                cmatrix[FN] += 1
+        if (len(memories) == 0):
+            cmatrix[FN] += 1
+        else:
+            l = get_label(memories, weights, entropy)
+            if l == label:
+                cmatrix[TP] += 1
             else:
-                l = get_label(memories, weights, entropy)
-                if l == label:
-                    cmatrix[TP] += 1
-                else:
-                    cmatrix[FP] += 1
+                cmatrix[FP] += 1
     return mismatches, cms, cmatrix
 
 
