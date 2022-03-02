@@ -350,7 +350,6 @@ def recognize_by_memory(fl_pairs, ams, entropy, lpm):
                 behaviour[constants.no_correct_chosen_idx] += 1
             else:
                 behaviour[constants.correct_response_idx] += 1
-    print(f'Response size: {response_size}')
     return response_size, cms, behaviour
 
 def split_by_label(fl_pairs):
@@ -400,8 +399,8 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, es, fold):
         delayed(register_in_memory)(ams[label], features_list) \
             for label, features_list in split_by_label(zip(trf_rounded, trl)))
     print(f'Filling of memories done for fold {fold}')
-    m = random.randrange(constants.n_labels)
-    plot_memory(ams[m].relation, f'memory_{m:03}-sze_{msize:03}', es)
+    # m = random.randrange(constants.n_labels)
+    # plot_memory(ams[m].relation, f'memory_{m:03}-sze_{msize:03}', es)
 
     # Calculate entropies
     for m in ams:
@@ -416,9 +415,6 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, es, fold):
         response_size += rsize
         cms  = cms + scms
         behaviour = behaviour + sbehavs
-    print(f'General response size: {response_size}')
-    print(f'General CMS: {cms}')
-    print(f'General Behaviours: {behaviour}')
     behaviour[constants.mean_responses_idx] = response_size /float(len(tef_rounded))
     all_responses = len(tef_rounded) - behaviour[constants.no_response_idx]
     all_precision = (behaviour[constants.correct_response_idx])/float(all_responses)
@@ -993,10 +989,6 @@ def recognition_on_ciempiess(data, es, fold):
             if mem_label < constants.n_labels:
                 mfcc = (orig_mfcc + mem_mfcc)/2
                 amsys.append((mfcc, mem_label))
-    print(f'Agreed: {len(agreed)}')
-    print(f'Original: {len(original)}')
-    print(f'Memory: {len(amsys)}')
-    print(f'NNetwork: {len(nnet)}')
     save_learned_data(agreed, constants.agreed_suffix, es, fold)
     save_learned_data(original, constants.original_suffix, es, fold)
     save_learned_data(amsys, constants.amsystem_suffix, es, fold)
@@ -1024,21 +1016,18 @@ def ams_process_samples_batch(samples, ams: AssociativeMemorySystem,
                 recalls.append(recall)
             sample.ams_labels = labels
             sample.ams_features = recalls
-    recall_segsizes = ams.get_recall_segments_size()
-    return samples, recall_segsizes
+    return samples
 
 def ams_process_samples(samples, ams, minimum, maximum, decode=False):
     chunk_size = 10
     chunks = list_chunks(samples, chunk_size)
     processed = []
     segment_sizes = []
-    for p, s in Parallel(n_jobs=constants.n_jobs, verbose=50)(
+    for p in Parallel(n_jobs=constants.n_jobs, verbose=50)(
         delayed(ams_process_samples_batch)(chunk, ams, minimum, maximum, decode) \
                 for chunk in chunks):
         processed.append(p)
-        segment_sizes.append(s)
-    segment_sizes = np.mean(np.array(segment_sizes), axis= 0)
-    return [sample for chunk in processed for sample in chunk], segment_sizes
+    return [sample for chunk in processed for sample in chunk]
 
 def learn_new_data(domain, mem_size, fill_percent, es):
     histories = []
@@ -1072,12 +1061,9 @@ def learn_new_data(domain, mem_size, fill_percent, es):
         nds = ciempiess.NextDataSet(es)
         new_data = nds.get_data()
         new_data = recnet.process_samples(new_data, model_prefix, es, fold, decode=True)
-        new_data, seg_sizes = ams_process_samples(new_data, ams, minimum, maximum, decode=True)
-        segment_sizes.append(seg_sizes)
+        new_data = ams_process_samples(new_data, ams, minimum, maximum, decode=True)
         new_data = recnet.reprocess_samples(new_data, model_prefix, es, fold)
         recognition_on_ciempiess(new_data, es, fold)
-    filename = constants.csv_filename(segment_sizes_prefix, es)
-    np.savetxt(filename,  np.array(segment_sizes), delimiter=',')
     print(f'Learning at stage {es.stage} completed!')
 
 ##############################################################################
