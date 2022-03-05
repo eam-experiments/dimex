@@ -65,12 +65,12 @@ recognition_suffixes = [[original_suffix], [agreed_suffix], [original_suffix, ag
 
 mfcc_numceps = 26
 n_folds = 10 
-domain = 512
+domain = 32
 n_frames = 8
 n_jobs = 22
 
-nn_training_percent = 0.69
-am_filling_percent = 0.21
+nn_training_percent = 0.80
+am_filling_percent = 0.10
 am_testing_percent = 0.10
 
 n_labels = 22
@@ -94,9 +94,9 @@ mean_responses_idx = 6
 
 n_behaviours = 7
 
-memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 memory_fills = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 100.0]
-ideal_memory_size = 256
+ideal_memory_size = 32
 
 n_samples = 10
 ciempiess_segment_size = 250

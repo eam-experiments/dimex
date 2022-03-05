@@ -242,7 +242,6 @@ class AssociativeMemorySystem:
         random.shuffle(keys)
         for k in keys:
             recalled, recognized, weight = self._memories[k].recall(vector)
-            print(k, recognized, weight, recalled)
             if recognized:
                 entropy = self._memories[k].entropy
                 new_penalty = entropy/weight if weight > 0 else float('inf')

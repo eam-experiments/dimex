@@ -399,8 +399,8 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, es, fold):
         delayed(register_in_memory)(ams[label], features_list) \
             for label, features_list in split_by_label(zip(trf_rounded, trl)))
     print(f'Filling of memories done for fold {fold}')
-    # m = random.randrange(constants.n_labels)
-    # plot_memory(ams[m].relation, f'memory_{m:03}-sze_{msize:03}', es)
+    m = random.randrange(constants.n_labels)
+    plot_memory(ams[m].relation, f'memory_{m:03}-sze_{msize:03}', es)
 
     # Calculate entropies
     for m in ams:

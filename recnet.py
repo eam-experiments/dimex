@@ -28,7 +28,7 @@ import dimex
 
 n_frames = constants.n_frames
 n_mfcc = constants.mfcc_numceps
-encoder_nlayers = 7     # The number of layers defined in get_encoder.
+encoder_nlayers = 13     # The number of layers defined in get_encoder.
 batch_size = 2048
 epochs = 300
 patience = 5
@@ -51,25 +51,37 @@ def get_encoder(input_data):
     in_dropout=0.2
     out_dropout=0.4
     # Recurrent encoder
-    rnn = Bidirectional(GRU(constants.domain //2, return_sequences=True, dropout=in_dropout))(input_data)
+    rnn = Bidirectional(GRU(constants.domain*16, return_sequences=True, dropout=in_dropout))(input_data)
     drop = Dropout(out_dropout)(rnn)
-    rnn = Bidirectional(GRU(constants.domain //2, return_sequences=True, dropout=in_dropout))(drop)
+    rnn = Bidirectional(GRU(constants.domain*8, return_sequences=True, dropout=in_dropout))(drop)
     drop = Dropout(out_dropout)(rnn)
-    rnn = Bidirectional(GRU(constants.domain //2, dropout=in_dropout))(drop)
+    rnn = Bidirectional(GRU(constants.domain*4, return_sequences=True, dropout=in_dropout))(drop)
+    drop = Dropout(out_dropout)(rnn)
+    rnn = Bidirectional(GRU(constants.domain*2, return_sequences=True, dropout=in_dropout))(drop)
+    drop = Dropout(out_dropout)(rnn)
+    rnn = Bidirectional(GRU(constants.domain, return_sequences=True, dropout=in_dropout))(drop)
+    drop = Dropout(out_dropout)(rnn)
+    rnn = Bidirectional(GRU(constants.domain//2, dropout=in_dropout))(drop)
     drop = Dropout(out_dropout)(rnn)
     norm = LayerNormalization()(drop)
     return norm
 
 
 def get_decoder(encoded):
-    repeat_1 = RepeatVector(n_frames)(encoded)
-    gru_1 = Bidirectional(GRU(constants.domain // 2, activation='relu', return_sequences=True))(repeat_1)
-    drop_1 = Dropout(0.4)(gru_1)
-    gru_1 = Bidirectional(GRU(constants.domain // 2, activation='relu', return_sequences=True))(drop_1)
-    drop_1 = Dropout(0.4)(gru_1)
-    gru_2 = Bidirectional(GRU(constants.domain // 2, activation='relu', return_sequences=True))(drop_1)
-    drop_2 = Dropout(0.4)(gru_2)
-    output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop_2)
+    repeat = RepeatVector(n_frames)(encoded)
+    gru = Bidirectional(GRU(constants.domain*16, activation='relu', return_sequences=True))(repeat)
+    drop = Dropout(0.4)(gru)
+    gru = Bidirectional(GRU(constants.domain*8, activation='relu', return_sequences=True))(drop)
+    drop = Dropout(0.4)(gru)
+    gru = Bidirectional(GRU(constants.domain*4, activation='relu', return_sequences=True))(drop)
+    drop = Dropout(0.4)(gru)
+    gru = Bidirectional(GRU(constants.domain*2, activation='relu', return_sequences=True))(drop)
+    drop = Dropout(0.4)(gru)
+    gru = Bidirectional(GRU(constants.domain, activation='relu', return_sequences=True))(drop)
+    drop = Dropout(0.4)(gru)
+    gru = Bidirectional(GRU(constants.domain//2, activation='relu', return_sequences=True))(drop)
+    drop = Dropout(0.4)(gru)
+    output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop)
 
     # Produces an image of same size and channels as originals.
     return output_mfcc
