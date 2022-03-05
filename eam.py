@@ -1069,10 +1069,10 @@ def learn_new_data(domain, mem_size, fill_percent, es):
 ##############################################################################
 # Main section
 
-def create_and_train_classifiers(es):
+def create_and_train_autoencoder(es):
     model_prefix = constants.model_name(es)
-    stats_prefix = model_prefix + constants.classifier_suffix
-    history, conf_matrix = recnet.train_classifier(model_prefix, es)
+    stats_prefix = model_prefix + constants.decoder_suffix
+    history, conf_matrix = recnet.train_autoencoder(model_prefix, es)
     save_history(history, stats_prefix, es)
     save_conf_matrix(conf_matrix, stats_prefix, es)
  
@@ -1084,12 +1084,12 @@ def produce_features_from_data(es):
     recnet.obtain_features(
         model_prefix, features_prefix, labels_prefix, data_prefix, es)
 
-def create_and_train_autoencoder(es):
+def create_and_train_classifier(es):
     model_prefix = constants.model_name(es)
-    stats_prefix = model_prefix + constants.decoder_suffix
+    stats_prefix = model_prefix + constants.classifier_suffix
     features_prefix = constants.features_name(es)
     data_prefix = constants.data_name(es)
-    history = recnet.train_decoder(model_prefix, features_prefix, data_prefix, es)
+    history = recnet.train_classifier(model_prefix, features_prefix, data_prefix, es)
     save_history(history, stats_prefix, es)
 
 def characterize_features(es):
