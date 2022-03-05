@@ -155,52 +155,88 @@ class EarlyStoppingAtLossCrossing(Callback):
             print("Epoch %05d: early stopping" % (self.stopped_epoch + 1))
 
 
-def train_classifier(prefix, es):
+def train_autoencoder(prefix, es):
+    histories = []
+    for fold in range(constants.n_folds):
+        lds = dimex.LearnedDataSet(es, fold)
+        training_data, _ = lds.get_training_data()
+        testing_data, _ = lds.get_testing_data()
+        truly_training = int(len(training_labels)*truly_training_percentage)
+
+        validation_data = training_data[truly_training:]
+        training_data = training_data[:truly_training]
+
+        input_data = Input(shape=(n_frames, n_mfcc))
+        encoded = get_encoder(input_data)
+        decoded = get_decoder(encoded)
+        model = Model(inputs=input_data, outputs=decoded)
+        model.compile(loss='huber_loss', optimizer='adam', metrics='accuracy')
+        model.summary()
+        history = model.fit(training_data,
+                training_data,
+                batch_size=batch_size,
+                epochs=epochs,
+                validation_data=(validation_data, validation_data),
+                callbacks=[EarlyStoppingAtLossCrossing()],
+                verbose=2)
+        histories.append(history)
+        history = model.evaluate(testing_data, testing_data, return_dict=True)
+        histories.append(history)
+        model.save(constants.classifier_filename(prefix, es, fold))
+    return histories
+
+
+def train_classifier(prefix, features_prefix, data_prefix, es):
     confusion_matrix = np.zeros((constants.n_labels, constants.n_labels))
     histories = []
     for fold in range(constants.n_folds):
         lds = dimex.LearnedDataSet(es, fold)
-        training_data, training_labels = lds.get_training_data()
-        testing_data, testing_labels = lds.get_testing_data()
-        truly_training = int(len(training_labels)*truly_training_percentage)
+        _, training_labels = lds.get_training_data()
+        _, testing_labels = lds.get_testing_data()
 
-        validation_data = training_data[truly_training:]
+        suffix = constants.training_suffix
+        training_features_prefix = features_prefix + suffix        
+        training_features_filename = constants.data_filename(training_features_prefix, es, fold)
+
+        suffix = constants.testing_suffix
+        testing_features_prefix = features_prefix + suffix        
+        testing_features_filename = constants.data_filename(testing_features_prefix, es, fold)
+
+        training_features = np.load(training_features_filename)
+        testing_features = np.load(testing_features_filename)
+
+        truly_training = int(len(training_features)*truly_training_percentage)
+        validation_features = training_features[truly_training:]
         validation_labels = training_labels[truly_training:]
-        training_data = training_data[:truly_training]
+        training_features = training_features[:truly_training]
         training_labels = training_labels[:truly_training]
 
         weights = get_weights(training_labels)        
-        training_labels = to_categorical(training_labels)
-        validation_labels = to_categorical(validation_labels)
-        testing_labels = to_categorical(testing_labels)
-
-        input_data = Input(shape=(n_frames, n_mfcc))
-        encoded = get_encoder(input_data)
-        classified = get_classifier(encoded)
+        input_data = Input(shape=(constants.domain))
+        classified = get_classifier(input_data)
         model = Model(inputs=input_data, outputs=classified)
         model.compile(loss='categorical_crossentropy',
                     optimizer='adam',
                     metrics='accuracy')
         model.summary()
-        history = model.fit(training_data,
+        history = model.fit(training_features,
                 training_labels,
                 batch_size=batch_size,
                 epochs=epochs,
                 class_weight=weights, # Only supported for single output models.
-                validation_data= (validation_data, validation_labels),
+                validation_data= (validation_features, validation_labels),
                 callbacks=[EarlyStoppingAtLossCrossing()],
                 verbose=2)
         histories.append(history)
-        history = model.evaluate(testing_data, testing_labels, return_dict=True)
+        history = model.evaluate(testing_features, testing_labels, return_dict=True)
         histories.append(history)
-        predicted_labels = model.predict(testing_data)
+        predicted_labels = model.predict(testing_features)
         confusion_matrix += tf.math.confusion_matrix(np.argmax(testing_labels, axis=1), 
             np.argmax(predicted_labels, axis=1), num_classes=constants.n_labels)
-        model.save(constants.classifier_filename(prefix, es, fold))
+        model.save(constants.decoder_filename(prefix, es, fold))
     confusion_matrix = confusion_matrix.numpy()
     totals = confusion_matrix.sum(axis=1).reshape(-1,1)
     return histories, confusion_matrix/totals
-
 
 def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix, es):
     """ Generate features for sound segments, corresponding to phonemes.
@@ -244,50 +280,6 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix, e
             np.save(features_filename, features)
             np.save(labels_filename, labels)    
 
-
-def train_decoder(prefix, features_prefix, data_prefix, es):
-    histories = []
-    for fold in range(constants.n_folds):
-        suffix = constants.training_suffix
-        training_features_prefix = features_prefix + suffix        
-        training_features_filename = constants.data_filename(training_features_prefix, es, fold)
-        training_data_prefix = data_prefix + suffix
-        training_data_filename = constants.data_filename(training_data_prefix, es, fold)
-
-        suffix = constants.testing_suffix
-        testing_features_prefix = features_prefix + suffix        
-        testing_features_filename = constants.data_filename(testing_features_prefix, es, fold)
-        testing_data_prefix = data_prefix + suffix
-        testing_data_filename = constants.data_filename(testing_data_prefix, es, fold)
-
-        training_features = np.load(training_features_filename)
-        training_data = np.load(training_data_filename)
-        testing_features = np.load(testing_features_filename)
-        testing_data = np.load(testing_data_filename)
-
-        truly_training = int(len(training_features)*truly_training_percentage)
-        validation_features = training_features[truly_training:]
-        validation_data = training_data[truly_training:]
-        training_features = training_features[:truly_training]
-        training_data = training_data[:truly_training]
-
-        input_data = Input(shape=(constants.domain))
-        decoded = get_decoder(input_data)
-        model = Model(inputs=input_data, outputs=decoded)
-        model.compile(loss='huber_loss', optimizer='adam', metrics='accuracy')
-        model.summary()
-        history = model.fit(training_features,
-                training_data,
-                batch_size=batch_size,
-                epochs=epochs,
-                validation_data= (validation_features, validation_data),
-                callbacks=[EarlyStoppingAtLossCrossing()],
-                verbose=2)
-        histories.append(history)
-        history = model.evaluate(testing_features, testing_data, return_dict=True)
-        histories.append(history)
-        model.save(constants.decoder_filename(prefix, es, fold))
-    return histories
 
 class SplittedNeuralNetwork:
     def __init__ (self, prefix, es, fold):
