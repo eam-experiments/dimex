@@ -161,7 +161,7 @@ def train_autoencoder(prefix, es):
         lds = dimex.LearnedDataSet(es, fold)
         training_data, _ = lds.get_training_data()
         testing_data, _ = lds.get_testing_data()
-        truly_training = int(len(training_labels)*truly_training_percentage)
+        truly_training = int(len(training_data)*truly_training_percentage)
 
         validation_data = training_data[truly_training:]
         training_data = training_data[:truly_training]
