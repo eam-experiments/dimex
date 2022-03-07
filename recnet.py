@@ -28,7 +28,9 @@ import dimex
 
 n_frames = constants.n_frames
 n_mfcc = constants.mfcc_numceps
-encoder_nlayers = 13     # The number of layers defined in get_encoder.
+encoder_nlayers = 0     # The number of layers defined in get_encoder.
+decoder_nlayers = 0
+classifier_nlayers = 0
 batch_size = 2048
 epochs = 300
 patience = 5
@@ -62,6 +64,7 @@ def get_encoder(input_data):
     rnn = Bidirectional(GRU(constants.domain//2, dropout=in_dropout))(drop)
     drop = Dropout(out_dropout)(rnn)
     norm = LayerNormalization()(drop)
+    encoder_nlayers = 11
     return norm
 
 
@@ -78,7 +81,7 @@ def get_decoder(encoded):
     gru = Bidirectional(GRU(constants.domain//2, activation='relu', return_sequences=True))(drop)
     drop = Dropout(0.4)(gru)
     output_mfcc = TimeDistributed(Dense(n_mfcc), name='autoencoder')(drop)
-
+    decoder_nlayers = 12
     # Produces an image of same size and channels as originals.
     return output_mfcc
 
@@ -91,7 +94,7 @@ def get_classifier(encoded, output_bias = None):
     drop = Dropout(0.4)(dense_1)
     classification = Dense(constants.n_labels, activation='softmax',
          bias_initializer=output_bias, name='classification')(drop)
-
+    classifier_nlayers = 3
     return classification
 
 
@@ -178,7 +181,7 @@ def train_autoencoder(prefix, es):
         histories.append(history)
         history = model.evaluate(testing_data, testing_data, return_dict=True)
         histories.append(history)
-        model.save(constants.classifier_filename(prefix, es, fold))
+        model.save(constants.autoencoder_filename(prefix, es, fold))
     return histories
 
 
@@ -229,7 +232,7 @@ def train_classifier(prefix, features_prefix, data_prefix, es):
         predicted_labels = model.predict(testing_features)
         confusion_matrix += tf.math.confusion_matrix(np.argmax(testing_labels, axis=1), 
             np.argmax(predicted_labels, axis=1), num_classes=constants.n_labels)
-        model.save(constants.decoder_filename(prefix, es, fold))
+        model.save(constants.classifier_filename(prefix, es, fold))
     confusion_matrix = confusion_matrix.numpy()
     totals = confusion_matrix.sum(axis=1).reshape(-1,1)
     return histories, confusion_matrix/totals
@@ -237,7 +240,7 @@ def train_classifier(prefix, features_prefix, data_prefix, es):
 def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix, es):
     """ Generate features for sound segments, corresponding to phonemes.
     
-    Uses the previously trained neural networks for generating the features.
+    Uses the previously trained autoencoder for generating the features.
     """
     for fold in range(constants.n_folds):
         lds = dimex.LearnedDataSet(es, fold)
@@ -246,15 +249,13 @@ def obtain_features(model_prefix, features_prefix, labels_prefix, data_prefix, e
         testing_data, testing_labels = lds.get_testing_data()
 
         # Recreate the exact same model, including its weights and the optimizer
-        filename = constants.classifier_filename(model_prefix, es, fold)
-        model = tf.keras.models.load_model(filename)
+        filename = constants.autoencoder_filename(model_prefix, es, fold)
+        autoencoder = tf.keras.models.load_model(filename)
 
-        # Drop the autoencoder and the last layers of the full connected neural network part.
-        classifier = Model(model.input, model.output)
-        no_hot = to_categorical(testing_labels)
-        classifier.compile(
-            optimizer='adam', loss='categorical_crossentropy', metrics='accuracy')
-        model = Model(classifier.input, classifier.layers[-4].output)
+        # Drop the decoder.
+        model = Model(model.input, model.output)
+        # model.compile(loss='huber_loss', optimizer='adam', metrics='accuracy')
+        model = Model(autoencoder.input, autoencoder.layers[-decoder_nlayers].output)
         model.summary()
 
         training_features = model.predict(training_data)
@@ -281,7 +282,7 @@ class SplittedNeuralNetwork:
     def __init__ (self, prefix, es, fold):
         model_filename = constants.classifier_filename(prefix, es, fold)
         classifier = tf.keras.models.load_model(model_filename)
-        model_filename = constants.decoder_filename(prefix, es, fold)
+        model_filename = constants.autoencoder_filename(prefix, es, fold)
         self.decoder = tf.keras.models.load_model(model_filename)
 
         input_enc = Input(shape=(n_frames, n_mfcc))

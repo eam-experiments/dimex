@@ -47,7 +47,7 @@ memory_suffix = '-memories'
 
 # Model suffixes.
 classifier_suffix = '-classifier'
-decoder_suffix = '-autoencoder'
+autoencoder_suffix = '-autoencoder'
 
 # Other suffixes.
 original_suffix = '-original'
@@ -254,8 +254,8 @@ def seed_labels_filename():
 def classifier_filename(name_prefix, es, fold):
     return filename(name_prefix + classifier_suffix, es, fold)
 
-def decoder_filename(name_prefix, es, fold):
-    return filename(name_prefix + decoder_suffix, es, fold)
+def autoencoder_filename(name_prefix, es, fold):
+    return filename(name_prefix + autoencoder_suffix, es, fold)
 
 
 
