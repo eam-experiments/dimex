@@ -51,9 +51,7 @@ def get_encoder(input_data):
     in_dropout=0.2
     out_dropout=0.4
     # Recurrent encoder
-    rnn = Bidirectional(GRU(constants.domain*16, return_sequences=True, dropout=in_dropout))(input_data)
-    drop = Dropout(out_dropout)(rnn)
-    rnn = Bidirectional(GRU(constants.domain*8, return_sequences=True, dropout=in_dropout))(drop)
+    rnn = Bidirectional(GRU(constants.domain*8, return_sequences=True, dropout=in_dropout))(input_data)
     drop = Dropout(out_dropout)(rnn)
     rnn = Bidirectional(GRU(constants.domain*4, return_sequences=True, dropout=in_dropout))(drop)
     drop = Dropout(out_dropout)(rnn)
@@ -69,9 +67,7 @@ def get_encoder(input_data):
 
 def get_decoder(encoded):
     repeat = RepeatVector(n_frames)(encoded)
-    gru = Bidirectional(GRU(constants.domain*16, activation='relu', return_sequences=True))(repeat)
-    drop = Dropout(0.4)(gru)
-    gru = Bidirectional(GRU(constants.domain*8, activation='relu', return_sequences=True))(drop)
+    gru = Bidirectional(GRU(constants.domain*8, activation='relu', return_sequences=True))(repeat)
     drop = Dropout(0.4)(gru)
     gru = Bidirectional(GRU(constants.domain*4, activation='relu', return_sequences=True))(drop)
     drop = Dropout(0.4)(gru)
@@ -161,7 +157,7 @@ def train_autoencoder(prefix, es):
         lds = dimex.LearnedDataSet(es, fold)
         training_data, _ = lds.get_training_data()
         testing_data, _ = lds.get_testing_data()
-        truly_training = int(len(training_labels)*truly_training_percentage)
+        truly_training = int(len(training_data)*truly_training_percentage)
 
         validation_data = training_data[truly_training:]
         training_data = training_data[:truly_training]
