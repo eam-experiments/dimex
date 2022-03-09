@@ -55,7 +55,7 @@ class AssociativeMemory(object):
         self._n = n
         self._m = m+1
         self._t = tolerance
-        self._max = 255
+        self._max = 1023
         percentage = 0.5 if zeta is None else abs(zeta)
         self._zeta = percentage*n
         self._scale = normpdf(0, 0, self._zeta)
