@@ -87,6 +87,10 @@ class AssociativeMemory(object):
     @property
     def undefined(self):
         return self.m
+
+    @property
+    def max_value(self):
+        return self._max
         
     @property
     def zeta(self):
