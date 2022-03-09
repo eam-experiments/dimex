@@ -230,10 +230,10 @@ def plot_conf_matrix(matrix, tags, prefix, es):
     plt.savefig(filename, dpi=600)
 
 
-def plot_memory(relation, prefix, es):
+def plot_memory(memory: AssociativeMemory, prefix, es):
     plt.clf()
     plt.figure(figsize=(6.4, 4.8))
-    seaborn.heatmap(relation/256, vmin=0.0, vmax=1.0,
+    seaborn.heatmap(memory.relation/memory.max_value, vmin=0.0, vmax=1.0,
                     annot=False, cmap='coolwarm')
     plt.xlabel(_('Characteristics'))
     plt.ylabel(_('Values'))
@@ -400,7 +400,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, es, fold):
             for label, features_list in split_by_label(zip(trf_rounded, trl)))
     print(f'Filling of memories done for fold {fold}')
     m = random.randrange(constants.n_labels)
-    plot_memory(ams[m].relation, f'memory_{m:03}-sze_{msize:03}', es)
+    plot_memory(ams[m], f'memory_{m:03}-sze_{msize:03}', es)
 
     # Calculate entropies
     for m in ams:
