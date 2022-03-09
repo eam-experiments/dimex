@@ -99,7 +99,7 @@ def get_classifier(encoded, output_bias = None):
     return classification
 
 
-class EarlyStoppingAtLossCrossing(Callback):
+class EarlyStoppingClassifier(Callback):
     """ Stop training when the loss gets lower than val_loss.
 
         Arguments:
@@ -109,7 +109,7 @@ class EarlyStoppingAtLossCrossing(Callback):
     """
 
     def __init__(self):
-        super(EarlyStoppingAtLossCrossing, self).__init__()
+        super(EarlyStoppingClassifier, self).__init__()
         self.patience = patience
         self.prev_val_loss = float('inf')
         self.prev_val_accuracy = 0.0
@@ -137,6 +137,69 @@ class EarlyStoppingAtLossCrossing(Callback):
         elif (val_accuracy > self.prev_val_accuracy):
             self.wait = 0
             self.prev_val_accuracy = val_accuracy
+            self.best_weights = self.model.get_weights()
+        elif (val_loss < self.prev_val_loss):
+            self.wait = 0
+            self.prev_val_loss = val_loss
+            self.best_weights = self.model.get_weights()
+        else:
+            self.wait += 1
+        if self.wait >= self.patience:
+            self.stopped_epoch = epoch
+            self.model.stop_training = True
+            print("Restoring model weights from the end of the best epoch.")
+            self.model.set_weights(self.best_weights)
+
+    def on_train_end(self, logs=None):
+        if self.stopped_epoch > 0:
+            print("Epoch %05d: early stopping" % (self.stopped_epoch + 1))
+
+
+class EarlyStoppingAutoencoder(Callback):
+    """ Stop training when the loss gets lower than val_loss.
+
+        Arguments:
+            patience: Number of epochs to wait after condition has been hit.
+            After this number of no reversal, training stops.
+            It starts working after 10% of epochs have taken place.
+    """
+
+    def __init__(self):
+        super(EarlyStoppingClassifier, self).__init__()
+        self.patience = patience
+        self.prev_val_loss = float('inf')
+        self.prev_val_r_square = 0.0
+        self.prev_val_rmse = float('inf')
+        # best_weights to store the weights at which the loss crossing occurs.
+        self.best_weights = None
+        self.start = min(epochs // 20, 3)
+        self.wait = 0
+
+    def on_train_begin(self, logs=None):
+        # The number of epoch it has waited since loss crossed val_loss.
+        self.wait = 0
+        # The epoch the training stops at.
+        self.stopped_epoch = 0
+
+    def on_epoch_end(self, epoch, logs=None):
+        loss = logs.get('loss')
+        val_loss = logs.get('val_loss')
+        r_square = logs.get('r_squared')
+        val_r_square = logs.get('val_accuracy')
+        rmse = logs.get('root_mean_squared_error')
+        val_rmse = logs.get('root_mean_squared_error')
+
+        if epoch < self.start:
+            self.best_weights = self.model.get_weights()
+        elif (loss < val_loss) or ((r_square > val_r_square) and (rmse < val_rmse)):
+            self.wait += 1
+        elif val_r_square > self.prev_val_r_square:
+            self.wait = 0
+            self.prev_val_r_square = val_r_square
+            self.best_weights = self.model.get_weights()
+        elif val_rmse < self.prev_val_rmse:
+            self.wait = 0
+            self.prev_val_rmse = val_rmse
             self.best_weights = self.model.get_weights()
         elif (val_loss < self.prev_val_loss):
             self.wait = 0
@@ -188,7 +251,7 @@ def train_classifier(prefix, es):
                 epochs=epochs,
                 class_weight=weights, # Only supported for single output models.
                 validation_data= (validation_data, validation_labels),
-                callbacks=[EarlyStoppingAtLossCrossing()],
+                callbacks=[EarlyStoppingClassifier()],
                 verbose=2)
         histories.append(history)
         history = model.evaluate(testing_data, testing_labels, return_dict=True)
@@ -274,14 +337,14 @@ def train_decoder(prefix, features_prefix, data_prefix, es):
         input_data = Input(shape=(constants.domain))
         decoded = get_decoder(input_data)
         model = Model(inputs=input_data, outputs=decoded)
-        model.compile(loss='huber_loss', optimizer='adam', metrics='accuracy')
+        model.compile(loss='huber_loss', optimizer='adam', metrics=['r_square', 'root_mean_squared_error'])
         model.summary()
         history = model.fit(training_features,
                 training_data,
                 batch_size=batch_size,
                 epochs=epochs,
                 validation_data= (validation_features, validation_data),
-                callbacks=[EarlyStoppingAtLossCrossing()],
+                callbacks=[EarlyStoppingAutoencoder()],
                 verbose=2)
         histories.append(history)
         history = model.evaluate(testing_features, testing_data, return_dict=True)
