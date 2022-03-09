@@ -165,10 +165,9 @@ class EarlyStoppingAutoencoder(Callback):
     """
 
     def __init__(self):
-        super(EarlyStoppingClassifier, self).__init__()
+        super(EarlyStoppingAutoencoder, self).__init__()
         self.patience = patience
         self.prev_val_loss = float('inf')
-        self.prev_val_r_square = 0.0
         self.prev_val_rmse = float('inf')
         # best_weights to store the weights at which the loss crossing occurs.
         self.best_weights = None
@@ -184,19 +183,13 @@ class EarlyStoppingAutoencoder(Callback):
     def on_epoch_end(self, epoch, logs=None):
         loss = logs.get('loss')
         val_loss = logs.get('val_loss')
-        r_square = logs.get('r_squared')
-        val_r_square = logs.get('val_accuracy')
         rmse = logs.get('root_mean_squared_error')
         val_rmse = logs.get('root_mean_squared_error')
 
         if epoch < self.start:
             self.best_weights = self.model.get_weights()
-        elif (loss < val_loss) or ((r_square > val_r_square) and (rmse < val_rmse)):
+        elif (loss < val_loss) or (rmse < val_rmse):
             self.wait += 1
-        elif val_r_square > self.prev_val_r_square:
-            self.wait = 0
-            self.prev_val_r_square = val_r_square
-            self.best_weights = self.model.get_weights()
         elif val_rmse < self.prev_val_rmse:
             self.wait = 0
             self.prev_val_rmse = val_rmse
@@ -337,7 +330,8 @@ def train_decoder(prefix, features_prefix, data_prefix, es):
         input_data = Input(shape=(constants.domain))
         decoded = get_decoder(input_data)
         model = Model(inputs=input_data, outputs=decoded)
-        model.compile(loss='huber_loss', optimizer='adam', metrics=['r_square', 'root_mean_squared_error'])
+        rmse = tf.keras.metrics.RootMeanSquaredError()
+        model.compile(loss='huber_loss', optimizer='adam', metrics=[rmse])
         model.summary()
         history = model.fit(training_features,
                 training_data,
