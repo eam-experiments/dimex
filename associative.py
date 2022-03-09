@@ -57,7 +57,7 @@ class AssociativeMemory(object):
         self._t = tolerance
         self._max = 1023
         percentage = 0.5 if zeta is None else abs(zeta)
-        self._zeta = percentage*n
+        self._zeta = percentage*m
         self._scale = normpdf(0, 0, self._zeta)
 
         # it is m+1 to handle partial functions.
@@ -94,7 +94,7 @@ class AssociativeMemory(object):
         
     @property
     def zeta(self):
-        return self._zeta / self.n
+        return self._zeta / self.m
     
     @zeta.setter
     def zeta(self, z):
@@ -131,19 +131,19 @@ class AssociativeMemory(object):
         else:
             column = self._normalize(
                 self.relation[:,j], v, self._zeta, self._scale)
-        sum = self.relation[:, j].sum()
+        sum = column.sum()
         n = sum*random.random()
         for i in range(self.m):
-            if n < self.relation[i,j]:
+            if n < column[i]:
                 return i
-            n -= self.relation[i,j]
+            n -= column[i]
         return self.m - 1
                  
     def _weight(self, vector):
         weights = []
-        for j in range(self.n):
-            w = 0 if self.is_undefined(vector[j]) \
-                else self.relation[vector[j], j]
+        for i in range(self.n):
+            w = 0 if self.is_undefined(vector[i]) \
+                else self.relation[vector[i], i]
             weights.append(w)
         return np.mean(weights) / self._max
 
