@@ -35,7 +35,7 @@ class AssociativeMemoryError(Exception):
 
 
 class AssociativeMemory(object):
-    def __init__(self, n: int, m: int, tolerance = 0, zeta=None):
+    def __init__(self, n: int, m: int, tolerance = 0, zeta=0.25):
         """
         Parameters
         ----------
@@ -56,8 +56,7 @@ class AssociativeMemory(object):
         self._m = m+1
         self._t = tolerance
         self._max = 1023
-        percentage = 0.5 if zeta is None else abs(zeta)
-        self._zeta = percentage*m
+        self._zeta = zeta*m
         self._scale = normpdf(0, 0, self._zeta)
 
         # it is m+1 to handle partial functions.
@@ -98,7 +97,7 @@ class AssociativeMemory(object):
     
     @zeta.setter
     def zeta(self, z):
-        self._zeta = abs(z*self.n)
+        self._zeta = abs(z*self.m)
         self._scale = normpdf(0, 0, self._zeta)
 
     def entropies(self):
