@@ -61,6 +61,8 @@ def get_encoder(input_data):
     drop = Dropout(out_dropout)(rnn)
     rnn = Bidirectional(GRU(constants.domain, return_sequences=True, dropout=in_dropout))(drop)
     drop = Dropout(out_dropout)(rnn)
+    rnn = Bidirectional(GRU(constants.domain//2, return_sequences=True, dropout=in_dropout))(drop)
+    drop = Dropout(out_dropout)(rnn)
     rnn = Bidirectional(GRU(constants.domain//2, dropout=in_dropout))(drop)
     drop = Dropout(out_dropout)(rnn)
     norm = LayerNormalization()(drop)
