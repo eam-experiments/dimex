@@ -92,11 +92,17 @@ def stage_stats(es: constants.ExperimentSettings, fold):
     suffixes = constants.learning_suffixes[es.learned]
     for suffix in suffixes:
         filename = constants.learned_data_filename(suffix, es, fold)
+        filename = fix_path(filename, path)
         data = np.load(filename)
         filename = constants.learned_labels_filename(suffix, es, fold)
+        filename = fix_path(filename, path)
         labels = np.load(filename)
         print(f'Fold: {fold}, Stage: {es.stage}, Suffix: {suffix}, Size: {len(labels)}')
-        
+
+def fix_path(filename, path):
+    tuple = filename.partition('/')
+    return path + tuple[1] + tuple[2]
+    
 if __name__== "__main__" :
     args = docopt(__doc__)
     # Processing language.
