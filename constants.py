@@ -58,9 +58,8 @@ agreed_suffix = '-agr'
 original_suffix = '-ori'
 amsystem_suffix = '-ams'
 nnetwork_suffix = '-rnn'
-recognition_suffixes = [[original_suffix], [agreed_suffix], [original_suffix, agreed_suffix],
-    [agreed_suffix, original_suffix, amsystem_suffix],
-    [agreed_suffix, original_suffix, amsystem_suffix, nnetwork_suffix]]
+learning_suffixes = [[original_suffix], [agreed_suffix], [amsystem_suffix],
+    [nnetwork_suffix], [original_suffix, amsystem_suffix]]
 
 
 mfcc_numceps = 26

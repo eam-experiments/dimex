@@ -1,27 +1,51 @@
-import argparse
+# Copyright [2020] Luis Alberto Pineda Cortés, Gibrán Fuentes Pineda,
+# Rafael Morales Gamboa.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Entropic Associative Memory Experiments
+
+Usage:
+  learning_stats -h | --help
+  learning_stats [--path=<path>] [--stages=<stages>] [-x] [--learned=<learned_data>] [--tolerance=<tolerance>] [--lang=<language>]
+
+Options:
+  -h                        Show this screen.
+  --path=<path>             Directory where results are found [default: runs].
+  --stages=<stages>         Number of stages to consider [default: 10].
+  -x                        Sets last stage as eXtended.
+  --learned=<learned_data>  Selects which learned data is used for learning [default: 0].
+  --tolerance=<tolerance>   Allow Tolerance (unmatched features) in memory [default: 0].
+  --lang=<language>         Chooses language for  graphs [default: en].            
+"""
+from docopt import docopt
+import gettext
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-
 import constants
 import dimex
 
-AGREED = 'agreed'
-ORIGINAL = 'original'
-MEMORY = 'memory'
-NETWORK = 'network'
-SEED_LABELS = 'runs/seed_balanced_Y.npy'
-EXPERIMENT = 4
+n_stages = 10
+path = 'run'
+last_extended = False
 
-suffixes = {
-    AGREED : constants.agreed_suffix,
-    ORIGINAL: constants.original_suffix,
-    MEMORY: constants.amsystem_suffix,
-    NETWORK: constants.nnetwork_suffix}
+# Considering whether is correct recognition,
+# incorrect recognition, or not recognition at all.
+n_recogs = 3
 
 def seed_frequencies():
     count = np.zeros(constants.n_labels, dtype=int)
-    labels = np.load(SEED_LABELS)
+    labels = np.load('seed_labels')
     for label in labels:
         count[label] += 1
     return count
@@ -39,78 +63,81 @@ def plot_learning_graph(suffix, stage, bot, top, top_err):
     plt.xlabel('Phonemes')
     plt.legend()
     suffix = constants.learning_data_learned + suffix
-    filename = constants.picture_filename(suffix, EXPERIMENT, stage=stage)
+    filename = constants.picture_filename(suffix, 'xperiment', stage=stage)
     plt.savefig(filename, dpi=600)
-
-def plot_recognition_graph(stage, tolerance, means, errs):
-    plt.clf()
-    fig = plt.figure()
-    x = range(constants.n_folds)
-    plt.ylim(0, 1.0)
-    plt.xlim(0, 10.0)
-    plt.autoscale(False)
-    plt.errorbar(x, means[:,0], fmt='r-o', yerr=errs[:,0], label='Correct to network produced')
-    plt.errorbar(x, means[:,1], fmt='g-d', yerr=errs[:,1], label='Correct to memory produced')
-    plt.errorbar(x, means[:,2], fmt='b-s', yerr=errs[:,2], label='Network produced to memory produced')
-
-    plt.ylabel('Normalized distance')
-    plt.xlabel('Folds')
-    plt.legend()
-    prefix = constants.recognition_prefix
-    filename = constants.picture_filename(prefix, EXPERIMENT, tolerance, stage)
-    fig.savefig(filename, dpi=600)
 
 def sort (seed, means, stdvs):
     total = seed + means
     total, seed, means, stdvs = (list(t) for t in zip(*sorted(zip(total, seed, means, stdvs), reverse=True))) 
     return seed, means, stdvs
 
-def learning_stats(suffix, stage):
+def learning_stats(es):
     # seed = seed_frequencies()
-    stats = np.zeros((constants.n_labels, constants.n_folds), dtype=int)
+    n_folds = constants.n_folds
+    n_labels = constants.n_labels
+    stats = np.zeros((n_folds, n_stages, n_labels, n_recogs), dtype=int)
     for fold in range(constants.n_folds):
-        filename = constants.learned_labels_filename(suffix, fold, stage)
+        stats[fold] = fold_stats(es, fold)
+
+def fold_stats(es: constants.ExperimentSettings, fold):
+    stats = []
+    for stage in range(n_stages):
+        es.stage = stage
+        es.extended = last_extended and (stage == (n_stages-1))
+        s = stage_stats(es, fold)
+        stats.append(s)
+    return np.array(stats)
+
+def stage_stats(es: constants.ExperimentSettings, fold):
+    suffixes = constants.learning_suffixes[es.learned]
+    for suffix in suffixes:
+        filename = constants.learned_data_filename(suffix, es, fold)
+        data = np.load(filename)
+        filename = constants.learned_labels_filename(suffix, es, fold)
         labels = np.load(filename)
-        count = np.zeros(constants.n_labels, dtype=int)
-        for label in labels:
-            count[label] += 1
-        stats[:,fold] = count
-    means = np.mean(stats, axis = 1)
-    stdvs = np.std(stats, axis = 1)
-    # seed, means, stdvs = sort(seed, means, stdvs)
-    seed, means, stdvs = sort(np.zeros(constants.n_labels), means, stdvs)
-    plot_learning_graph(suffix, stage, seed, means, stdvs)
-
-def recognition_stats(tolerance: int, stage: int):
-    means = np.zeros((constants.n_folds, 3))
-    stdvs = np.zeros((constants.n_folds, 3))
-    for fold in range(constants.n_folds):
-        filename = constants.recog_filename(constants.recognition_prefix, EXPERIMENT,
-            fold, tolerance, stage)
-        df = pd.read_csv(filename)
-        df['C2N'] = df['Cor2Net'] / df['CorrSize']
-        df['C2M'] = df['Cor2Mem'] / df['CorrSize']
-        df['N2M'] = 2*df['Net2Mem'] / (df['NetSize'] + df['MemSize'])
-
-        stats = df.describe(include=[np.number])
-        means[fold,:] = stats.loc['mean'].values[-3:]
-        stdvs[fold,:] = stats.loc['std'].values[-3:]
-    print(means[:,1])
-    plot_recognition_graph(stage, tolerance, means, stdvs)
-
+        print(f'Fold: {fold}, Stage: {es.stage}, Suffix: {suffix}, Size: {len(labels)}')
+        
 if __name__== "__main__" :
-    parser = argparse.ArgumentParser(description='Analysis of learned data in experiment 4.')
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-l', nargs='?', choices=(AGREED, ORIGINAL, MEMORY, NETWORK),
-        dest='category', default=AGREED,
-        help=f'Category of learned data to analyse (default: {AGREED})')
-    group.add_argument('-r', nargs='?', dest='tolerance', type=int, 
-        help='Analyse recognition instead of learning')
-    parser.add_argument("stage", type=int,
-        help="Stage of the learning process (integer from zero)")
-    args = parser.parse_args()
+    args = docopt(__doc__)
+    # Processing language.
+    lang = args['--lang']
+    if (lang != 'en'):
+        print('Entering if')
+        translation = gettext.translation('eam', localedir='locale', languages=[lang])
+        translation.install()
 
-    if args.tolerance is None:
-        learning_stats(suffixes[args.category], args.stage)
-    else:
-        recognition_stats(args.tolerance, args.stage)
+    path = args['--path']
+    # Processing stages.
+    try:
+        n_stages = int(args['--stages'])
+        if (n_stages < 0):
+            raise Exception('Number must be positive.')
+    except:
+        constants.print_error(
+            '<stages> must be a positive integer.')
+        exit(1)
+    last_extended = args['-x']
+
+    # Processing learned data.
+    try:
+        learned = int(args['--learned'])
+        if (learned < 0) or (learned >= constants.learned_data_groups):
+            raise Exception('Number out of range.')
+    except:
+        constants.print_error(
+            '<learned_data> must be a positive integer.')
+        exit(1)
+
+    # Processing tolerance.
+    try:
+        tolerance = int(args['--tolerance'])
+        if (tolerance < 0) or (tolerance > constants.domain):
+            raise Exception('Number out of range.')
+    except:
+        constants.print_error(
+            '<tolerance> must be a positive integer.')
+        exit(1)
+
+    exp_set = constants.ExperimentSettings(0, learned, False, tolerance)
+    print(f'Experimental settings: {exp_set}')
+    learning_stats(exp_set)
