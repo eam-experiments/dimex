@@ -37,7 +37,7 @@ import matplotlib.pyplot as plt
 import constants
 
 # Translation
-gettext.install('ame', localedir=None, codeset=None, names=None)
+gettext.install('eam', localedir=None, codeset=None, names=None)
 
 def generate_graph(es: constants.ExperimentSettings):
     data = get_data(es)

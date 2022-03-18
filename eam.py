@@ -1134,7 +1134,7 @@ if __name__== "__main__" :
     lang = 'en'
     if args['es']:
         lang = 'es'
-        es = gettext.translation('ame', localedir='locale', languages=['es'])
+        es = gettext.translation('eam', localedir='locale', languages=['es'])
         es.install()
 
     # Processing stage. 

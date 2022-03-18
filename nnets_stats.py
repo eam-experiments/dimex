@@ -243,7 +243,7 @@ if __name__== "__main__" :
     if valid:
         lang = args['--lang']
         if lang != 'en':
-            lang = gettext.translation('ame', localedir='locale', languages=[lang])
+            lang = gettext.translation('eam', localedir='locale', languages=[lang])
             lang.install()
     else:
         print(__doc__)
