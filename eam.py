@@ -17,7 +17,7 @@
 
 Usage:
   eam -h | --help
-  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [--learned=<learned_data>] [-x] [--tolerance=<tolerance>] [ -l (en | es) ]
+  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [--learned=<learned_data>] [-x] [--tolerance=<tolerance>] [--runpath=<runpath>] [ -l (en | es) ]
 
 Options:
   -h        Show this screen.
@@ -28,9 +28,10 @@ Options:
   -e        Run the experiment 1 (Evaluation).
   -i        Increase the amount of data (learning).
   -r        Run the experiment 2 (Recognition).
-  --learned=<learned_data>        Selects which learneD Data is used for evaluation, recognition or learning [default: 0].
+  --learned=<learned_data>      Selects which learneD Data is used for evaluation, recognition or learning [default: 0].
   -x        Use the eXtended data set as testing data for memory.
-  --tolerance=<tolerance>        Allow Tolerance (unmatched features) in memory [default: 0].
+  --tolerance=<tolerance>       Allow Tolerance (unmatched features) in memory [default: 0].
+  --runpath=<runpath>           Sets the path to the directory where everything will be saved [default: runs]
   -l        Chooses Language for graphs.            
 
 The parameter <stage> indicates the stage of learning from which data is used.
@@ -1173,7 +1174,10 @@ if __name__== "__main__" :
             constants.print_error('<tolerance> must be a positive integer.')
             exit(1)
 
+    # Processing runpath.
+    constants.run_path = args['--runpath']
     exp_set = constants.ExperimentSettings(stage, learned, extended, tolerance)
+    print(f'Working directory: {constants.run_path}')
     print(f'Experimental settings: {exp_set}')
 
     # PROCESSING OF MAIN OPTIONS.
