@@ -100,8 +100,8 @@ def stage_stats(es: constants.ExperimentSettings, fold):
         print(f'Fold: {fold}, Stage: {es.stage}, Suffix: {suffix}, Size: {len(labels)}')
 
 def fix_path(filename, path):
-    tuple = filename.partition('/')
-    return path + tuple[1] + tuple[2]
+    tuple = filename.partition('runs')
+    return tuple[0] + path +  tuple[2]
     
 if __name__== "__main__" :
     args = docopt(__doc__)
