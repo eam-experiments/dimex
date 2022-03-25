@@ -50,20 +50,23 @@ def seed_frequencies():
         count[label] += 1
     return count
 
-def plot_learning_graph(suffix, stage, bot, top, top_err):
+def plot_learning_graph(suffix, means, stdevs):
+    seed_stats = seed_frequencies()
     plt.clf()
     plt.figure(figsize=(6.4,4.8))
-
     labels = dimex.labels_to_phns
     width = 0.75
-    # plt.bar(labels, bot, width, label='Seed')
-    # plt.bar(labels, top, width, yerr=top_err, bottom=bot, label='Learned')
-    plt.bar(labels, top, width, yerr=top_err, label='Learned')
+    fig, ax = plt.subplots()
+    ax.bar(labels, seed_stats, width, label='Seed')
+    n = 1
+    for m, e in zip(means, stdevs):
+        ax.bar(labels, m, width, yerr=e, label=f'Stage {n}')
+        n += 1
     plt.ylabel('Data')
     plt.xlabel('Phonemes')
     plt.legend()
     suffix = constants.learning_data_learned + suffix
-    filename = constants.picture_filename(suffix, 'xperiment', stage=stage)
+    filename = constants.picture_filename(suffix, 'xperiment')
     plt.savefig(filename, dpi=600)
 
 def sort (seed, means, stdvs):
@@ -75,9 +78,12 @@ def learning_stats(es):
     # seed = seed_frequencies()
     n_folds = constants.n_folds
     n_labels = constants.n_labels
-    stats = np.zeros((n_folds, n_stages, n_labels, n_recogs), dtype=int)
+    stats = np.zeros((n_folds, n_stages, n_labels), dtype=int)
     for fold in range(constants.n_folds):
         stats[fold] = fold_stats(es, fold)
+    means = np.mean(stats, axis=0)
+    stdvs = np.std(stats, axis=0)
+    plot_learning_graph('-labels', means, stdvs)
 
 def fold_stats(es: constants.ExperimentSettings, fold):
     stats = []
@@ -90,18 +96,19 @@ def fold_stats(es: constants.ExperimentSettings, fold):
 
 def stage_stats(es: constants.ExperimentSettings, fold):
     suffixes = constants.learning_suffixes[es.learned]
+    lstats = np.zeros(constants.n_labels, dtype=int)
     for suffix in suffixes:
         filename = constants.learned_data_filename(suffix, es, fold)
-        filename = fix_path(filename, path)
         data = np.load(filename)
         filename = constants.learned_labels_filename(suffix, es, fold)
-        filename = fix_path(filename, path)
         labels = np.load(filename)
-        print(f'Fold: {fold}, Stage: {es.stage}, Suffix: {suffix}, Size: {len(labels)}')
+        lstats = lstats + label_stats(labels)
 
-def fix_path(filename, path):
-    tuple = filename.partition('runs')
-    return tuple[0] + path +  tuple[2]
+def label_stats(labels):
+    stats = np.zeros(constants.n_labels, dtype=int)
+    for label in labels:
+        stats[label] = stats[label] + 1
+    return stats
     
 if __name__== "__main__" :
     args = docopt(__doc__)
@@ -112,7 +119,7 @@ if __name__== "__main__" :
         translation = gettext.translation('eam', localedir='locale', languages=[lang])
         translation.install()
 
-    path = args['--path']
+    constants.run_path = args['--path']
     # Processing stages.
     try:
         n_stages = int(args['--stages'])
