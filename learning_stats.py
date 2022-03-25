@@ -44,13 +44,13 @@ last_extended = False
 n_recogs = 3
 
 def seed_frequencies():
-    count = np.zeros(constants.n_labels, dtype=int)
-    labels = np.load('seed_labels')
+    count = np.zeros(constants.n_labels, dtype=float)
+    labels = np.load(constants.run_path + '/seed_balanced_Y.npy')
     for label in labels:
         count[label] += 1
     return count
 
-def plot_learning_graph(suffix, means, stdevs):
+def plot_learning_graph(suffix, means, stdevs, es):
     seed_stats = seed_frequencies()
     plt.clf()
     plt.figure(figsize=(6.4,4.8))
@@ -58,15 +58,19 @@ def plot_learning_graph(suffix, means, stdevs):
     width = 0.75
     fig, ax = plt.subplots()
     ax.bar(labels, seed_stats, width, label='Seed')
-    n = 1
-    for m, e in zip(means, stdevs):
-        ax.bar(labels, m, width, yerr=e, label=f'Stage {n}')
-        n += 1
-    plt.ylabel('Data')
-    plt.xlabel('Phonemes')
-    plt.legend()
+    cumm = seed_stats
+    median = np.full(constants.n_labels, np.max(cumm))
+    ax.plot(labels, median)
+    for i in range(len(means)):
+        ax.bar(labels, means[i,:], width, bottom=cumm, label=f'Stage {i}')
+        cumm += means[i,:]
+    median = np.full(constants.n_labels, np.median(cumm))
+    ax.plot(labels, median)
+    ax.set_ylabel('Data')
+    ax.set_xlabel('Phonemes')
+    # ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=5)
     suffix = constants.learning_data_learned + suffix
-    filename = constants.picture_filename(suffix, 'xperiment')
+    filename = constants.picture_filename(suffix, es)
     plt.savefig(filename, dpi=600)
 
 def sort (seed, means, stdvs):
@@ -83,7 +87,7 @@ def learning_stats(es):
         stats[fold] = fold_stats(es, fold)
     means = np.mean(stats, axis=0)
     stdvs = np.std(stats, axis=0)
-    plot_learning_graph('-labels', means, stdvs)
+    plot_learning_graph('-labels', means, stdvs, es)
 
 def fold_stats(es: constants.ExperimentSettings, fold):
     stats = []
@@ -98,11 +102,12 @@ def stage_stats(es: constants.ExperimentSettings, fold):
     suffixes = constants.learning_suffixes[es.learned]
     lstats = np.zeros(constants.n_labels, dtype=int)
     for suffix in suffixes:
-        filename = constants.learned_data_filename(suffix, es, fold)
-        data = np.load(filename)
+        # filename = constants.learned_data_filename(suffix, es, fold)
+        # data = np.load(filename)
         filename = constants.learned_labels_filename(suffix, es, fold)
         labels = np.load(filename)
-        lstats = lstats + label_stats(labels)
+        lstats += label_stats(labels)
+    return lstats
 
 def label_stats(labels):
     stats = np.zeros(constants.n_labels, dtype=int)
