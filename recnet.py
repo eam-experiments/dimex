@@ -28,7 +28,6 @@ import dimex
 
 n_frames = constants.n_frames
 n_mfcc = constants.mfcc_numceps
-encoder_nlayers = 13     # The number of layers defined in get_encoder.
 batch_size = 2048
 epochs = 300
 patience = 5
@@ -68,6 +67,7 @@ def get_encoder(input_data):
     norm = LayerNormalization()(drop)
     return norm
 
+encoder_nlayers = 15     # The number of layers defined in get_encoder.
 
 def get_decoder(encoded):
     repeat = RepeatVector(n_frames)(encoded)
