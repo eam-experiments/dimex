@@ -984,7 +984,7 @@ def learn_new_data(domain, mem_size, fill_percent, es):
         filling_features = np.load(filling_features_filename)
         filling_labels = np.load(filling_labels_filename)        
         # Apply reduction to given percent of filling data.
-        n = int(len(filling_labels)*fill_percent)
+        n = int(len(filling_labels)*fill_percent/100.0)
         filling_features = filling_features[:n]
         filling_labels = filling_labels[:n]
 
@@ -1067,6 +1067,11 @@ def test_recognition(domain, mem_size, filling_percent, es):
         filling_labels = np.load(filling_labels_filename)
         maximum = filling_features.max()
         minimum = filling_features.min()
+        # Apply reduction to given percent of filling data.
+        n = int(len(filling_labels)*filling_percent/100.0)
+        filling_features = filling_features[:n]
+        filling_labels = filling_labels[:n]
+
         filling_features = msize_features(filling_features, mem_size, minimum, maximum)
 
         ds = dimex.Sampler()
