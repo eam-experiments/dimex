@@ -241,7 +241,7 @@ class Sampler:
                             sample_rate,
                             numcep=constants.mfcc_numceps)
             features = constants.padding_cropping(features, constants.n_frames)
-            segments.append(features)
+            segments += features
             i += step
         return segments
 
