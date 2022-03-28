@@ -35,7 +35,7 @@ class AssociativeMemoryError(Exception):
 
 
 class AssociativeMemory(object):
-    def __init__(self, n: int, m: int, tolerance = 0, zeta=0.25):
+    def __init__(self, n: int, m: int, tolerance = 0, zeta=0.5):
         """
         Parameters
         ----------
