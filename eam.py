@@ -41,6 +41,7 @@ from docopt import docopt
 import copy
 import csv
 import sys
+sys.setrecursionlimit(10000)
 import gc
 import gettext
 from itertools import islice
@@ -972,12 +973,7 @@ def ams_process_samples(samples, ams, minimum, maximum, decode=False):
     return [sample for chunk in processed for sample in chunk]
 
 def learn_new_data(domain, mem_size, fill_percent, es):
-    histories = []
-    segment_sizes = []
     model_prefix = constants.model_name(es)
-    features_prefix = constants.features_name(es)
-    labels_prefix = constants.labels_name(es)
-    segment_sizes_prefix = 'segment_sizes'
     for fold in range(constants.n_folds):
         print(f'Learning new data at stage {es.stage}')
         suffix = constants.filling_suffix
