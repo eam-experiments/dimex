@@ -895,65 +895,6 @@ def save_conf_matrix(matrix, prefix, es):
     np.save(filename, matrix)
 
 
-def lev(a, b, m):
-    if m[len(a), len(b)] >= 0:
-        return m[len(a),len(b)]
-    elif len(a) == 0:
-        return len(b)
-    elif len(b) == 0:
-        return len(a)
-    elif a[0] == b[0]:
-        d = lev(a[1:], b[1:], m)
-        m[len(a), len(b)] = d
-        return d
-    else:
-        deletion = lev(a[1:], b, m)
-        insertion = lev(a, b[1:], m)
-        replacement = lev(a[1:], b[1:], m)
-        d = min(deletion, insertion, replacement) + 1
-        m[len(a), len(b)] = d
-        return d
-
-
-def levenshtein(a: list, b: list):
-    m = np.full((len(a)+1, len(b)+1), -1, dtype=int)
-    d = lev(a, b, m)
-    return d
-
-
-def save_recognitions(samples: list, dp: dimex.PostProcessor, experiment: int,
-    fold: int, tolerance: int, stage: int):
-    filename = constants.recog_filename(constants.recognition_prefix, experiment,
-        fold, tolerance, stage)
-    with open(filename, 'w') as file:
-        writer = csv.writer(file)
-        writer.writerow(['Id', 'Text', 'Correct', 'CorrSize', 'Network',
-            'NetSize', 'Memories', 'MemSize', 'Cor2Net', 'Cor2Mem', 'Net2Mem'])
-        for sample in samples:
-            # sample is a Tagged Audio
-            correct_phns = dp.get_phonemes(sample.labels)
-            corr_size = len(sample.labels)
-            nnet_phns = dp.get_phonemes(sample.net_labels)
-            nnet_size = len(sample.net_labels)
-            ams_phns = dp.get_phonemes(sample.ams_labels)
-            ams_size = len(sample.ams_labels)
-            cor_net = levenshtein(sample.labels, sample.net_labels)
-            cor_mem = levenshtein(sample.labels, sample.ams_labels)
-            net_mem = levenshtein(sample.net_labels, sample.ams_labels)
-            row = [sample.id, sample.text, correct_phns, corr_size,
-                nnet_phns, nnet_size, ams_phns, ams_size]
-            row += [cor_net, cor_mem, net_mem]
-            writer.writerow(row)
-
-
-def recognition_on_dimex(samples, es, fold):
-    dp = dimex.PostProcessor()
-    for sample in samples:
-        sample.net_labels = dp.process(sample.net_labels)
-        sample.ams_labels = dp.process(sample.ams_labels)
-    save_recognitions(samples, dp, es, fold)
-
-
 def save_learned_data(pairs, suffix, es, fold):
     random.shuffle(pairs)
     data = [p[0] for p in pairs]
@@ -1067,6 +1008,89 @@ def learn_new_data(domain, mem_size, fill_percent, es):
         recognition_on_ciempiess(new_data, es, fold)
     print(f'Learning at stage {es.stage} completed!')
 
+
+def lev(a, b, m):
+    if m[len(a), len(b)] >= 0:
+        return m[len(a),len(b)]
+    elif len(a) == 0:
+        return len(b)
+    elif len(b) == 0:
+        return len(a)
+    elif a[0] == b[0]:
+        d = lev(a[1:], b[1:], m)
+        m[len(a), len(b)] = d
+        return d
+    else:
+        deletion = lev(a[1:], b, m)
+        insertion = lev(a, b[1:], m)
+        replacement = lev(a[1:], b[1:], m)
+        d = min(deletion, insertion, replacement) + 1
+        m[len(a), len(b)] = d
+        return d
+
+
+def levenshtein(a: list, b: list):
+    m = np.full((len(a)+1, len(b)+1), -1, dtype=int)
+    d = lev(a, b, m)
+    return d
+
+
+def save_recognitions(samples, dp, fold, es):
+    filename = constants.recog_filename(constants.recognition_prefix, es, fold)
+    with open(filename, 'w') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Id', 'Text', 'Correct', 'CorrSize', 'Network',
+            'NetSize', 'Memories', 'MemSize', 'Cor2Net', 'Cor2Mem', 'Net2Mem'])
+        for sample in samples:
+            # sample is a Tagged Audio
+            correct_phns = dp.get_phonemes(sample.labels)
+            corr_size = len(sample.labels)
+            nnet_phns = dp.get_phonemes(sample.net_labels)
+            nnet_size = len(sample.net_labels)
+            ams_phns = dp.get_phonemes(sample.ams_labels)
+            ams_size = len(sample.ams_labels)
+            cor_net = levenshtein(sample.labels, sample.net_labels)
+            cor_mem = levenshtein(sample.labels, sample.ams_labels)
+            net_mem = levenshtein(sample.net_labels, sample.ams_labels)
+            row = [sample.id, sample.text, correct_phns, corr_size,
+                nnet_phns, nnet_size, ams_phns, ams_size]
+            row += [cor_net, cor_mem, net_mem]
+            writer.writerow(row)
+
+
+def test_recognition(domain, mem_size, filling_percent, es):
+    for fold in range(constants.n_folds):
+        suffix = constants.filling_suffix
+        filling_features_filename = constants.features_name(es) + suffix
+        filling_features_filename = constants.data_filename(filling_features_filename, es, fold)
+        filling_labels_filename = constants.labels_name(es) + suffix
+        filling_labels_filename = constants.data_filename(filling_labels_filename, es, fold)
+
+        filling_features = np.load(filling_features_filename)
+        filling_labels = np.load(filling_labels_filename)
+        maximum = filling_features.max()
+        minimum = filling_features.min()
+        filling_features = msize_features(filling_features, mem_size, minimum, maximum)
+
+        ds = dimex.Sampler()
+        dp = dimex.PostProcessor()
+        ams = AssociativeMemorySystem(constants.all_labels,domain,mem_size)
+        for label, features in zip(filling_labels, filling_features):
+            ams.register(label,features)
+
+        samples = ds.get_sample(constants.n_samples)
+        samples = recnet.process_samples(samples, fold)
+        for sample in samples:
+            sample.net_labels = dp.process(sample.net_labels)
+            ams_labels = []
+            for f in sample.features:
+                features = msize_features(f, mem_size, minimum, maximum)
+                label, _ = ams.recall(features)
+                ams_labels.append(label)
+            sample.ams_labels = dp.process(ams_labels)
+        save_recognitions(samples, dp, fold, es)
+
+
 ##############################################################################
 # Main section
 
@@ -1128,6 +1152,11 @@ def extend_data(es):
     print(f'Learning data with memory size of {mem_size} and fill of {fill_percent}%')
     learn_new_data(constants.domain, mem_size, fill_percent, es)
  
+def recognize_sequences(es):
+    mem_size, fill_percent = load_learn_params(es)
+    test_recognition(constants.domain, mem_size, fill_percent, es)
+
+
 if __name__== "__main__" :
     args = docopt(__doc__)
 
@@ -1195,4 +1224,4 @@ if __name__== "__main__" :
     elif args['-i']:
         extend_data(exp_set)
     elif args['-r']:
-        test_recognition(exp_set)
+        recognize_sequences(exp_set)

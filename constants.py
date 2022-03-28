@@ -263,8 +263,8 @@ def decoder_filename(name_prefix, es, fold):
 def stats_name(experiment = -1):
     return get_name_w_suffix(stats_prefix, experiment >= EXP_1, experiment, experiment_suffix)
 
-def recog_filename(name_prefix, experiment = None, fold = None, tolerance = None, stage = None):
-    return csv_filename(name_prefix, fold, tolerance, experiment, stage)
+def recog_filename(name_prefix, es, fold):
+    return csv_filename(name_prefix, es, fold)
 
 def mean_idx(m):
     return m
