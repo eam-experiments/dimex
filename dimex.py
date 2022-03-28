@@ -490,7 +490,13 @@ class LearnedDataSet:
 
 class PostProcessor:
     def process(self, labels):
-        return labels
+        cleaned = []
+        for label in labels:
+            if (label is None) or (label == constants.n_labels):
+                continue
+            else:
+                cleaned.append(label)
+        return cleaned
 
     def get_phonemes(self, labels):
         phonemes = ''
