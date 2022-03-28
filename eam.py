@@ -1059,6 +1059,7 @@ def save_recognitions(samples, dp, fold, es):
 
 
 def test_recognition(domain, mem_size, filling_percent, es):
+    model_prefix = constants.model_name(es)
     for fold in range(constants.n_folds):
         suffix = constants.filling_suffix
         filling_features_filename = constants.features_name(es) + suffix
@@ -1079,7 +1080,7 @@ def test_recognition(domain, mem_size, filling_percent, es):
             ams.register(label,features)
 
         samples = ds.get_sample(constants.n_samples)
-        samples = recnet.process_samples(samples, fold)
+        samples = recnet.process_samples(samples, model_prefix, es, fold)
         for sample in samples:
             sample.net_labels = dp.process(sample.net_labels)
             ams_labels = []
