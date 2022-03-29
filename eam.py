@@ -442,7 +442,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, es, fold):
             positives = cms[i][TP] + cms[i][FP]
             if positives == 0:
                 print(f'Memory {i} of size {msize} in fold {fold} did not respond.')
-    return (midx, measures, behaviour)
+    return (midx, measures, behaviour, cms)
     
 
 def test_memories(domain, es):
@@ -452,6 +452,8 @@ def test_memories(domain, es):
     accuracy = []
     all_precision = []
     all_recall = []
+    all_cms = []
+
 
     no_response = []
     no_correct_response = []
@@ -465,7 +467,7 @@ def test_memories(domain, es):
 
     for fold in range(constants.n_folds):
         gc.collect()
-
+        print(f'Fold: {fold}')
         suffix = constants.filling_suffix
         filling_features_filename = constants.features_name(es) + suffix        
         filling_features_filename = constants.data_filename(filling_features_filename, es, fold)
@@ -485,16 +487,16 @@ def test_memories(domain, es):
 
         measures_per_size = np.zeros((len(constants.memory_sizes), constants.n_measures), dtype=np.float64)
         behaviours = np.zeros((len(constants.memory_sizes), constants.n_behaviours))
-
-        print(f'Fold: {fold}')
         list_measures = []
+        list_cms = []
         for midx, msize in enumerate(constants.memory_sizes):
             results = get_ams_results(midx, msize, domain, labels_x_memory,
                 filling_features, testing_features, filling_labels, testing_labels, es, fold)
             list_measures.append(results)
-        for j, measures, behaviour in list_measures:
-            measures_per_size[j, :] = measures
-            behaviours[j, :] = behaviour
+        for midx, measures, behaviour, cms in list_measures:
+            measures_per_size[midx, :] = measures
+            behaviours[midx, :] = behaviour
+            list_cms.append(cms)
         
         ###################################################################3##
         # Measures by memory size
@@ -509,6 +511,7 @@ def test_memories(domain, es):
 
         all_precision.append(behaviours[:, constants.precision_idx] * 100)
         all_recall.append(behaviours[:, constants.recall_idx] * 100)
+        all_cms.append(np.array(list_cms))
         no_response.append(behaviours[:, constants.no_response_idx])
         no_correct_response.append(behaviours[:, constants.no_correct_response_idx])
         no_correct_chosen.append(behaviours[:, constants.no_correct_chosen_idx])
@@ -523,6 +526,7 @@ def test_memories(domain, es):
 
     all_precision = np.array(all_precision)
     all_recall = np.array(all_recall)
+    all_cms = np.array(all_cms)
 
     average_entropy = np.mean(entropy, axis=0)
     stdev_entropy = np.std(entropy, axis=0)
@@ -576,7 +580,7 @@ def test_memories(domain, es):
     np.savetxt(constants.csv_filename('all_precision', es), all_precision, delimiter=',')
     np.savetxt(constants.csv_filename('all_recall', es), all_recall, delimiter=',')
     np.savetxt(constants.csv_filename('main_behaviours', es), main_behaviours, delimiter=',')
-
+    np.save(constants.data_filename('memory_cms', es), all_cms, delimiter=',')
     plot_pre_graph(average_precision, average_recall, average_accuracy, average_entropy,\
         stdev_precision, stdev_recall, stdev_accuracy, stdev_entropy, es)
     plot_pre_graph(all_precision_average, all_recall_average, None, average_entropy, \
@@ -912,6 +916,9 @@ def recognition_on_ciempiess(data, es, fold):
     nnet = []
     amsys = []
     original = []
+    lds = dimex.LearnedDataSet(es, fold)
+    distrib = lds.get_distribution()
+    maximum = np.max(distrib)
     for d in data:
         n = len(d.net_labels)
         for i in range(n):
@@ -923,19 +930,19 @@ def recognition_on_ciempiess(data, es, fold):
             if mem_label is None:
                 mem_label = constants.n_labels
             
-            if mem_label == net_label:
+            if (mem_label == net_label) and (distrib[mem_label] < maximum):
                 mfcc = (orig_mfcc + mem_mfcc)/2
                 agreed.append((mfcc, mem_label))
                 original.append((orig_mfcc, mem_label))
-            mfcc = (orig_mfcc + net_mfcc)/2
-            nnet.append((mfcc, net_label))
-            if mem_label < constants.n_labels:
-                mfcc = (orig_mfcc + mem_mfcc)/2
-                amsys.append((mfcc, mem_label))
+                nnet.append((net_mfcc, net_label))
+                amsys.append((mem_mfcc, mem_label))
+                distrib[mem_label] += 1
     save_learned_data(agreed, constants.agreed_suffix, es, fold)
     save_learned_data(original, constants.original_suffix, es, fold)
     save_learned_data(amsys, constants.amsystem_suffix, es, fold)
     save_learned_data(nnet, constants.nnetwork_suffix, es, fold)
+    print('Updated distribution: ', end=' ')
+    print(distrib)
 
 def list_chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
@@ -1054,6 +1061,16 @@ def save_recognitions(samples, dp, fold, es):
             writer.writerow(row)
 
 
+def process_sample(sample, ams, dp, mem_size, minimum, maximum):
+    sample.net_labels = dp.process(sample.net_labels)
+    ams_labels = []
+    for f in sample.features:
+        features = msize_features(f, mem_size, minimum, maximum)
+        label, _ = ams.recall(features)
+        ams_labels.append(label)
+    sample.ams_labels = dp.process(ams_labels)
+
+
 def test_recognition(domain, mem_size, filling_percent, es):
     model_prefix = constants.model_name(es)
     for fold in range(constants.n_folds):
@@ -1080,16 +1097,11 @@ def test_recognition(domain, mem_size, filling_percent, es):
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
 
-        samples = ds.get_sample(constants.n_samples)
+        samples = ds.get_samples(fold)
         samples = recnet.process_samples(samples, model_prefix, es, fold)
-        for sample in samples:
-            sample.net_labels = dp.process(sample.net_labels)
-            ams_labels = []
-            for f in sample.features:
-                features = msize_features(f, mem_size, minimum, maximum)
-                label, _ = ams.recall(features)
-                ams_labels.append(label)
-            sample.ams_labels = dp.process(ams_labels)
+        samples = Parallel(n_jobs=constants.n_jobs, verbose=50)(
+            delayed(process_sample)(sample, ams, dp, mem_size, minimum, maximum) \
+                for sample in samples)
         save_recognitions(samples, dp, fold, es)
 
 

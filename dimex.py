@@ -164,8 +164,11 @@ class Sampler:
             for row in reader:
                 self._ids.append(tuple(row))
 
-    def get_sample(self, n=1):
-        sample = random.sample(self._ids, n)
+    def get_samples(self, fold):
+        per_fold = (int)(len(self._ids)/constants.n_folds)
+        start = fold*per_fold
+        end = start + per_fold
+        sample = self._ids[start:end]
         audios = []
         for s in sample:
             modifier = s[0]
@@ -378,6 +381,11 @@ class LearnedDataSet:
         self.learned_data, self.learned_labels = self._get_learned_data(es, fold)
         if not ((self.learned_data is None) or (self.learned_labels is None)):
             self.learned_data, self.learned_labels  = balance(self.learned_data, self.learned_labels)
+
+    def get_distribution(self):
+        distrib = np.zeros(constants.n_labels, dtype=int)
+        for label in self.learned_labels:
+            distrib[label] += 1
 
     def _get_data_segment(self, data, labels, segment, fold):
         total = len(labels)
