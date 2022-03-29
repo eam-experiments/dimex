@@ -35,7 +35,7 @@ class AssociativeMemoryError(Exception):
 
 
 class AssociativeMemory(object):
-    def __init__(self, n: int, m: int, tolerance = 0, zeta=0.5):
+    def __init__(self, n: int, m: int, tolerance = 0, sigma=0.5):
         """
         Parameters
         ----------
@@ -46,7 +46,7 @@ class AssociativeMemory(object):
         tolerance: int
             The number of mismatches allowed between the
             memory content and the cue.
-        zeta:
+        sigma:
             The standard deviation of the normal distribution
             used in remembering, as percentage of the number of
             characteristics. Default: None, in which case
@@ -56,8 +56,8 @@ class AssociativeMemory(object):
         self._m = m+1
         self._t = tolerance
         self._max = 1023
-        self._zeta = zeta*m
-        self._scale = normpdf(0, 0, self._zeta)
+        self._sigma = sigma*m
+        self._scale = normpdf(0, 0, self._sigma)
 
         # it is m+1 to handle partial functions.
         self._relation = np.zeros((self._m, self._n), dtype=np.int)
@@ -92,13 +92,13 @@ class AssociativeMemory(object):
         return self._max
         
     @property
-    def zeta(self):
-        return self._zeta / self.m
+    def sigma(self):
+        return self._sigma / self.m
     
-    @zeta.setter
-    def zeta(self, z):
-        self._zeta = abs(z*self.m)
-        self._scale = normpdf(0, 0, self._zeta)
+    @sigma.setter
+    def sigma(self, s):
+        self._sigma = abs(s*self.m)
+        self._scale = normpdf(0, 0, self._sigma)
 
     def entropies(self):
         """Return the entropy of the Associative Memory."""
@@ -121,7 +121,7 @@ class AssociativeMemory(object):
         return norm*column
 
     def normalized(self, j, v):
-        return self._normalize(self.relation[:, j], v, self._zeta, self._scale)
+        return self._normalize(self.relation[:, j], v, self._sigma, self._scale)
 
     # Choose a value for feature i.
     def choose(self, j, v):
@@ -129,7 +129,7 @@ class AssociativeMemory(object):
             column = self.relation[:,j]
         else:
             column = self._normalize(
-                self.relation[:,j], v, self._zeta, self._scale)
+                self.relation[:,j], v, self._sigma, self._scale)
         sum = column.sum()
         n = sum*random.random()
         for i in range(self.m):
