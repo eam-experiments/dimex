@@ -580,7 +580,7 @@ def test_memories(domain, es):
     np.savetxt(constants.csv_filename('all_precision', es), all_precision, delimiter=',')
     np.savetxt(constants.csv_filename('all_recall', es), all_recall, delimiter=',')
     np.savetxt(constants.csv_filename('main_behaviours', es), main_behaviours, delimiter=',')
-    np.save(constants.data_filename('memory_cms', es), all_cms, delimiter=',')
+    np.save(constants.data_filename('memory_cms', es), all_cms)
     plot_pre_graph(average_precision, average_recall, average_accuracy, average_entropy,\
         stdev_precision, stdev_recall, stdev_accuracy, stdev_entropy, es)
     plot_pre_graph(all_precision_average, all_recall_average, None, average_entropy, \
@@ -951,7 +951,6 @@ def list_chunks(lst, n):
 
 def ams_process_samples_batch(samples, ams: AssociativeMemorySystem,
     minimum, maximum, decode=False):
-    print(f'\nProcessing {len(samples)} samples with memories.')
     for sample in samples:
         features = msize_features(sample.features, ams.m, minimum, maximum)
         if not decode:

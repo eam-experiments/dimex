@@ -146,6 +146,7 @@ class EarlyStoppingClassifier(Callback):
             self.best_weights = self.model.get_weights()
         else:
             self.wait += 1
+        print(f'Epochs waiting: {self.wait}')
         if self.wait >= self.patience:
             self.stopped_epoch = epoch
             self.model.stop_training = True
@@ -186,7 +187,7 @@ class EarlyStoppingAutoencoder(Callback):
         loss = logs.get('loss')
         val_loss = logs.get('val_loss')
         rmse = logs.get('root_mean_squared_error')
-        val_rmse = logs.get('root_mean_squared_error')
+        val_rmse = logs.get('val_root_mean_squared_error')
 
         if epoch < self.start:
             self.best_weights = self.model.get_weights()
@@ -202,6 +203,7 @@ class EarlyStoppingAutoencoder(Callback):
             self.best_weights = self.model.get_weights()
         else:
             self.wait += 1
+        print(f'Epochs waiting: {self.wait}')
         if self.wait >= self.patience:
             self.stopped_epoch = epoch
             self.model.stop_training = True
