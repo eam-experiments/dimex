@@ -230,7 +230,7 @@ def data_filename(name_prefix, es = None, fold = None):
 def json_filename(name_prefix, es):
     return filename(name_prefix, es, extension='.json')
 
-def pickle_filename(name_prefix, es, fold = None):
+def pickle_filename(name_prefix, es = None, fold = None):
     return filename(name_prefix, es, fold, '.pkl')
 
 def picture_filename(name_prefix, es):
