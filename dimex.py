@@ -384,8 +384,12 @@ class LearnedDataSet:
 
     def get_distribution(self):
         distrib = np.zeros(constants.n_labels, dtype=int)
-        for label in self.learned_labels:
+        for label in self.seed_labels:
             distrib[label] += 1
+        if not (self.learned_labels is None):
+            for label in self.learned_labels:
+                distrib[label] += 1
+        return distrib
 
     def _get_data_segment(self, data, labels, segment, fold):
         total = len(labels)

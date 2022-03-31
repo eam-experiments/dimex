@@ -40,6 +40,7 @@ Default is the last one.
 from docopt import docopt
 import copy
 import csv
+from datetime import datetime
 import sys
 sys.setrecursionlimit(10000)
 import gc
@@ -580,7 +581,7 @@ def test_memories(domain, es):
     np.savetxt(constants.csv_filename('all_precision', es), all_precision, delimiter=',')
     np.savetxt(constants.csv_filename('all_recall', es), all_recall, delimiter=',')
     np.savetxt(constants.csv_filename('main_behaviours', es), main_behaviours, delimiter=',')
-    np.save(constants.data_filename('memory_cms', es), all_cms, delimiter=',')
+    np.save(constants.data_filename('memory_cms', es), all_cms)
     plot_pre_graph(average_precision, average_recall, average_accuracy, average_entropy,\
         stdev_precision, stdev_recall, stdev_accuracy, stdev_entropy, es)
     plot_pre_graph(all_precision_average, all_recall_average, None, average_entropy, \
@@ -951,7 +952,6 @@ def list_chunks(lst, n):
 
 def ams_process_samples_batch(samples, ams: AssociativeMemorySystem,
     minimum, maximum, decode=False):
-    print(f'\nProcessing {len(samples)} samples with memories.')
     for sample in samples:
         features = msize_features(sample.features, ams.m, minimum, maximum)
         if not decode:
@@ -1074,6 +1074,8 @@ def process_sample(sample, ams, dp, mem_size, minimum, maximum):
 def test_recognition(domain, mem_size, filling_percent, es):
     model_prefix = constants.model_name(es)
     for fold in range(constants.n_folds):
+        now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        print(f'{now} Reading filling corpus...', end=" ")
         suffix = constants.filling_suffix
         filling_features_filename = constants.features_name(es) + suffix
         filling_features_filename = constants.data_filename(filling_features_filename, es, fold)
@@ -1088,21 +1090,37 @@ def test_recognition(domain, mem_size, filling_percent, es):
         n = int(len(filling_labels)*filling_percent/100.0)
         filling_features = filling_features[:n]
         filling_labels = filling_labels[:n]
-
         filling_features = msize_features(filling_features, mem_size, minimum, maximum)
+        print('done!')
 
+        now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        print(f'{now} Loading samples...', end=" ")
         ds = dimex.Sampler()
+        print('done!')
         dp = dimex.PostProcessor()
+        now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        print(f'{now} Filling memories...', end=" ")
         ams = AssociativeMemorySystem(constants.all_labels,domain,mem_size)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
-
+        print('done!')
+        now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        print(f'{now} Getting samples...', end=" ")
         samples = ds.get_samples(fold)
+        print('done!')
         samples = recnet.process_samples(samples, model_prefix, es, fold)
+        now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        print(f'{now} Processing samples with memories...', end=" ")
         samples = Parallel(n_jobs=constants.n_jobs, verbose=50)(
             delayed(process_sample)(sample, ams, dp, mem_size, minimum, maximum) \
                 for sample in samples)
+        print('done!')
+        now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        print(f'{now} Saving recognitions...', end=" ")
         save_recognitions(samples, dp, fold, es)
+        print('done!')
+    now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    print(f'{now} Recognition at stage {es.stage} completed!')
 
 
 ##############################################################################
@@ -1168,6 +1186,7 @@ def extend_data(es):
  
 def recognize_sequences(es):
     mem_size, fill_percent = load_learn_params(es)
+    print(f'Recognizing sequences with memory size {mem_size} filled with {fill_percent}% of corpus')
     test_recognition(constants.domain, mem_size, fill_percent, es)
 
 
