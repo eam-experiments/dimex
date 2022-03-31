@@ -276,7 +276,6 @@ def padding_cropping(data, n_frames):
     frames, _  = data.shape
     df = frames - n_frames
     if df < 0:
-        print_warning(f'Number of frames too small: {frames}. Skipped')
         return []
     elif df == 0:
         return [data]
