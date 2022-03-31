@@ -186,7 +186,7 @@ class EarlyStoppingAutoencoder(Callback):
         loss = logs.get('loss')
         val_loss = logs.get('val_loss')
         rmse = logs.get('root_mean_squared_error')
-        val_rmse = logs.get('root_mean_squared_error')
+        val_rmse = logs.get('val_root_mean_squared_error')
 
         if epoch < self.start:
             self.best_weights = self.model.get_weights()
