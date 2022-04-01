@@ -288,16 +288,34 @@ class LearnedDataSet:
         self.seed_data, self.seed_labels = self._get_seed_data()
         self.learned_data, self.learned_labels = self._get_learned_data(es, fold)
         if not ((self.learned_data is None) or (self.learned_labels is None)):
-            self.learned_data, self.learned_labels  = balance(self.learned_data, self.learned_labels)
+            self.learned_data, self.learned_labels  = self._reduce_learned(self.learned_data, self.learned_labels)
 
     def get_distribution(self):
+        return self._seed_distribution() + self._learned_distribution()
+
+    def _seed_distribution(self):
         distrib = np.zeros(constants.n_labels, dtype=int)
         for label in self.seed_labels:
             distrib[label] += 1
-        if not (self.learned_labels is None):
-            for label in self.learned_labels:
-                distrib[label] += 1
         return distrib
+
+    def _learned_distribution(self):
+        distrib = np.zeros(constants.n_labels, dtype=int)
+        for label in self.learned_labels:
+            distrib[label] += 1
+        return distrib
+
+    def _reduce_learned(self, data, labels):
+        distrib = self._seed_distribution()
+        maximum = np.max(distrib)
+        r_data = []
+        r_labels = []
+        for d, l in zip(data, labels):
+            if distrib[l] < maximum:
+                r_data.append(d)
+                r_labels.append(l)
+                distrib[l] += 1
+        return np.array(r_data), np.array(r_labels)
 
     def _get_data_segment(self, data, labels, segment, fold):
         total = len(labels)
