@@ -291,7 +291,10 @@ class LearnedDataSet:
             self.learned_data, self.learned_labels  = self._reduce_learned(self.learned_data, self.learned_labels)
 
     def get_distribution(self):
-        return self._seed_distribution() + self._learned_distribution()
+        if self.learned_labels is None:
+            return self._seed_distribution()
+        else:
+            return self._seed_distribution() + self._learned_distribution()
 
     def _seed_distribution(self):
         distrib = np.zeros(constants.n_labels, dtype=int)
