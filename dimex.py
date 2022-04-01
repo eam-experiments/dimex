@@ -177,7 +177,7 @@ class Sampler:
         # We use this to explore results without working
         # with the whole data.
         n_folds = max(constants.n_folds, 10)
-        per_fold = (int)(len(self._ids)/n_folds)
+        per_fold = (int)(len(self.testing_data)/n_folds)
         start = fold*per_fold
         end = start + per_fold
         return self.testing_data[start:end]

@@ -1069,10 +1069,15 @@ def process_sample(sample, ams, dp, mem_size, minimum, maximum):
         label, _ = ams.recall(features)
         ams_labels.append(label)
     sample.ams_labels = dp.process(ams_labels)
+    return sample
 
 
 def test_recognition(domain, mem_size, filling_percent, es):
     model_prefix = constants.model_name(es)
+    now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    print(f'{now} Loading samples...', end=" ")
+    ds = dimex.Sampler()
+    print('done!')
     for fold in range(constants.n_folds):
         now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         print(f'{now} Reading filling corpus...', end=" ")
@@ -1093,10 +1098,6 @@ def test_recognition(domain, mem_size, filling_percent, es):
         filling_features = msize_features(filling_features, mem_size, minimum, maximum)
         print('done!')
 
-        now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-        print(f'{now} Loading samples...', end=" ")
-        ds = dimex.Sampler()
-        print('done!')
         dp = dimex.PostProcessor()
         now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         print(f'{now} Filling memories...', end=" ")
