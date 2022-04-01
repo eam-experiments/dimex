@@ -96,18 +96,14 @@ def fold_stats(es: constants.ExperimentSettings, fold):
         es.extended = last_extended and (stage == (n_stages-1))
         s = stage_stats(es, fold)
         stats.append(s)
+    stats = np.array(stats)
+    for i in range(9,0,-1):
+        stats[i] = stats[i] - stats[i-1]
     return np.array(stats)
 
 def stage_stats(es: constants.ExperimentSettings, fold):
-    suffixes = constants.learning_suffixes[es.learned]
-    lstats = np.zeros(constants.n_labels, dtype=int)
-    for suffix in suffixes:
-        # filename = constants.learned_data_filename(suffix, es, fold)
-        # data = np.load(filename)
-        filename = constants.learned_labels_filename(suffix, es, fold)
-        labels = np.load(filename)
-        lstats += label_stats(labels)
-    return lstats
+    lds = dimex.LearnedDataSet(es, fold)
+    return lds.get_distribution()
 
 def label_stats(labels):
     stats = np.zeros(constants.n_labels, dtype=int)
