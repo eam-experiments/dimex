@@ -290,6 +290,9 @@ class LearnedDataSet:
         if not ((self.learned_data is None) or (self.learned_labels is None)):
             self.learned_data, self.learned_labels  = self._reduce_learned(self.learned_data, self.learned_labels)
 
+    def get_seed_distribution(self):
+        return self._seed_distribution()
+
     def get_distribution(self):
         if self.learned_labels is None:
             return self._seed_distribution()

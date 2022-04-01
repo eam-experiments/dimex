@@ -91,19 +91,18 @@ def learning_stats(es):
 
 def fold_stats(es: constants.ExperimentSettings, fold):
     stats = []
+    es.stage = 0
+    es.extended = False
+    lds = dimex.LearnedDataSet(es, fold)
+    previous = lds.get_seed_distribution()    
     for stage in range(n_stages):
         es.stage = stage
         es.extended = last_extended and (stage == (n_stages-1))
-        s = stage_stats(es, fold)
-        stats.append(s)
-    stats = np.array(stats)
-    for i in range(9,0,-1):
-        stats[i] = stats[i] - stats[i-1]
+        lds = dimex.LearnedDataSet(es, fold)
+        s = lds.get_distribution()
+        stats.append(s-previous)
+        previous = s
     return np.array(stats)
-
-def stage_stats(es: constants.ExperimentSettings, fold):
-    lds = dimex.LearnedDataSet(es, fold)
-    return lds.get_distribution()
 
 def label_stats(labels):
     stats = np.zeros(constants.n_labels, dtype=int)
