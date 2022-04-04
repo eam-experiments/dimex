@@ -838,21 +838,23 @@ def test_recalling(domain, mem_size, es):
         main_stdev_sys_precision*100, main_stdev_sys_recall*100, None, main_stdev_entropies, es, 'total_recall-', \
             xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'))
 
-    bfp = best_filling_percentage(main_avrge_mrecall, main_avrge_mprecision)
+    bfp = best_filling_percentage(total_precisions, total_recalls)
     print('Best filling percent: ' + str(bfp))
     print('Filling evaluation completed!')
     return bfp
 
 
-def best_filling_percentage(m_recall, m_precision):
-    i = 0
+def best_filling_percentage(precisions, recalls):
+    precisions = np.mean(precisions, axis=0)
+    recalls = np.mean(recalls, axis=0)
     n = 0
-    distance = float('inf')
-    for recall, precision in zip(m_recall, m_precision):
-        new_distance = abs(recall - precision)
-        if new_distance < distance:
+    i = 0
+    avg = -float('inf')
+    for precision, recall in zip(precisions, recalls):
+        new_avg = (precision + recall) / 2.0
+        if avg < new_avg:
             n = i
-            distance = new_distance
+            avg = new_avg
         i += 1
     return constants.memory_fills[n]
 
