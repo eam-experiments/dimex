@@ -436,16 +436,13 @@ class PostProcessor:
     def process(self, labels):
         if len(labels) == 0:
             return labels
-        last = constants.n_labels
+        unknown = constants.n_labels
         cleaned = []        
         for label in labels:
-            if (label is None) or (label == constants.n_labels):
+            if (label is None) or (label == unknown):
                 continue
-            elif label != last:
-                cleaned.append(label)
-                last = label
             else:
-                continue
+                cleaned.append(label)
         return cleaned
 
     def get_phonemes(self, labels):
