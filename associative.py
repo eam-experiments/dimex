@@ -100,6 +100,14 @@ class AssociativeMemory(object):
         self._sigma = abs(s*self.m)
         self._scale = normpdf(0, 0, self._sigma)
 
+    def freeze(self, rho=1.0):
+        means = np.mean(self.relation, axis=0)
+        means *= rho
+        for j in range(self.n):
+            for i in range(self.m):
+                self.relation[i,j] = \
+                    0.0 if self.relation[i,j] < means[j] else self.relation[i,j]
+
     def entropies(self):
         """Return the entropy of the Associative Memory."""
         totals = self.relation.sum(axis=0)  # sum of cell values by columns
@@ -225,6 +233,10 @@ class AssociativeMemorySystem:
     def full_undefined(self):
         return np.full(self.n, np.nan)
 
+    def freeze(self, rho = 1.0):
+        for label in self._memories:
+            self._memories[label].freeze(rho)
+            
     def register(self, mem, vector):
         if not (mem in self._memories):
             raise ValueError(f'There is no memory for {mem}')
