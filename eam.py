@@ -408,7 +408,6 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, es, fold):
     # Calculate entropies
     for m in ams:
         entropy[m] = ams[m].entropy
-        ams[m].freeze()
     # Recognition
     response_size = 0
     split_size = 500
@@ -1005,7 +1004,6 @@ def learn_new_data(domain, mem_size, fill_percent, es):
         ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size, es.tolerance)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
-        ams.freeze()
         nds = ciempiess.NextDataSet(es)
         new_data = nds.get_data()
         new_data = recnet.process_samples(new_data, model_prefix, es, fold, decode=True)
@@ -1107,7 +1105,6 @@ def test_recognition(domain, mem_size, filling_percent, es):
         ams = AssociativeMemorySystem(constants.all_labels,domain,mem_size)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
-        ams.freeze()
         print('done!')
         now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         print(f'{now} Getting samples...', end=" ")
