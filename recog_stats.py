@@ -7,9 +7,11 @@ stages = 10
 tolerance = 0
 learned = 4
 sigma = 50
-runpath = f'runs-32-d{learned}-t{tolerance}-s{sigma}'
+iota = 1
+extended = True
+runpath = f'runs-32-d{learned}-t{tolerance}-s{sigma}-i{iota}-x'
 constants.run_path = runpath
-es = constants.ExperimentSettings(learned=learned, tolerance = tolerance)
+es = constants.ExperimentSettings(learned=learned, tolerance = tolerance, extended=extended)
 
 print(f'Getting data from {constants.run_path}')
 
@@ -46,7 +48,6 @@ def get_fold_stats(es, fold):
 stats = []
 for stage in range(stages):
     es.stage = stage
-    es.extended = (stage == (stages - 1))
     stage_stats = []
     for fold in range(constants.n_folds):
         fold_stats = get_fold_stats(es, fold)
@@ -63,20 +64,3 @@ means = np.mean(stats, axis=1)
 stdvs = np.std(means, axis=1)
 means = np.mean(means, axis=1)
 plot_recognition_graph(means, stdvs, es)
-
-def recognition_stats(tolerance: int, stage: int):
-    means = np.zeros((constants.n_folds, 3))
-    stdvs = np.zeros((constants.n_folds, 3))
-    for fold in range(constants.n_folds):
-        filename = constants.recog_filename(constants.recognition_prefix, EXPERIMENT,
-            fold, tolerance, stage)
-        df = pd.read_csv(filename)
-        df['C2N'] = df['Cor2Net'] / df['CorrSize']
-        df['C2M'] = df['Cor2Mem'] / df['CorrSize']
-        df['N2M'] = 2*df['Net2Mem'] / (df['NetSize'] + df['MemSize'])
-
-        stats = df.describe(include=[np.number])
-        means[fold,:] = stats.loc['mean'].values[-3:]
-        stdvs[fold,:] = stats.loc['std'].values[-3:]
-    print(means[:,1])
-    plot_recognition_graph(stage, tolerance, means, stdvs)
