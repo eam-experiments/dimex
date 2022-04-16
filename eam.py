@@ -921,7 +921,7 @@ def recognition_on_ciempiess(data, es, fold):
     original = []
     lds = dimex.LearnedDataSet(es, fold)
     distrib = lds.get_distribution()
-    maximum = np.max(distrib)
+    maximum = lds.learning_maximum()
     for d in data:
         n = len(d.net_labels)
         for i in range(n):

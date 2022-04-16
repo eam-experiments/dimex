@@ -14,6 +14,8 @@
 
 import copy
 import csv
+from ftplib import all_errors
+from typing import Dict
 import numpy as np
 import pickle
 from python_speech_features import mfcc
@@ -281,14 +283,15 @@ class LearnedDataSet:
     _TRAINING_SEGMENT = 0
     _FILLING_SEGMENT = 1
     _TESTING_SEGMENT = 2
+    enrichment = 1.10
 
     def __init__(self, es, fold):
         self.es = es
         self.fold = fold
-        self.seed_data, self.seed_labels = self._get_seed_data()
-        self.learned_data, self.learned_labels = self._get_learned_data(es, fold)
-        if not ((self.learned_data is None) or (self.learned_labels is None)):
-            self.learned_data, self.learned_labels  = self._reduce_learned(self.learned_data, self.learned_labels)
+        self.seed = self._get_seed()
+        self.learned = self._get_learned(es, fold)
+        if not (self.learned is None):
+            self.learned = self._reduce_learned(self.learned)
 
     def get_seed_distribution(self):
         return self._seed_distribution()
@@ -301,85 +304,84 @@ class LearnedDataSet:
 
     def _seed_distribution(self):
         distrib = np.zeros(constants.n_labels, dtype=int)
-        for label in self.seed_labels:
-            distrib[label] += 1
+        for label in constants.all_labels:
+            distrib[label] = len(self.seed[label])
         return distrib
 
     def _learned_distribution(self):
         distrib = np.zeros(constants.n_labels, dtype=int)
-        for label in self.learned_labels:
-            distrib[label] += 1
+        for label in constants.all_labels:
+            distrib[label] = len(self.learned[label])
         return distrib
 
-    def _reduce_learned(self, data, labels):
+    def learning_maximum(self):
+        return int(np.max(self._seed_distribution())*self.enrichment)
+
+    def _reduce_learned(self, learned):
         distrib = self._seed_distribution()
-        maximum = np.max(distrib)
-        r_data = []
-        r_labels = []
-        for d, l in zip(data, labels):
-            if distrib[l] < maximum:
-                r_data.append(d)
-                r_labels.append(l)
-                distrib[l] += 1
-        return np.array(r_data), np.array(r_labels)
+        maximum = int(np.max(distrib)*self.enrichment)
+        for label in constants.all_labels:
+            data = learned[label]
+            n = len(distrib[label]) + len(data[label])
+            if n > maximum:
+                d = maximum - distrib
+                learned[label] = data[:d]
+        return learned
 
-    def _get_data_segment(self, data, labels, segment, fold):
-        total = len(labels)
-        training = total*constants.nn_training_percent
-        filling = total*constants.am_filling_percent
-        testing = total*constants.am_testing_percent
-        step = total / constants.n_folds
-        i = fold * step
-        j = i + training
-        k = j + filling
-        l = k + testing
-        i = int(i)
-        j = int(j) % total
-        k = int(k) % total
-        l = int(l) % total
-        n, m = None, None
-        if segment == self._TRAINING_SEGMENT:
-            n, m = i, j
-        elif segment == self._FILLING_SEGMENT:
-            n, m = j, k
-        elif segment == self._TESTING_SEGMENT:
-            n, m = k, l
-        return constants.get_data_in_range(data, n, m), \
-                constants.get_data_in_range(labels, n, m)
+    def _get_segment(self, data_per, segment, fold):
+        dpl = {}
+        for label in constants.all_labels:
+            total = len(data_per[label])
+            training = total*constants.nn_training_percent
+            filling = total*constants.am_filling_percent
+            testing = total*constants.am_testing_percent
+            step = total / constants.n_folds
+            i = fold * step
+            j = i + training
+            k = j + filling
+            l = k + testing
+            i = int(i)
+            j = int(j) % total
+            k = int(k) % total
+            l = int(l) % total
+            n, m = None, None
+            if segment == self._TRAINING_SEGMENT:
+                n, m = i, j
+            elif segment == self._FILLING_SEGMENT:
+                n, m = j, k
+            elif segment == self._TESTING_SEGMENT:
+                n, m = k, l
+            dpl[label] = \
+                constants.get_data_in_range(data_per[label], n, m)
+        return dpl
 
-    def get_data_segment(self, segment, fold):
-        seed_data, seed_labels = \
-            self._get_data_segment(self.seed_data, self.seed_labels, segment, fold)
-        if (self.learned_data is None) or (self.learned_labels is None):
-            return seed_data, seed_labels
+    def get_segment(self, segment, fold):
+        seed = self._get_segment(self.seed, segment, fold)
+        if (self.learned is None):
+            return self._data_and_labels([seed])
         elif (segment == self._TESTING_SEGMENT) and not self.es.extended:
-            return seed_data, seed_labels
+            return self._data_and_labels([seed])
         else:
-            learned_data, learned_labels = \
-                self._get_data_segment(self.learned_data, self.learned_labels,
-                    segment, 0)
-            data = np.concatenate((seed_data, learned_data), axis=0)
-            labels = np.concatenate((seed_labels, learned_labels), axis=0)
-            data, labels = shuffle(data, labels)
-            return data, labels
+            learned = self._get_segment(self.learned, segment, fold)
+            return self._data_and_labels([seed, learned])
 
     def get_training_data(self):
-        return self.get_data_segment(self._TRAINING_SEGMENT, self.fold)
+        return self.get_segment(self._TRAINING_SEGMENT, self.fold)
 
     def get_filling_data(self):
-        return self.get_data_segment(self._FILLING_SEGMENT, self.fold)
+        return self.get_segment(self._FILLING_SEGMENT, self.fold)
 
     def get_testing_data(self):
-        return self.get_data_segment(self._TESTING_SEGMENT, self.fold)
+        return self.get_segment(self._TESTING_SEGMENT, self.fold)
 
-    def _get_seed_data(self):
+    def _get_seed(self):
         data_filename = constants.seed_data_filename()
         labels_filename = constants.seed_labels_filename()
         data = np.load(data_filename)
         labels = np.load(labels_filename)
-        return data, labels
+        return self._data_per_label(zip(data, labels))
 
-    def _get_learned_data(self, es, fold):
+    def _get_learned(self, es, fold):
         les = None
         # Extended mode can start in any stage.
         if es.extended:
@@ -409,6 +411,31 @@ class LearnedDataSet:
         else:
             data = None
             labels = None
+        if (data is None) or (labels is None):
+            return None
+        return self._data_per_label(zip(data, labels))
+
+    def _data_per_label(self, pairs):
+        data_per = {}
+        for label in constants.all_labels:
+            data_per[label] = []
+        for data, label in pairs:
+            data_per[label].append(data)
+        for label in constants.all_labels:
+            random.shuffle(data_per[label])
+            data_per[label] = np.array(data_per[label])
+        return data_per
+
+    def _data_and_labels(self, dpls):
+        data = []
+        labels = []
+        for data_per in dpls:
+            for label in constants.all_labels:
+                data.append(data_per[label])
+                n = len(data_per[label])
+                labels.append(np.full(n, label, dtype=int))
+        data = np.concatenate(data, axis=0)
+        labels = np.concatenate(labels, axis=0)
         return data, labels
 
     def _get_stage_learned_data(self, suffixes, stage, es, fold):
