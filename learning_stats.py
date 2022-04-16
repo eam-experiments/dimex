@@ -23,7 +23,7 @@ Options:
   -h                        Show this screen.
   --path=<path>             Directory where results are found [default: runs].
   --stages=<stages>         Number of stages to consider [default: 10].
-  -x                        Sets last stage as eXtended.
+  -x                        Sets all stages as eXtended.
   --learned=<learned_data>  Selects which learned data is used for learning [default: 0].
   --tolerance=<tolerance>   Allow Tolerance (unmatched features) in memory [default: 0].
   --lang=<language>         Chooses language for  graphs [default: en].            
@@ -92,12 +92,10 @@ def learning_stats(es):
 def fold_stats(es: constants.ExperimentSettings, fold):
     stats = []
     es.stage = 0
-    es.extended = False
     lds = dimex.LearnedDataSet(es, fold)
     previous = lds.get_seed_distribution()    
     for stage in range(n_stages):
         es.stage = stage
-        es.extended = last_extended and (stage == (n_stages-1))
         lds = dimex.LearnedDataSet(es, fold)
         s = lds.get_distribution()
         stats.append(s-previous)
@@ -129,7 +127,7 @@ if __name__== "__main__" :
         constants.print_error(
             '<stages> must be a positive integer.')
         exit(1)
-    last_extended = args['-x']
+    extended = args['-x']
 
     # Processing learned data.
     try:
@@ -151,6 +149,6 @@ if __name__== "__main__" :
             '<tolerance> must be a positive integer.')
         exit(1)
 
-    exp_set = constants.ExperimentSettings(0, learned, False, tolerance)
+    exp_set = constants.ExperimentSettings(0, learned, extended, tolerance)
     print(f'Experimental settings: {exp_set}')
     learning_stats(exp_set)
