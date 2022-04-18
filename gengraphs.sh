@@ -13,7 +13,7 @@ recall=recall-graph_prse_MEAN-english-stg_00
 totalr=total_recall-graph_prse_MEAN-english-stg_00
 suffix=lrn_00${learned}-ext-tol_00${tolerance}.png
 img_suffix="-x"
-for i in 0 1 2 3 4 5 6 7 8 9 10; do
+for i in 0 1 2 3 4 5 6 7 8 9 ; do
     j=$i
     cd runs-32-d${learned}-t${tolerance}-s${sigma}-i${iota}-x/stage_$j
 	for f in *.svg; do

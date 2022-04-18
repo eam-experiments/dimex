@@ -44,33 +44,23 @@ extended = False
 n_recogs = 3
 
 
-def seed_frequencies():
-    count = np.zeros(constants.n_labels, dtype=float)
-    labels = np.load(constants.run_path + '/seed_balanced_Y.npy')
-    for label in labels:
-        count[label] += 1
-    return count
-
-
 def plot_learning_graph(suffix, means, stdevs, es):
-    seed_stats = seed_frequencies()
     plt.clf()
     plt.figure(figsize=(6.4, 4.8))
     labels = dimex.labels_to_phns
     width = 0.75
     fig, ax = plt.subplots()
-    ax.bar(labels, seed_stats, width, label='Seed')
-    cumm = seed_stats
-    median = np.full(constants.n_labels, np.max(cumm))
-    ax.plot(labels, median)
+    cumm = np.zeros(constants.n_labels, dtype=int)
     for i in range(len(means)):
         ax.bar(labels, means[i, :], width, bottom=cumm, label=f'Stage {i}')
         cumm += means[i, :]
-    median = np.full(constants.n_labels, np.median(cumm))
+        median = np.full(constants.n_labels, np.max(cumm))
+        ax.plot(labels, median)
+    # median = np.full(constants.n_labels, np.median(cumm))
     ax.plot(labels, median)
     ax.set_ylabel('Data')
     ax.set_xlabel('Phonemes')
-    # ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=5)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=5)
     suffix = constants.learning_data_learned + suffix
     filename = constants.picture_filename(suffix, es)
     plt.savefig(filename, dpi=600)
