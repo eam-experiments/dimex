@@ -297,7 +297,7 @@ class LearnedDataSet:
         return self._seed_distribution()
 
     def get_distribution(self):
-        if self.learned_labels is None:
+        if self.learned is None:
             return self._seed_distribution()
         else:
             return self._seed_distribution() + self._learned_distribution()
@@ -322,9 +322,9 @@ class LearnedDataSet:
         maximum = int(np.max(distrib)*self.enrichment)
         for label in constants.all_labels:
             data = learned[label]
-            n = len(distrib[label]) + len(data[label])
+            n = distrib[label] + len(data)
             if n > maximum:
-                d = maximum - distrib
+                d = maximum - distrib[label]
                 learned[label] = data[:d]
         return learned
 
@@ -332,6 +332,9 @@ class LearnedDataSet:
         dpl = {}
         for label in constants.all_labels:
             total = len(data_per[label])
+            if total == 0:
+                dpl[label] = data_per[label]
+                continue
             training = total*constants.nn_training_percent
             filling = total*constants.am_filling_percent
             testing = total*constants.am_testing_percent
@@ -431,12 +434,25 @@ class LearnedDataSet:
         labels = []
         for data_per in dpls:
             for label in constants.all_labels:
-                data.append(data_per[label])
-                n = len(data_per[label])
-                labels.append(np.full(n, label, dtype=int))
+                if len(data_per[label]) > 0:
+                    data.append(data_per[label])
+                    n = len(data_per[label])
+                    labels.append(np.full(n, label, dtype=int))
         data = np.concatenate(data, axis=0)
         labels = np.concatenate(labels, axis=0)
-        return data, labels
+        return self._shuffled(data, labels)
+
+    def _shuffled(self, data, labels):
+        pairs = []
+        for pair in zip(data,labels):
+            pairs.append(pair)
+        random.shuffle(pairs)
+        sd = []
+        sl = []
+        for (d, l) in pairs:
+            sd.append(d)
+            sl.append(l)
+        return np.array(sd), np.array(sl)
 
     def _get_stage_learned_data(self, suffixes, stage, es, fold):
         les = copy.copy(es)
