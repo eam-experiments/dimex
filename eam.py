@@ -1192,6 +1192,7 @@ def characterize_features(es):
 def run_evaluation(es):
     best_memory_size = test_memories(constants.domain, es)
     print(f'Best memory size: {best_memory_size}')
+    best_memory_size = constants.ideal_memory_size
     best_filling_percent = test_recalling(constants.domain, best_memory_size, es)
     save_learn_params(best_memory_size, best_filling_percent, es)
 
