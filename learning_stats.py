@@ -50,14 +50,14 @@ def plot_learning_graph(suffix, means, stdevs, es):
     labels = dimex.labels_to_phns
     width = 0.75
     fig, ax = plt.subplots()
-    cumm = np.zeros(constants.n_labels, dtype=int)
+    cumm = np.zeros(constants.n_labels, dtype=float)
     for i in range(len(means)):
         ax.bar(labels, means[i, :], width, bottom=cumm, label=f'Stage {i}')
         cumm += means[i, :]
-        median = np.full(constants.n_labels, np.max(cumm))
-        ax.plot(labels, median)
+        # median = np.full(constants.n_labels, np.max(cumm))
+        # ax.plot(labels, median)
     # median = np.full(constants.n_labels, np.median(cumm))
-    ax.plot(labels, median)
+    # ax.plot(labels, median)
     ax.set_ylabel('Data')
     ax.set_xlabel('Phonemes')
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.05), ncol=5)
