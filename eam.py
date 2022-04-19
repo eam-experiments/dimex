@@ -17,7 +17,7 @@
 
 Usage:
   eam -h | --help
-  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [--learned=<learned_data>] [-x] [--tolerance=<tolerance>] [--runpath=<runpath>] [ -l (en | es) ]
+  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [--learned=<learned_data>] [-x] [--tolerance=<tolerance>] [--sigma=<sigma>] [--iota=<iota>] [--kappa=<kappa>] [--runpath=<runpath>] [ -l (en | es) ]
 
 Options:
   -h        Show this screen.
@@ -31,6 +31,9 @@ Options:
   --learned=<learned_data>      Selects which learneD Data is used for evaluation, recognition or learning [default: 0].
   -x        Use the eXtended data set as testing data for memory.
   --tolerance=<tolerance>       Allow Tolerance (unmatched features) in memory [default: 0].
+  --sigma=<sigma>   Scale of standard deviation of the distribution of influence of the cue [default: 0.25]
+  --iota=<iota>     Scale of the expectation (mean) required as minimum for the cue to be accepted by a memory [default: 1.0]
+  --kappa=<kappa>   Scale of the expectation (mean) rquiered as minimum for the cue to be accepted by the system of memories [default: 1.0]
   --runpath=<runpath>           Sets the path to the directory where everything will be saved [default: runs]
   -l        Chooses Language for graphs.            
 
@@ -322,7 +325,7 @@ def register_in_memory(memory, features_iterator):
 def memory_entropy(m, memory: AssociativeMemory):
     return m, memory.entropy
 
-def recognize_by_memory(fl_pairs, ams, entropy, lpm):
+def recognize_by_memory(fl_pairs, ams, entropy, threshold, lpm):
     response_size = 0
     n_mems = int(constants.n_labels/lpm)
     cms = np.zeros((n_mems, 2, 2), dtype='int')
@@ -333,7 +336,7 @@ def recognize_by_memory(fl_pairs, ams, entropy, lpm):
         weights = {}
         for k in ams:
             recognized, weight = ams[k].recognize(features)
-            if recognized:
+            if recognized and (threshold <= weight):
                 memories.append(k)
                 weights[k] = weight
                 response_size += 1
@@ -370,7 +373,8 @@ def split_every(n, iterable):
         yield piece
         piece = list(islice(i, n))
 
-def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, es, fold):
+def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, 
+    es: constants.ExperimentSettings, fold):
     # Round the values
     max_value = trf.max()
     other_value = tef.max()
@@ -396,7 +400,7 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, es, fold):
     # Create the required associative memories.
     ams = dict.fromkeys(range(n_mems))
     for m in ams:
-        ams[m] = AssociativeMemory(domain, msize, es.tolerance)
+        ams[m] = AssociativeMemory(domain, msize, es.tolerance, es.sigma, es.iota)
     # Registration in parallel, per label.
     Parallel(n_jobs=constants.n_jobs, require='sharedmem', verbose=50)(
         delayed(register_in_memory)(ams[label], features_list) \
@@ -405,15 +409,19 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, es, fold):
     m = random.randrange(constants.n_labels)
     plot_memory(ams[m], f'memory_{m:03}-sze_{msize:03}', es)
 
-    # Calculate entropies
+    # Calculate entropies and threshold
+    means = []
     for m in ams:
         entropy[m] = ams[m].entropy
+        means.append(ams[m].mean)
+    threshold = np.mean(means)*es.kappa
+
     # Recognition
     response_size = 0
     split_size = 500
     for rsize, scms, sbehavs in \
          Parallel(n_jobs=constants.n_jobs, verbose=50)(
-            delayed(recognize_by_memory)(fl_pairs, ams, entropy, lpm) \
+            delayed(recognize_by_memory)(fl_pairs, ams, entropy, threshold, lpm) \
             for fl_pairs in split_every(split_size, zip(tef_rounded, tel))):
         response_size += rsize
         cms  = cms + scms
@@ -592,7 +600,7 @@ def test_memories(domain, es):
     print('Memory size evaluation completed!')
     return best_memory_size
 
-def remember_by_memory(fl_pairs, ams, entropy):
+def remember_by_memory(fl_pairs, ams, entropy, threshold):
     n_mems = constants.n_labels
     cms = np.zeros((n_mems, 2, 2), dtype='int')
     cmatrix = np.zeros((2,2), dtype='int')
@@ -603,7 +611,7 @@ def remember_by_memory(fl_pairs, ams, entropy):
         weights = {}
         for k in ams:
             recognized, weight = ams[k].recognize(features)
-            if recognized:
+            if recognized and (threshold <= weight):
                 memories.append(k)
                 weights[k] = weight
             # For calculation of per memory precision and recall
@@ -646,16 +654,20 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
             for label, features_list in split_by_label(zip(trf, trl)))
 
     print(f'Filling of memories done for idx {idx}')
-    # Calculate entropies
+
+    # Calculate entropies and threshold
+    means = []
     for m in ams:
         entropy[m] = ams[m].entropy
+        means.append(ams[m].mean)
+    threshold = np.mean(means)*es.kappa
 
     # Total number of differences between features and memories.
     mismatches = 0
     split_size = 500
     for mmatches, scms, cmatx in \
          Parallel(n_jobs=constants.n_jobs, verbose=50)(
-            delayed(remember_by_memory)(fl_pairs, ams, entropy) \
+            delayed(remember_by_memory)(fl_pairs, ams, entropy, threshold) \
             for fl_pairs in split_every(split_size, zip(tef, tel))):
         mismatches += mmatches
         cms  = cms + scms
@@ -691,7 +703,7 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
     # Create the required associative memories.
     ams = dict.fromkeys(range(n_memories))
     for j in ams:
-        ams[j] = AssociativeMemory(domain, mem_size, es.tolerance)
+        ams[j] = AssociativeMemory(domain, mem_size, es.tolerance, es.sigma, es.iota)
 
     suffix = constants.filling_suffix
     filling_features_filename = constants.features_name(es) + suffix        
@@ -1001,7 +1013,8 @@ def learn_new_data(domain, mem_size, fill_percent, es):
         minimum = filling_features.min()
         filling_features = msize_features(filling_features, mem_size, minimum, maximum)
 
-        ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size, es.tolerance)
+        ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size,
+            es.tolerance, es.sigma, es.iota, es.kappa)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
         nds = ciempiess.NextDataSet(es)
@@ -1073,7 +1086,7 @@ def process_sample(sample, ams, dp, mem_size, minimum, maximum):
     return sample
 
 
-def test_recognition(domain, mem_size, filling_percent, es):
+def test_recognition(domain, mem_size, filling_percent, es: constants.ExperimentSettings):
     model_prefix = constants.model_name(es)
     now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     print(f'{now} Loading samples...', end=" ")
@@ -1102,7 +1115,8 @@ def test_recognition(domain, mem_size, filling_percent, es):
         dp = dimex.PostProcessor()
         now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         print(f'{now} Filling memories...', end=" ")
-        ams = AssociativeMemorySystem(constants.all_labels,domain,mem_size)
+        ams = AssociativeMemorySystem(constants.all_labels,domain,mem_size,
+            es.tolerance, es.sigma, es.iota, es.kappa)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
         print('done!')
@@ -1238,9 +1252,43 @@ if __name__== "__main__" :
             constants.print_error('<tolerance> must be a positive integer.')
             exit(1)
 
+    # Processing sigma.
+    sigma = 0.25
+    if args['--sigma']:
+        try:
+            sigma = float(args['--sigma'])
+            if (sigma < 0):
+                raise Exception('<sigma> must be positive.')
+        except:
+            constants.print_error('<sigma> must be a positive number.')
+            exit(1)
+
+    # Processing sigma.
+    iota = 1.0
+    if args['--iota']:
+        try:
+            iota = float(args['--iota'])
+            if (iota < 0):
+                raise Exception('<iota> must be positive.')
+        except:
+            constants.print_error('<iota> must be a positive number.')
+            exit(1)
+
+    # Processing sigma.
+    kappa = 1.0
+    if args['--kappa']:
+        try:
+            kappa = float(args['--kappa'])
+            if (kappa < 0):
+                raise Exception('<kappa> must be positive.')
+        except:
+            constants.print_error('<kappa> must be a positive number.')
+            exit(1)
+
     # Processing runpath.
     constants.run_path = args['--runpath']
-    exp_set = constants.ExperimentSettings(stage, learned, extended, tolerance)
+    exp_set = constants.ExperimentSettings(
+        stage, learned, extended, tolerance, sigma, iota, kappa)
     print(f'Working directory: {constants.run_path}')
     print(f'Experimental settings: {exp_set}')
 

@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import os
+from signal import Sigmasks
 import sys
 import numpy as np
 
@@ -120,17 +121,24 @@ MIN_EXPERIMENT = 1
 MAX_EXPERIMENT = 10
 
 class ExperimentSettings:
-    def __init__(self, stage = 0, learned = 0, 
-        extended = False, tolerance = 0):
+    def __init__(self, stage = 0, learned = 0, extended = False,
+        tolerance = 0, sigma = 0.25, iota = 1.0, kappa = 1.0):
         self.stage = stage
         self.learned = learned
         self.extended = extended
         self.tolerance = tolerance
+        self.sigma = sigma
+        self.iota = iota
+        self.kappa = kappa
+
     def __str__(self):
         s = '{Stage: ' + str(self.stage) + \
             ', Learned: ' + str(self.learned) + \
             ', Extended: ' + str(self.extended) + \
-            ', Tolerance: ' + str(self.tolerance) + '}'
+            ', Tolerance: ' + str(self.tolerance) + \
+            ', Sigma: ' + str(self.sigma) + \
+            ', Iota: ' + str(self.iota) + \
+            ', Kappa: ' + str(self.kappa) + '}'
         return s
 
 
