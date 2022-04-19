@@ -3,7 +3,7 @@
 learned=4
 tolerance=0
 sigma=50
-iota=1
+iota=1.25
 
 prse=graph_prse_MEAN-english-stg_00
 overall=overallgraph_prse_MEAN-english-stg_00
