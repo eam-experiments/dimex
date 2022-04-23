@@ -55,7 +55,7 @@ class AssociativeMemory(object):
         self._n = n
         self._m = m+1
         self._t = tolerance
-        self._max = 1023
+        self._absolute_max = 1023
         self._sigma = sigma*m
         self._iota = iota
         self._scale = normpdf(0, 0, self._sigma)
@@ -84,10 +84,8 @@ class AssociativeMemory(object):
         return self._relation[:self.m,:]
 
     @property
-    def irelation(self):
-        if (not self._updated):
-            self._updated = self._update()
-        return self._irelation[:self.m,:]
+    def absolute_max_value(self):
+        return self._absolute_max
 
     @property
     def entropies(self):
@@ -111,13 +109,13 @@ class AssociativeMemory(object):
         return np.mean(self.means)
 
     @property
+    def max_value(self):
+        return np.max(self.relation)
+
+    @property
     def undefined(self):
         return self.m
 
-    @property
-    def max_value(self):
-        return self._max
-        
     @property
     def sigma(self):
         return self._sigma / self.m
@@ -153,7 +151,7 @@ class AssociativeMemory(object):
         sums = np.sum(self.relation, axis=0, dtype=float)
         counts = np.count_nonzero(self.relation, axis=0)
         counts = np.where(counts == 0, 1, counts)
-        self._means = (sums/counts)/self._max
+        self._means = (sums/counts)/self.max_value
 
     def is_undefined(self, value):
         return value == self.undefined
@@ -191,10 +189,10 @@ class AssociativeMemory(object):
             w = 0 if self.is_undefined(vector[i]) \
                 else self.relation[vector[i], i]
             weights.append(w)
-        return np.mean(weights) / self._max
+        return np.mean(weights) / self.max_value
 
     def abstract(self, r_io) -> None:
-        self._relation = np.where(self._relation == self._max, self._relation, self._relation + r_io)
+        self._relation = np.where(self._relation == self.absolute_max_value, self._relation, self._relation + r_io)
 
     def containment(self, r_io):
         return ~r_io[:self.m, :] | self.relation
