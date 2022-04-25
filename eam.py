@@ -416,7 +416,7 @@ def get_ams_results(midx, msize, domain, trf, tef, trl, tel,
         means.append(ams[m].mean)
 
     # Recognition
-    response_size = np.zero(n_mems, dtype=int)
+    response_size = np.zeros(n_mems, dtype=int)
     split_size = 500
     for rsize, scms, sbehavs in \
          Parallel(n_jobs=constants.n_jobs, verbose=50)(
@@ -522,10 +522,10 @@ def test_memories(domain, es):
         all_recall.append(np.mean(behaviours[:, :, constants.recall_idx], axis=0) * 100)
         all_cms.append(np.array(list_cms))
         no_response.append(np.sum(behaviours[:, :, constants.no_response_idx], axis=0))
-        no_correct_response.append(np.sum(behaviours[:, constants.no_correct_response_idx], axis=0))
-        no_correct_chosen.append(np.sum(behaviours[:, constants.no_correct_chosen_idx], axis=0))
-        correct_chosen.append(np.sum(behaviours[:, constants.correct_response_idx], axis=0))
-        total_responses.append(np.sum(behaviours[:, constants.response_size_idx], axis=0))
+        no_correct_response.append(np.sum(behaviours[:, :, constants.no_correct_response_idx], axis=0))
+        no_correct_chosen.append(np.sum(behaviours[:, :, constants.no_correct_chosen_idx], axis=0))
+        correct_chosen.append(np.sum(behaviours[:, :, constants.correct_response_idx], axis=0))
+        total_responses.append(np.sum(behaviours[:, :, constants.response_size_idx], axis=0))
 
     # Every row is training fold, and every column is a memory size.
     entropy = np.array(entropy)
