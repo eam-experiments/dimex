@@ -90,8 +90,7 @@ no_response_idx = 2
 no_correct_response_idx = 3
 no_correct_chosen_idx = 4
 correct_response_idx = 5
-mean_responses_idx = 6
-
+response_size_idx = 6
 n_behaviours = 7
 
 memory_sizes = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]

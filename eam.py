@@ -32,8 +32,8 @@ Options:
   -x        Use the eXtended data set as testing data for memory.
   --tolerance=<tolerance>       Allow Tolerance (unmatched features) in memory [default: 0].
   --sigma=<sigma>   Scale of standard deviation of the distribution of influence of the cue [default: 0.25]
-  --iota=<iota>     Scale of the expectation (mean) required as minimum for the cue to be accepted by a memory [default: 1.0]
-  --kappa=<kappa>   Scale of the expectation (mean) rquiered as minimum for the cue to be accepted by the system of memories [default: 1.0]
+  --iota=<iota>     Scale of the expectation (mean) required as minimum for the cue to be accepted by a memory [default: 0.0]
+  --kappa=<kappa>   Scale of the expectation (mean) rquiered as minimum for the cue to be accepted by the system of memories [default: 0.0]
   --runpath=<runpath>           Sets the path to the directory where everything will be saved [default: runs]
   -l        Chooses Language for graphs.            
 
@@ -325,21 +325,22 @@ def register_in_memory(memory, features_iterator):
 def memory_entropy(m, memory: AssociativeMemory):
     return m, memory.entropy
 
-def recognize_by_memory(fl_pairs, ams, entropy, threshold, lpm):
-    response_size = 0
-    n_mems = int(constants.n_labels/lpm)
+def recognize_by_memory(fl_pairs, ams, entropy):
+    n_mems = constants.n_labels
+    response_size = np.zeros(n_mems, dtype=int)
     cms = np.zeros((n_mems, 2, 2), dtype='int')
-    behaviour = np.zeros(constants.n_behaviours, dtype=np.float64)
+    behaviour = np.zeros(
+        (n_mems, constants.n_behaviours), dtype=np.float64)
     for features, label in fl_pairs:
-        correct = int(label/lpm)
+        correct = label
         memories = []
         weights = {}
         for k in ams:
             recognized, weight = ams[k].recognize(features)
-            if recognized and (threshold <= weight):
+            if recognized:
                 memories.append(k)
                 weights[k] = weight
-                response_size += 1
+                response_size[correct] += 1
             # For calculation of per memory precision and recall
             cms[k][TP] += (k == correct) and recognized
             cms[k][FP] += (k != correct) and recognized
@@ -347,15 +348,15 @@ def recognize_by_memory(fl_pairs, ams, entropy, threshold, lpm):
             cms[k][FN] += (k == correct) and not recognized
         if len(memories) == 0:
             # Register empty case
-            behaviour[constants.no_response_idx] += 1
+            behaviour[correct, constants.no_response_idx] += 1
         elif not (correct in memories):
-            behaviour[constants.no_correct_response_idx] += 1
+            behaviour[correct, constants.no_correct_response_idx] += 1
         else:
             l = get_label(memories, weights, entropy)
             if l != correct:
-                behaviour[constants.no_correct_chosen_idx] += 1
+                behaviour[correct, constants.no_correct_chosen_idx] += 1
             else:
-                behaviour[constants.correct_response_idx] += 1
+                behaviour[correct, constants.correct_response_idx] += 1
     return response_size, cms, behaviour
 
 def split_by_label(fl_pairs):
@@ -373,7 +374,7 @@ def split_every(n, iterable):
         yield piece
         piece = list(islice(i, n))
 
-def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel, 
+def get_ams_results(midx, msize, domain, trf, tef, trl, tel, 
     es: constants.ExperimentSettings, fold):
     # Round the values
     max_value = trf.max()
@@ -388,11 +389,12 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel,
     tef_rounded = msize_features(tef, msize, min_value, max_value)
 
     n_labels = constants.n_labels
-    n_mems = int(n_labels/lpm)
+    n_mems = n_labels
 
     measures = np.zeros(constants.n_measures, dtype=np.float64)
     entropy = np.zeros(n_mems, dtype=np.float64)
-    behaviour = np.zeros(constants.n_behaviours, dtype=np.float64)
+    behaviour = np.zeros(
+        (constants.n_labels, constants.n_behaviours), dtype=np.float64)
 
     # Confusion matrix for calculating precision and recall per memory.
     cms = np.zeros((n_mems, 2, 2), dtype='int')
@@ -406,33 +408,30 @@ def get_ams_results(midx, msize, domain, lpm, trf, tef, trl, tel,
         delayed(register_in_memory)(ams[label], features_list) \
             for label, features_list in split_by_label(zip(trf_rounded, trl)))
     print(f'Filling of memories done for fold {fold}')
-    m = random.randrange(constants.n_labels)
-    plot_memory(ams[m], f'memory_{m:03}-sze_{msize:03}', es)
 
-    # Calculate entropies and threshold
+    # Calculate entropies
     means = []
     for m in ams:
         entropy[m] = ams[m].entropy
         means.append(ams[m].mean)
-    threshold = np.mean(means)*es.kappa
 
     # Recognition
-    response_size = 0
+    response_size = np.zero(n_mems, dtype=int)
     split_size = 500
     for rsize, scms, sbehavs in \
          Parallel(n_jobs=constants.n_jobs, verbose=50)(
-            delayed(recognize_by_memory)(fl_pairs, ams, entropy, threshold, lpm) \
+            delayed(recognize_by_memory)(fl_pairs, ams, entropy) \
             for fl_pairs in split_every(split_size, zip(tef_rounded, tel))):
         response_size += rsize
         cms  = cms + scms
         behaviour = behaviour + sbehavs
-    behaviour[constants.mean_responses_idx] = response_size /float(len(tef_rounded))
-    all_responses = len(tef_rounded) - behaviour[constants.no_response_idx]
-    all_precision = (behaviour[constants.correct_response_idx])/float(all_responses)
-    all_recall = (behaviour[constants.correct_response_idx])/float(len(tef_rounded))
+    behaviour[:,constants.response_size_idx] = response_size
+    all_responses = len(tef_rounded) - np.sum(behaviour[:,constants.no_response_idx], axis=0)
+    all_precision = np.sum(behaviour[:, constants.correct_response_idx], axis=0)/float(all_responses)
+    all_recall = np.sum(behaviour[:, constants.correct_response_idx], axis=0)/float(len(tef_rounded))
 
-    behaviour[constants.precision_idx] = all_precision
-    behaviour[constants.recall_idx] = all_recall
+    behaviour[:,constants.precision_idx] = all_precision
+    behaviour[:,constants.recall_idx] = all_recall
 
     positives = conf_sum(cms, TP) + conf_sum(cms, FP)
     details = True
@@ -470,8 +469,6 @@ def test_memories(domain, es):
     correct_chosen = []
     total_responses = []
 
-    labels_x_memory = constants.labels_per_memory
-
     print('Testing the memories')
 
     for fold in range(constants.n_folds):
@@ -495,16 +492,19 @@ def test_memories(domain, es):
         testing_labels = np.load(testing_labels_filename)
 
         measures_per_size = np.zeros((len(constants.memory_sizes), constants.n_measures), dtype=np.float64)
-        behaviours = np.zeros((len(constants.memory_sizes), constants.n_behaviours))
+        behaviours = np.zeros(
+            (constants.n_labels,
+            len(constants.memory_sizes),
+            constants.n_behaviours))
         list_measures = []
         list_cms = []
         for midx, msize in enumerate(constants.memory_sizes):
-            results = get_ams_results(midx, msize, domain, labels_x_memory,
+            results = get_ams_results(midx, msize, domain,
                 filling_features, testing_features, filling_labels, testing_labels, es, fold)
             list_measures.append(results)
         for midx, measures, behaviour, cms in list_measures:
             measures_per_size[midx, :] = measures
-            behaviours[midx, :] = behaviour
+            behaviours[:, midx, :] = behaviour
             list_cms.append(cms)
         
         ###################################################################3##
@@ -518,14 +518,14 @@ def test_memories(domain, es):
         recall.append(measures_per_size[:,constants.recall_idx]*100)
         accuracy.append(measures_per_size[:,constants.accuracy_idx]*100)
 
-        all_precision.append(behaviours[:, constants.precision_idx] * 100)
-        all_recall.append(behaviours[:, constants.recall_idx] * 100)
+        all_precision.append(np.mean(behaviours[:, :, constants.precision_idx], axis=0) * 100)
+        all_recall.append(np.mean(behaviours[:, :, constants.recall_idx], axis=0) * 100)
         all_cms.append(np.array(list_cms))
-        no_response.append(behaviours[:, constants.no_response_idx])
-        no_correct_response.append(behaviours[:, constants.no_correct_response_idx])
-        no_correct_chosen.append(behaviours[:, constants.no_correct_chosen_idx])
-        correct_chosen.append(behaviours[:, constants.correct_response_idx])
-        total_responses.append(behaviours[:, constants.mean_responses_idx])
+        no_response.append(np.sum(behaviours[:, :, constants.no_response_idx], axis=0))
+        no_correct_response.append(np.sum(behaviours[:, constants.no_correct_response_idx], axis=0))
+        no_correct_chosen.append(np.sum(behaviours[:, constants.no_correct_chosen_idx], axis=0))
+        correct_chosen.append(np.sum(behaviours[:, constants.correct_response_idx], axis=0))
+        total_responses.append(np.sum(behaviours[:, constants.response_size_idx], axis=0))
 
     # Every row is training fold, and every column is a memory size.
     entropy = np.array(entropy)
@@ -590,6 +590,7 @@ def test_memories(domain, es):
     np.savetxt(constants.csv_filename('all_recall', es), all_recall, delimiter=',')
     np.savetxt(constants.csv_filename('main_behaviours', es), main_behaviours, delimiter=',')
     np.save(constants.data_filename('memory_cms', es), all_cms)
+    np.save(constants.data_filename('behaviours', es), behaviours)
     plot_pre_graph(average_precision, average_recall, average_accuracy, average_entropy,\
         stdev_precision, stdev_recall, stdev_accuracy, stdev_entropy, es)
     plot_pre_graph(all_precision_average, all_recall_average, None, average_entropy, \
@@ -600,7 +601,7 @@ def test_memories(domain, es):
     print('Memory size evaluation completed!')
     return best_memory_size
 
-def remember_by_memory(fl_pairs, ams, entropy, threshold):
+def remember_by_memory(fl_pairs, ams, entropy):
     n_mems = constants.n_labels
     cms = np.zeros((n_mems, 2, 2), dtype='int')
     cmatrix = np.zeros((2,2), dtype='int')
@@ -611,7 +612,7 @@ def remember_by_memory(fl_pairs, ams, entropy, threshold):
         weights = {}
         for k in ams:
             recognized, weight = ams[k].recognize(features)
-            if recognized and (threshold <= weight):
+            if recognized:
                 memories.append(k)
                 weights[k] = weight
             # For calculation of per memory precision and recall
@@ -630,7 +631,7 @@ def remember_by_memory(fl_pairs, ams, entropy, threshold):
     return mismatches, cms, cmatrix
 
 
-def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, idx, fill, kappa):
+def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, idx, fill):
     n_mems = constants.n_labels
 
     # To store precisión, recall, accuracy and entropies
@@ -655,19 +656,18 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, id
 
     print(f'Filling of memories done for idx {idx}')
 
-    # Calculate entropies and threshold
+    # Calculate entropies
     means = []
     for m in ams:
         entropy[m] = ams[m].entropy
         means.append(ams[m].mean)
-    threshold = np.mean(means)*kappa
 
     # Total number of differences between features and memories.
     mismatches = 0
     split_size = 500
     for mmatches, scms, cmatx in \
          Parallel(n_jobs=constants.n_jobs, verbose=50)(
-            delayed(remember_by_memory)(fl_pairs, ams, entropy, threshold) \
+            delayed(remember_by_memory)(fl_pairs, ams, entropy) \
             for fl_pairs in split_every(split_size, zip(tef, tel))):
         mismatches += mmatches
         cms  = cms + scms
@@ -752,7 +752,7 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
 
         # recalls, measures, step_precision, step_recall, mis_count = get_recalls(ams, mem_size, domain, \
         measures, step_precision, step_recall, mis_count = get_recalls(ams, mem_size, domain, \
-            minimum, maximum, features, labels, testing_features, testing_labels, fold, end, es.kappa)
+            minimum, maximum, features, labels, testing_features, testing_labels, fold, end)
 
         # A list of tuples (position, label, features)
         # fold_recalls += recalls
@@ -1265,7 +1265,7 @@ if __name__== "__main__" :
             exit(1)
 
     # Processing sigma.
-    iota = 1.0
+    iota = 0.0
     if args['--iota']:
         try:
             iota = float(args['--iota'])
@@ -1276,7 +1276,7 @@ if __name__== "__main__" :
             exit(1)
 
     # Processing sigma.
-    kappa = 1.0
+    kappa = 0.0
     if args['--kappa']:
         try:
             kappa = float(args['--kappa'])

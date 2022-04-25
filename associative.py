@@ -35,7 +35,7 @@ class AssociativeMemoryError(Exception):
 
 
 class AssociativeMemory(object):
-    def __init__(self, n: int, m: int, tolerance = 0, sigma=0.25, iota=1.0):
+    def __init__(self, n: int, m: int, tolerance = 0, sigma=0.25, iota = 0, kappa=0):
         """
         Parameters
         ----------
@@ -58,14 +58,18 @@ class AssociativeMemory(object):
         self._absolute_max = 1023
         self._sigma = sigma*m
         self._iota = iota
+        self._kappa = kappa
         self._scale = normpdf(0, 0, self._sigma)
 
         # It is m+1 to handle partial functions.
         self._relation = np.zeros((self._m, self._n), dtype=np.int)
+        # Iota moderated relation
+        self._iota_relation = np.zeros((self._m, self._n), dtype=np.int)
         self._entropies = np.zeros(self._n, dtype=float)
         self._means = np.zeros(self._n, dtype=float)
 
-        # A flag to know whether entropies and means are up to date.
+        # A flag to know whether iota-relation, entropies and means
+        # are up to date.
         self._updated = True
 
     def __str__(self):
@@ -89,8 +93,8 @@ class AssociativeMemory(object):
 
     @property
     def entropies(self):
-        if (not self._updated):
-            self._updated = self._update()
+        if not self._updated:
+            self._updated = self.update()
         return self._entropies
 
     @property
@@ -100,13 +104,20 @@ class AssociativeMemory(object):
 
     @property
     def means(self):
-        if (not self._updated):
-            self._updated = self._update()
+        if not self._updated:
+            self._updated = self.update()
         return self._means
 
     @property
     def mean(self):
         return np.mean(self.means)
+
+    @property
+    def iota_relation(self):
+        if not self._updated:
+            self._updated = self.update()
+        return self._iota_relation[:self.m,:]
+
 
     @property
     def max_value(self):
@@ -126,6 +137,16 @@ class AssociativeMemory(object):
         self._scale = normpdf(0, 0, self._sigma)
 
     @property
+    def kappa(self):
+        return self._kappa
+
+    @kappa.setter
+    def kappa(self, k):
+        if (k < 0):
+            raise ValueError('Kappa must be a non negative number.')
+        self._kappa = k
+
+    @property 
     def iota(self):
         return self._iota
 
@@ -134,10 +155,12 @@ class AssociativeMemory(object):
         if (i < 0):
             raise ValueError('Iota must be a non negative number.')
         self._iota = i
-         
-    def _update(self):
+        self._updated = False
+
+    def update(self):
         self._update_entropies()
         self._update_means()
+        self._update_iota_relation()
         return True
 
     def _update_entropies(self):
@@ -152,6 +175,17 @@ class AssociativeMemory(object):
         counts = np.count_nonzero(self.relation, axis=0)
         counts = np.where(counts == 0, 1, counts)
         self._means = (sums/counts)/self.max_value
+
+    def _update_iota_relation(self):
+        for j in range(self._n):
+            column = self._relation[:,j]
+            sum = np.sum(column)
+            if sum == 0:
+                self._iota_relation[:,j] = np.zeros(self._m, dtype=int)
+            count = np.count_nonzero(column)
+            mean = self.iota*sum/count
+            self._iota_relation[:,j] = np.where(column < mean, 0, column)
+
 
     def is_undefined(self, value):
         return value == self.undefined
@@ -183,19 +217,25 @@ class AssociativeMemory(object):
             n -= column[i]
         return self.m - 1
                  
-    def _weight(self, vector):
+    def _weights(self, vector):
         weights = []
         for i in range(self.n):
             w = 0 if self.is_undefined(vector[i]) \
                 else self.relation[vector[i], i]
             weights.append(w)
-        return np.mean(weights) / self.max_value
+        return np.array(weights)
+
+    def _weight(self, vector):
+        return np.mean(self._weights(vector)) / self.max_value
 
     def abstract(self, r_io) -> None:
-        self._relation = np.where(self._relation == self.absolute_max_value, self._relation, self._relation + r_io)
+        self._relation = np.where(
+            self._relation == self.absolute_max_value, 
+            self._relation, self._relation + r_io)
+        self._updated = False
 
     def containment(self, r_io):
-        return ~r_io[:self.m, :] | self.relation
+        return ~r_io[:self.m, :] | self.iota_relation
 
     # Reduces a relation to a function
     def lreduce(self, vector):
@@ -222,34 +262,27 @@ class AssociativeMemory(object):
         vector = self.validate(vector)
         r_io = self.vector_to_relation(vector)
         self.abstract(r_io)
-        self._updated = False
 
     def recognize(self, vector):
         vector = self.validate(vector)
         r_io = self.vector_to_relation(vector)
-        if (not self._updated):
-            self._updated = self._update()
         r_io = self.containment(r_io)
         recognized = np.count_nonzero(r_io[:self.m,:self.n] == False) <= self._t
         weight = self._weight(vector)
-        recognized = recognized and (self.mean*self._iota <= weight)
+        recognized = recognized and (self.mean*self._kappa <= weight)
         return recognized, weight
 
     def mismatches(self, vector):
         vector = self.validate(vector)
         r_io = self.vector_to_relation(vector)
-        if (not self._updated):
-            self._updated = self._update()
         r_io = self.containment(r_io)
         return np.count_nonzero(r_io[:self.m,:self.n] == False)
 
     def recall(self, vector):
         vector = self.validate(vector)
-        if (not self._updated):
-            self._updated = self._update()
         accept = self.mismatches(vector) <= self._t
         weight = self._weight(vector)
-        accept = accept and (self.mean*self._iota <= weight)
+        accept = accept and (self.mean*self._kappa <= weight)
         if accept:
             r_io = self.lreduce(vector)
         else:
@@ -260,7 +293,7 @@ class AssociativeMemory(object):
 
 class AssociativeMemorySystem:
     def __init__(self, labels: list, n: int, m: int, 
-        tolerance = 0, sigma = 0.25, iota = 1.0, kappa = 1.0):
+        tolerance = 0, sigma = 0.25, iota = 0, kappa = 0):
         self._memories = {}
         self.n = n
         self.m = m
@@ -269,7 +302,7 @@ class AssociativeMemorySystem:
         self._mean = 0.0
         self._labels = labels
         for label in labels:
-            self._memories[label] = AssociativeMemory(n, m, tolerance, sigma, iota)
+            self._memories[label] = AssociativeMemory(n, m, tolerance, sigma, iota, kappa)
 
     @property
     def num_mems(self):
@@ -301,23 +334,21 @@ class AssociativeMemorySystem:
         self._updated = False
 
     def recognize(self, vector):
-        threshold = self.mean*self._kappa
         for k in self._memories:
             recognized, weight = self._memories[k].recognize(vector, False)
-            if recognized and (threshold <= weight):
+            if recognized:
                 return True
         return False
 
     def recall(self, vector):
         penalty = float('inf')
-        threshold = self.mean*self._kappa
         memory = None
         mem_recall = self.full_undefined
         keys = list(self._memories)
         random.shuffle(keys)
         for k in keys:
             recalled, recognized, weight = self._memories[k].recall(vector)
-            if recognized and (threshold <= weight):
+            if recognized:
                 entropy = self._memories[k].entropy
                 new_penalty = entropy/weight if weight > 0 else float('inf')
                 if new_penalty < penalty:
