@@ -402,7 +402,8 @@ def get_ams_results(midx, msize, domain, trf, tef, trl, tel,
     # Create the required associative memories.
     ams = dict.fromkeys(range(n_mems))
     for m in ams:
-        ams[m] = AssociativeMemory(domain, msize, es.tolerance, es.sigma, es.iota)
+        ams[m] = AssociativeMemory(domain, msize, es.tolerance, 
+                    es.sigma, es.iota, es.kappa)
     # Registration in parallel, per label.
     Parallel(n_jobs=constants.n_jobs, require='sharedmem', verbose=50)(
         delayed(register_in_memory)(ams[label], features_list) \
@@ -703,7 +704,8 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
     # Create the required associative memories.
     ams = dict.fromkeys(range(n_memories))
     for j in ams:
-        ams[j] = AssociativeMemory(domain, mem_size, es.tolerance, es.sigma, es.iota)
+        ams[j] = AssociativeMemory(domain, mem_size, es.tolerance,
+                    es.sigma, es.iota, es.kappa)
 
     suffix = constants.filling_suffix
     filling_features_filename = constants.features_name(es) + suffix        
