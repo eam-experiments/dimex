@@ -565,13 +565,13 @@ def test_memories(domain, es):
     main_no_correct_response = np.mean(no_correct_response, axis=0)
     main_no_correct_chosen = np.mean(no_correct_chosen, axis=0)
     main_correct_chosen = np.mean(correct_chosen, axis=0)
-    main_response_sizes = np.mean(response_size, axis=0)
-    main_response_sizes_stdev = np.std(main_response_sizes, axis=0)
+    main_response_size = np.mean(response_size, axis=0)
+    main_response_size_stdev = np.std(response_size, axis=0)
 
     best_memory_size = constants.memory_sizes[
         np.argmax(main_correct_chosen)]
     main_behaviours = [main_no_response, main_no_correct_response, \
-        main_no_correct_chosen, main_correct_chosen, main_response_sizes]
+        main_no_correct_chosen, main_correct_chosen, main_response_size]
 
     np.savetxt(constants.csv_filename('memory_average_precision', es), precision, delimiter=',')
     np.savetxt(constants.csv_filename('memory_average_recall', es), recall, delimiter=',')
@@ -586,7 +586,7 @@ def test_memories(domain, es):
         stdev_precision, stdev_recall, stdev_accuracy, stdev_entropy, es)
     plot_pre_graph(all_precision_average, all_recall_average, None, average_entropy, \
         all_precision_stdev, all_recall_stdev, None, stdev_entropy, es, 'overall')
-    plot_size_graph(main_response_sizes, main_response_sizes_stdev, es)
+    plot_size_graph(main_response_size, main_response_size_stdev, es)
     plot_behs_graph(main_no_response, main_no_correct_response, main_no_correct_chosen,\
         main_correct_chosen, es)
     print('Memory size evaluation completed!')
