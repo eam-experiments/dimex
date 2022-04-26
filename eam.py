@@ -423,7 +423,7 @@ def get_ams_results(midx, msize, domain, trf, tef, trl, tel,
          Parallel(n_jobs=constants.n_jobs, verbose=50)(
             delayed(recognize_by_memory)(fl_pairs, ams, entropy) \
             for fl_pairs in split_every(split_size, zip(tef_rounded, tel))):
-        response_size += rsize
+        response_size = response_size + rsize
         cms  = cms + scms
         behaviour = behaviour + sbehavs
     behaviour[:,constants.response_size_idx] = response_size
@@ -492,7 +492,9 @@ def test_memories(domain, es):
         testing_features = np.load(testing_features_filename)
         testing_labels = np.load(testing_labels_filename)
 
-        measures_per_size = np.zeros((len(constants.memory_sizes), constants.n_measures), dtype=np.float64)
+        measures_per_size = np.zeros(
+            (len(constants.memory_sizes), constants.n_measures),
+            dtype=np.float64)
         behaviours = np.zeros(
             (constants.n_labels,
             len(constants.memory_sizes),
@@ -547,36 +549,22 @@ def test_memories(domain, es):
     average_accuracy = np.mean(accuracy, axis=0)
     stdev_accuracy = np.std(accuracy, axis=0)
 
-    all_precision_average = []
-    all_precision_stdev = []
-    all_recall_average = []
-    all_recall_stdev = []
-
     no_response = np.array(no_response)
     no_correct_response = np.array(no_correct_response)
     no_correct_chosen = np.array(no_correct_chosen)
     correct_chosen = np.array(correct_chosen)
     total_responses = np.array(total_responses)
 
-    main_no_response = []
-    main_no_correct_response = []
-    main_no_correct_chosen = []
-    main_correct_chosen = []
-    main_total_responses = []
-    main_total_responses_stdev = []
-
-    for fold in range(len(constants.memory_sizes)):
-        all_precision_average.append(all_precision[:, fold].mean())
-        all_precision_stdev.append(all_precision[:, fold].std())
-        all_recall_average.append(all_recall[:, fold].mean())
-        all_recall_stdev.append(all_recall[:, fold].std())
-
-        main_no_response.append(no_response[:, fold].mean())
-        main_no_correct_response.append(no_correct_response[:, fold].mean())
-        main_no_correct_chosen.append(no_correct_chosen[:, fold].mean())
-        main_correct_chosen.append(correct_chosen[:, fold].mean())
-        main_total_responses.append(total_responses[:, fold].mean())
-        main_total_responses_stdev.append(total_responses[:, fold].std())
+    all_precision_average = np.mean(all_precision, axis=0)
+    all_precision_stdev = np.std(all_precision, axis=0)
+    all_recall_average = np.mean(all_recall, axis=0)
+    all_recall_stdev = np.std(all_recall, axis=0)
+    main_no_response = np.mean(no_response, axis=0)
+    main_no_correct_response = np.mean(no_correct_response, axis=0)
+    main_no_correct_chosen = np.mean(no_correct_chosen, axis=0)
+    main_correct_chosen = np.mean(correct_chosen, axis=0)
+    main_total_responses = np.mean(total_responses, axis=0)
+    main_total_responses_stdev = np.std(main_total_responses, axis=0)
 
     best_memory_size = constants.memory_sizes[
         main_correct_chosen.index(max(main_correct_chosen))]
