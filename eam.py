@@ -567,7 +567,7 @@ def test_memories(domain, es):
     main_total_responses_stdev = np.std(main_total_responses, axis=0)
 
     best_memory_size = constants.memory_sizes[
-        main_correct_chosen.index(max(main_correct_chosen))]
+        np.argmax(main_correct_chosen)]
     main_behaviours = [main_no_response, main_no_correct_response, \
         main_no_correct_chosen, main_correct_chosen, main_total_responses]
 
