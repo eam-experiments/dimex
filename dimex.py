@@ -66,6 +66,32 @@ _PHN_EXT = '.phn'
 
 IDEAL_SRATE = 16000
 
+def phonemesToLabels(phonemes):
+    specials = ['n', 'r', 't']
+    complement = {'n': '~', 'r': '(', 't':'S'}
+    labels = []
+    while phonemes:
+        p = phonemes[0]
+        if not (p in phonemes):
+            raise ValueError(f"Invalid character: {p}")
+        if (not (p in specials)) or (len(phonemes) == 1):
+            labels.append(phns_to_labels[p])
+            phonemes = phonemes[1:]
+        else:
+            q = phonemes[1]
+            if q == complement[p]:
+                labels.append(phns_to_labels[p+q])
+                phonemes = phonemes[2:]
+            else:
+                labels.append(phns_to_labels[p])
+                phonemes = phonemes[1:]
+    return labels
+
+def labelsToPhonemes(labels):
+    s = ''
+    for l in labels:
+        s += labels_to_phns[l]
+    return s
 
 def get_text_filename(modifier, id):
     return _get_file_name(modifier, id, _TEXT_DIR, _TEXT_EXT)

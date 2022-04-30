@@ -6,12 +6,14 @@ import constants
 stages = 10
 tolerance = 0
 learned = 4
-sigma = 50
-iota = 1.25
+sigma = 0.10
+iota = 0.30
+kappa = 1.50
 extended = True
-runpath = f'runs-32-d{learned}-t{tolerance}-s{sigma}-i{iota}-x'
+runpath = f'runs-d{learned}-t{tolerance}-i{iota:.1f}-k{kappa:.1f}-s{sigma:.2f}'
 constants.run_path = runpath
-es = constants.ExperimentSettings(learned=learned, tolerance = tolerance, extended=extended)
+es = constants.ExperimentSettings(learned=learned, tolerance = tolerance, extended=extended,
+        iota=iota, kappa=kappa, sigma=sigma)
 
 print(f'Getting data from {constants.run_path}')
 
@@ -51,7 +53,6 @@ for stage in range(stages):
     stage_stats = []
     for fold in range(constants.n_folds):
         fold_stats = get_fold_stats(es, fold)
-        print(fold_stats.shape)
         stage_stats.append(fold_stats)
     stage_stats = np.array(stage_stats, dtype=float)
     stats.append(stage_stats)

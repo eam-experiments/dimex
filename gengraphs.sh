@@ -2,8 +2,9 @@
 
 learned=4
 tolerance=0
-sigma=50
-iota=1.25
+sigma=0.10
+iota=0.3
+kappa=1.5
 
 prse=graph_prse_MEAN-english-stg_00
 overall=overallgraph_prse_MEAN-english-stg_00
@@ -15,7 +16,7 @@ suffix=lrn_00${learned}-ext-tol_00${tolerance}.png
 img_suffix="-x"
 for i in 0 1 2 3 4 5 6 7 8 9 ; do
     j=$i
-    cd runs-32-d${learned}-t${tolerance}-s${sigma}-i${iota}-x/stage_$j
+    cd runs-d${learned}-t${tolerance}-i${iota}-k${kappa}-s${sigma}/stage_$j
 	for f in *.svg; do
 		g=`basename $f .svg`
 		rsvg-convert -f png -o ${g}.png $f

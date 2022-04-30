@@ -842,7 +842,7 @@ def test_recalling(domain, mem_size, es):
         main_stdev_sys_precision*100, main_stdev_sys_recall*100, None, main_stdev_entropies, es, 'total_recall-', \
             xlabels = constants.memory_fills, xtitle = _('Percentage of memory corpus'))
 
-    bfp = best_filling_percentage(total_precisions, total_recalls)
+    bfp = best_filling_percentage(main_avrge_sys_precision, main_avrge_sys_recall)
     print('Best filling percent: ' + str(bfp))
     print('Filling evaluation completed!')
     return bfp
@@ -1030,8 +1030,8 @@ def lev(a, b, m):
         m[len(a), len(b)] = d
         return d
     else:
-        deletion = lev(a[1:], b, m)
-        insertion = lev(a, b[1:], m)
+        insertion = lev(a[1:], b, m)
+        deletion = lev(a, b[1:], m)
         replacement = lev(a[1:], b[1:], m)
         d = min(deletion, insertion, replacement) + 1
         m[len(a), len(b)] = d
@@ -1060,7 +1060,7 @@ def save_recognitions(samples, dp, fold, es):
             ams_size = len(sample.ams_labels)
             cor_net = levenshtein(sample.labels, sample.net_labels)
             cor_mem = levenshtein(sample.labels, sample.ams_labels)
-            net_mem = levenshtein(sample.net_labels, sample.ams_labels)
+            net_mem = levenshtein(sample.ams_labels, sample.net_labels)
             row = [sample.id, sample.text, correct_phns, corr_size,
                 nnet_phns, nnet_size, ams_phns, ams_size]
             row += [cor_net, cor_mem, net_mem]
