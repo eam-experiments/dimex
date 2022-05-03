@@ -1061,11 +1061,36 @@ def save_recognitions(samples, dp, fold, es):
             cor_net = levenshtein(sample.labels, sample.net_labels)
             cor_mem = levenshtein(sample.labels, sample.ams_labels)
             net_mem = levenshtein(sample.ams_labels, sample.net_labels)
-            row = [sample.id, sample.text, correct_phns, corr_size,
+            net_labels = remove_duplicates(sample.net_labels)
+            ams_labels = remove_duplicates(sample.ams_labels)
+            nnet_phns_nodups = dp.get_phonemes(net_labels)
+            nnet_size_nodups = len(net_labels)
+            ams_phns_nodups = dp.get_phonemes(ams_labels)
+            ams_size_nodups = len(ams_labels)
+            cor_net_nodups = levenshtein(sample.labels, net_labels)
+            cor_mem_nodups = levenshtein(sample.labels, ams_labels)
+            net_mem_nodups = levenshtein(ams_labels, net_labels)
+
+            row = [
+                sample.id, sample.text, correct_phns, corr_size,
                 nnet_phns, nnet_size, ams_phns, ams_size]
             row += [cor_net, cor_mem, net_mem]
+            row += [
+                nnet_phns_nodups, nnet_size_nodups,
+                ams_phns_nodups, ams_size_nodups]
+            row += [cor_net_nodups, cor_mem_nodups, net_mem_nodups]
             writer.writerow(row)
 
+def remove_duplicates(labels):
+    nodups = []
+    previous = -1
+    for label in labels:
+        if label == previous:
+            continue
+        else:
+            nodups.append(label)
+            previous = label
+    return nodups
 
 def process_sample(sample, ams, dp, mem_size, minimum, maximum):
     sample.net_labels = dp.process(sample.net_labels)
