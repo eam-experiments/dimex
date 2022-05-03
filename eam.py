@@ -849,8 +849,6 @@ def test_recalling(domain, mem_size, es):
 
 
 def best_filling_percentage(precisions, recalls):
-    precisions = np.mean(precisions, axis=0)
-    recalls = np.mean(recalls, axis=0)
     n = 0
     i = 0
     avg = -float('inf')
