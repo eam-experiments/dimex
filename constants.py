@@ -64,7 +64,7 @@ learning_suffixes = [[original_suffix], [agreed_suffix], [amsystem_suffix],
 
 
 mfcc_numceps = 26
-n_folds = 1 
+n_folds = 10
 domain = 32
 n_frames = 8
 n_jobs = 22
