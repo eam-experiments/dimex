@@ -46,10 +46,12 @@ gettext.install('ame', localedir=None, codeset=None, names=None)
 
 # Keys for data
 LOSS = 'loss'
-ACCURACY = 'accuracy'
 VAL = 'val_'
-
-
+AUTO_MEASURE='root_mean_squared_error'
+CLASS_MEASURE='accuracy'
+ytitles = {
+    AUTO_MEASURE: 'Root Mean Squared Error',
+    CLASS_MEASURE: 'Accuracy'}
 
 def trplot(a_measure, b_measure, a_label, b_label, epoch, nn):
     fig = plt.figure()
@@ -84,7 +86,7 @@ def training_stats(data):
     n = 0
     for d in data:
         trplot(d[LOSS], d[VAL+LOSS], LOSS, VAL+LOSS,epoch,n)
-        trplot(d[ACCURACY], d[VAL+ACCURACY], ACCURACY, VAL+ACCURACY,epoch,n)
+        trplot(d[CLASS_MEASURE], d[VAL+CLASS_MEASURE], CLASS_MEASURE, VAL+CLASS_MEASURE,epoch,n)
         n += 1
 
 
@@ -92,17 +94,17 @@ def testing_stats(data, simple):
     """ Analyse neural nets testing data. 
     """
     n = len(data)
-    m = {LOSS: [], ACCURACY: []}
+    m = {LOSS: [], CLASS_MEASURE: []}
     for d in data:
         m[LOSS].append(d[LOSS])
-        m[ACCURACY].append(d[ACCURACY])
+        m[CLASS_MEASURE].append(d[CLASS_MEASURE])
     
     if simple:
         print(f'{LOSS}: {m[LOSS]}')
-        print(f'{ACCURACY}: {m[ACCURACY]}')
+        print(f'{CLASS_MEASURE}: {m[CLASS_MEASURE]}')
     else:
         teplot(m[LOSS], LOSS)
-        teplot(m[ACCURACY], ACCURACY, ymax=1.0)
+        teplot(m[CLASS_MEASURE], CLASS_MEASURE, ymax=1.0)
 
 def process_single_json(filename, simple):
     history = {}
@@ -128,14 +130,14 @@ def process_single_json(filename, simple):
     if not simple:
         trs = training_stats(training)
     
-def plot_sequence_graph(a_data, a_error, c_data, c_error, base_dir, es):
+def plot_sequence_graph(data, error, y_title, prefix, label, es):
     plt.clf()
     plt.figure(figsize=(6.4,4.8))
     full_length = 100.0
     step = 0.1
-    xlabels=range(len(a_data))
+    xlabels=range(len(data))
     xtitle = _('Learning stage')
-    ytitle = _('Accuracy')
+    ytitle = _(y_title)
     main_step = full_length/len(xlabels)
     x = np.arange(0, full_length, main_step)
 
@@ -143,69 +145,69 @@ def plot_sequence_graph(a_data, a_error, c_data, c_error, base_dir, es):
     # on intervals.
     xmax = full_length - main_step + step
     # Gives space to fully show markers in the top.
-    ymax = 100.0 + 2.0
-    plt.errorbar(x, a_data*100, fmt='b-o', yerr=a_error*100, label=_('Autoencoder'))
-    plt.errorbar(x, c_data*100, fmt='r-s', yerr=c_error*100, label=_('Classifier'))
+    plt.errorbar(x, data*100, yerr=error*100, fmt='b-d', label=label)
     plt.xlim(-0.5, xmax)
-    plt.ylim(0, ymax)
     plt.xticks(x, xlabels)
     plt.xlabel(xtitle)
     plt.ylabel(ytitle)
     plt.legend()
     plt.grid(True)
-    s = 'graph_networks' + _('-english')
-    graph_filename = constants.picture_filename(s, es)
-    graph_filename = graph_filename.replace('runs', base_dir)
-
+    graph_filename = constants.picture_filename(prefix, es)
     plt.savefig(graph_filename, dpi=600)
 
 
-def process_json_sequence(dir, es):
-    autoencoder_data, classifier_data = get_data(dir, es)
-    autoencoder_error = np.std(autoencoder_data, axis=1)
-    autoencoder_data = np.mean(autoencoder_data, axis=1)
-    classifier_error = np.std(classifier_data, axis=1)
-    classifier_data = np.mean(classifier_data, axis=1)
+def process_json_sequence(es):
+    autoencoder_data, classifier_data = get_data(es)
+    print(autoencoder_data, classifier_data)
+    if (len(autoencoder_data.shape) > 1):
+        autoencoder_error = np.std(autoencoder_data, axis=1)
+        autoencoder_data = np.mean(autoencoder_data, axis=1)
+    else:
+        autoencoder_error = np.zeros(autoencoder_data.shape, dtype=float)
+    if (len(classifier_data.shape) > 1):
+        classifier_error = np.std(classifier_data, axis=1)
+        classifier_data = np.mean(classifier_data, axis=1)
+    else:
+        classifier_error = np.zeros(classifier_data.shape, dtype=float)
     print('Autoencoder mean: ' + str(autoencoder_data))
     print('Autoencoder error: ' + str(autoencoder_error))
     print('Classifier mean: ' + str(classifier_data))
     print('Classifier error: ' + str(classifier_error))
-    plot_sequence_graph(autoencoder_data, autoencoder_error,
-        classifier_data, classifier_error, dir, es)
+    plot_sequence_graph(
+        autoencoder_data, autoencoder_error, 
+        ytitles[AUTO_MEASURE], 'graph_autoencoder', 'Autoencoder', es)
+    plot_sequence_graph(
+        classifier_data, classifier_error, 
+        ytitles[CLASS_MEASURE], 'graph_classifier', 'Classifier', es)
 
-def get_data(dir, es: constants.ExperimentSettings):
+def get_data(es: constants.ExperimentSettings):
     autoencoder_data = []
     classifier_data = []
-    n = -1
+    autoencoder_prefix = \
+        constants.model_prefix + constants.decoder_suffix
+    classifier_prefix = \
+        constants.model_prefix + constants.classifier_suffix
     for stage in range(10):
-        try:
-            if stage < 9:
-                autoencoder_fname = f'{dir}/model-autoencoder-stg_{stage:03}-lrn_{es.learned:03}-tol_{tolerance:03}.json'
-                classifier_fname = f'{dir}/model-classifier-stg_{stage:03}-lrn_{es.learned:03}-tol_{tolerance:03}.json'
-            else:
-                autoencoder_fname = f'{dir}/model-autoencoder-stg_{stage:03}-lrn_{es.learned:03}-ext-tol_{tolerance:03}.json'
-                classifier_fname = f'{dir}/model-classifier-stg_{stage:03}-lrn_{es.learned:03}-ext-tol_{tolerance:03}.json'
-            accuracy = get_accuracy(autoencoder_fname)
-            autoencoder_data.append(accuracy)
-            accuracy = get_accuracy(classifier_fname)
-            classifier_data.append(accuracy)
-            n += 1
-        except:
-            break
-    es.stage = n
+        es.stage = stage
+        autoencoder_fname = constants.json_filename(autoencoder_prefix, es)
+        classifier_fname = constants.json_filename(classifier_prefix, es)
+        measure = get_measure(autoencoder_fname, AUTO_MEASURE)
+        autoencoder_data.append(measure)
+        measure = get_measure(classifier_fname, CLASS_MEASURE)
+        classifier_data.append(measure)
     return np.array(autoencoder_data), np.array(classifier_data)
 
-def get_accuracy(fname):
-    _, _, _, _, _, accuracy = process_json(fname)
-    return accuracy
+def get_measure(fname, measure):
+    _, _, _, _, _, value = process_json(fname, measure)
+    return value
 
-def process_json(fname):
+def process_json(fname, measure):
+    print(f'Processing {fname} with measure {measure}')
     history = None
     with open(fname) as file:
         history = json.load(file)
     # The JSON file becomes a dictionary with a single entry, 'history'
     history = history['history']
-
     # Now history contains a list with the statistics from the
     # neural nets. Even elements have statistics from training
     # and validation, while odd elements have statistics from
@@ -216,17 +218,16 @@ def process_json(fname):
     val_acc = []
     test_loss = []
     test_acc = []
-
     odd = False
     for s in history:
         if odd:
-            test_loss.append(s['loss'])
-            test_acc.append(s['accuracy'])
+            test_loss.append(s[LOSS])
+            test_acc.append(s[measure])
         else:
-            loss.append(s['loss'])
-            acc.append(s['accuracy'])
-            val_loss.append(s['val_loss'])
-            val_acc.append(s['val_accuracy'])            
+            loss.append(s[LOSS])
+            acc.append(s[measure])
+            val_loss.append(s[VAL + LOSS])
+            val_acc.append(s[VAL + measure])            
         odd = not odd
     return loss, acc, val_loss, val_acc, test_loss, test_acc
 
@@ -250,7 +251,7 @@ if __name__== "__main__" :
         exit(1)
 
     # Processing base dir.
-    base_dir = args['--dir']
+    constants.run_path = args['--dir']
 
     # Processing learned data.
     learned = 0
@@ -279,10 +280,10 @@ if __name__== "__main__" :
     # Processing single JSON file
     json_file = args['--tolerance'] if args['--tolerance'] else ''
     simple = True if args['-s'] else False
-    exp_set = constants.ExperimentSettings(learned=learned, extended=False, tolerance=tolerance)
+    exp_set = constants.ExperimentSettings(learned=learned, extended=True, tolerance=tolerance)
    
     if json_file == '':
         process_single_json(json_file, simple)
     else:
-        process_json_sequence(base_dir, exp_set)
+        process_json_sequence(exp_set)
        
