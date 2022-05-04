@@ -5,7 +5,7 @@ import constants
 
 stages = 10
 tolerance = 0
-learned = 4
+learned = 0
 sigma = 0.10
 iota = 0.30
 kappa = 1.50
@@ -26,6 +26,8 @@ def plot_recognition_graph(data, errs, es):
     plt.autoscale(True)
     plt.errorbar(x, means[:,0], fmt='r-o', yerr=errs[:,0], label='Correct to network')
     plt.errorbar(x, means[:,1], fmt='b-s', yerr=errs[:,1], label='Correct to memory')
+    plt.errorbar(x, means[:,2], fmt='g-D', yerr=errs[:,1], label='Correct to memory')
+    plt.errorbar(x, means[:,3], fmt='m-*', yerr=errs[:,1], label='Correct to memory')
 
     plt.ylabel('Normalized distance')
     plt.xlabel('Stages')
@@ -41,27 +43,30 @@ def get_fold_stats(es, fold):
     filename = constants.recog_filename(prefix, es, fold)
     print(f'Reading file: {filename}')
     df = pd.read_csv(filename)
-    df = df[['CorrSize', 'Cor2Net', 'Cor2Mem']]
+    df = df[['CorrSize', 'Cor2Net', 'Cor2Mem','Cor2NetND', 'Cor2MemND']]
     data = df.to_numpy(dtype=float)
     data[:, 1] = data[:,1] / (data[:,1] + data[:,0])
     data[:, 2] = data[:,2] / (data[:,2] + data[:,0])
+    data[:, 3] = data[:,3] / (data[:,3] + data[:,0])
+    data[:, 4] = data[:,4] / (data[:,4] + data[:,0])
     return data[:,1:]
 
-stats = []
-for stage in range(stages):
-    es.stage = stage
-    stage_stats = []
-    for fold in range(constants.n_folds):
-        fold_stats = get_fold_stats(es, fold)
-        stage_stats.append(fold_stats)
-    stage_stats = np.array(stage_stats, dtype=float)
-    stats.append(stage_stats)
+if __name__== "__main__" :
+    stats = []
+    for stage in range(stages):
+        es.stage = stage
+        stage_stats = []
+        for fold in range(constants.n_folds):
+            fold_stats = get_fold_stats(es, fold)
+            stage_stats.append(fold_stats)
+        stage_stats = np.array(stage_stats, dtype=float)
+        stats.append(stage_stats)
 
-stats = np.array(stats, dtype=float)    
-print(stats.shape)
-# Reduce folds to their means.
-means = np.mean(stats, axis=1)
-# Means and standard deviations of measures per stage.
-stdvs = np.std(means, axis=1)
-means = np.mean(means, axis=1)
-plot_recognition_graph(means, stdvs, es)
+    stats = np.array(stats, dtype=float)    
+    print(stats.shape)
+    # Reduce folds to their means.
+    means = np.mean(stats, axis=1)
+    # Means and standard deviations of measures per stage.
+    stdvs = np.std(means, axis=1)
+    means = np.mean(means, axis=1)
+    plot_recognition_graph(means, stdvs, es)

@@ -1046,8 +1046,11 @@ def save_recognitions(samples, dp, fold, es):
     filename = constants.recog_filename(constants.recognition_prefix, es, fold)
     with open(filename, 'w') as file:
         writer = csv.writer(file)
-        writer.writerow(['Id', 'Text', 'Correct', 'CorrSize', 'Network',
-            'NetSize', 'Memories', 'MemSize', 'Cor2Net', 'Cor2Mem', 'Net2Mem'])
+        writer.writerow([
+            'Id', 'Text', 'Correct', 'CorrSize', 'Network',
+            'NetSize', 'Memories', 'MemSize', 'Cor2Net', 'Cor2Mem', 'Mem2Net',
+            'NetworkND', 'NetSizeND', 'MemoriesND', 'MemSizeND',
+            'Cor2NetND', 'Cor2MemND', 'Mem2NetND'])
         for sample in samples:
             # sample is a Tagged Audio
             correct_phns = dp.get_phonemes(sample.labels)
