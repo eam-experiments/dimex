@@ -182,10 +182,10 @@ class AssociativeMemory(object):
             sum = np.sum(column)
             if sum == 0:
                 self._iota_relation[:,j] = np.zeros(self._m, dtype=int)
-            count = np.count_nonzero(column)
-            mean = self.iota*sum/count
-            self._iota_relation[:,j] = np.where(column < mean, 0, column)
-
+            else:
+                count = np.count_nonzero(column)
+                mean = self.iota*sum/count
+                self._iota_relation[:,j] = np.where(column < mean, 0, column)
 
     def is_undefined(self, value):
         return value == self.undefined
