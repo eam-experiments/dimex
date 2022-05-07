@@ -37,7 +37,7 @@ learn_params_prefix ='learn_params'
 
 balanced_data = 'balanced'
 seed_data = 'seed'
-learning_data_seed = 'seed_balanced'
+learning_data_seed = 'seed'
 learning_data_learned = 'learned'
 
 # Categories suffixes.
@@ -64,9 +64,10 @@ learning_suffixes = [[original_suffix], [agreed_suffix], [amsystem_suffix],
 
 
 mfcc_numceps = 26
-n_folds = 5
+n_folds = 1
 domain = 32
-n_frames = 8
+n_frames = 6
+phn_duration = n_frames*10 + 15
 n_jobs = 22
 
 nn_training_percent = 0.70
@@ -147,14 +148,16 @@ def print_warning(*s):
 def print_error(*s):
     print('ERROR:', *s, file = sys.stderr)
 
-def print_counter(n, every, step = 1, symbol = '.'):
+def print_counter(n, every, step = 1, symbol = '.', prefix = ''):
+    if n == 0:
+        return
     e = n % every
     s = n % step
-    if e and s:
+    if (e != 0) and (s != 0):
         return
     counter = symbol
-    if not e:
-        counter =  ' ' + str(n) + ' '
+    if e == 0:
+        counter =  ' ' + prefix + str(n) + ' '
     print(counter, end = '', flush=True)
 
 def extended_suffix(extended):

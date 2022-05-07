@@ -21,8 +21,9 @@ _SEED = 1
 _FULL = 2
 
 # milliseconds
-left_padding = 45
-right_padding = 35
+left_padding = 35
+right_padding = 25
+min_for_crop = constants.phn_duration + 10
 
 def create_balanced_data(cut_point, in_prefix, out_prefix, convert=False):
    # Load original data
@@ -73,14 +74,20 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
 
     data = []
     labels = []
-    frequencies = np.zeros(constants.n_labels, dtype=int)
     counter = 0
+    phonemes = np.zeros(constants.n_labels, dtype=int)
+    zeros = np.zeros(constants.n_labels, dtype=int)
+    shorts = np.zeros(constants.n_labels, dtype=int)
+    durations = []
+    for i in range(constants.n_labels):
+        durations.append([])
+
     for mod, id in mods_ids:
         audio_filename = dimex.get_audio_filename(mod, id)
         try:
             sample_rate, signal = wav.read(audio_filename)
         except:
-            constants.print_warning(f'{audio_filename} has problemas')
+            constants.print_warning(f'{audio_filename} has problems')
         phnms_filename = dimex.get_phonemes_filename(mod, id)
 
         with open(phnms_filename) as file:
@@ -96,34 +103,56 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
                 phn = row[2]
                 if (phn == '.sil') or (phn == '.bn'):
                     continue
+                label = dimex.phns_to_labels[phn]
+                phonemes[label] += 1
                 start = float(row[0])
                 end = float(row[1])
-                if crop_pad:
+                # Duration in milliseconds
+                duration = end - start
+                durations[label].append(duration)
+                if crop_pad and (duration < min_for_crop):
                     start -= left_padding
                     start = 0 if start < 0 else start
                     end += right_padding
-                # Duration in milliseconds
-                duration = float(end)-float(start)
-                ns = signal[int(float(start)/1000 * sample_rate):int(float(end)/1000 * sample_rate)]
+                ns = signal[int(sample_rate*start/1000):int(sample_rate*end/1000)]
                 if len(ns) == 0:
-                    continue
+                    end -= right_padding
+                    ns = signal[int(sample_rate*start/1000):int(sample_rate*end/1000)]
+                    if len(ns) == 0:
+                        zeros[label] += 1
+                        continue
                 if sample_rate!=dimex.IDEAL_SRATE:
-                    resampling = int(duration/1000*dimex.IDEAL_SRATE)
+                    duration = end - start
+                    resampling = int(dimex.IDEAL_SRATE*duration/1000)
                     ns = scipy.signal.resample(ns,resampling)
                 features = mfcc(ns,dimex.IDEAL_SRATE,numcep=26)
-                label = dimex.phns_to_labels[phn]
+                if (len(features) < constants.n_frames):
+                    shorts[label] += 1
                 if crop_pad:
                     feat_list = constants.padding_cropping(features, constants.n_frames)
                     data += feat_list
                     labels += [label for i in range(len(feat_list))]
-                    frequencies[label] += len(feat_list)
                 else:
                     data.append(features)
                     labels.append(label)
-                frequencies[label] += 1
         counter += 1
-        constants.print_counter(counter,100,10)    
+        constants.print_counter(counter,100,10)
+    print(f'Total phonemes: {phonemes}')
+    print(f'Total zeros: {zeros}')
+    print(f'Total shorts: {shorts}')
+
     data, labels = dimex.shuffle(data, labels)
+    frequencies = np.zeros(constants.n_labels, dtype=int)
+    for label in labels:
+        frequencies[label] += 1
+    print(f'Frequencies: {frequencies}')
+    means = np.zeros(constants.n_labels, dtype=float)
+    stdvs = np.zeros(constants.n_labels, dtype=float)
+    for i in range(constants.n_labels):
+        means[i] = np.mean(durations[i])
+        stdvs[i] = np.std(durations[i])
+    print(f'Durations mean: {means}')
+    print(f'Duraitons stdevs: {stdvs}')
     filename = constants.data_filename(prefix + constants.labels_suffix)
     np.save(filename,labels)
     if crop_pad:
@@ -133,11 +162,14 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
         filename = constants.pickle_filename(prefix + constants.data_suffix)
         with open(filename, 'wb') as f:
             pickle.dump(data, f)
-    print(f'Frequencies: {frequencies}')
+    return frequencies
      
 
 def create_learning_seeds():
-    create_data_and_labels(_TRAINING_IDS, constants.seed_data)
+    frequencies = create_data_and_labels(_TRAINING_IDS, constants.seed_data)
+    median = np.median(frequencies)
+    print(f'Suggested cutpoint: {median}')
+
 
 def create_full_data():
     create_data_and_labels(_ALL_IDS, _ALL_DATA_PREFIX)
