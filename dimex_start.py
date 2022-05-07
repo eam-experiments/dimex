@@ -21,8 +21,8 @@ _SEED = 1
 _FULL = 2
 
 # milliseconds
-left_padding = 35
-right_padding = 25
+left_padding = 45
+right_padding = 35
 min_for_crop = constants.phn_duration + 10
 
 def create_balanced_data(cut_point, in_prefix, out_prefix, convert=False):
