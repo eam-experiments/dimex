@@ -21,8 +21,6 @@ _SEED = 1
 _FULL = 2
 
 # milliseconds
-left_padding = 45
-right_padding = 35
 min_for_crop = constants.phn_duration + 10
 
 def create_balanced_data(cut_point, in_prefix, out_prefix, convert=False):
@@ -111,16 +109,14 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
                 duration = end - start
                 durations[label].append(duration)
                 if crop_pad and (duration < min_for_crop):
-                    start -= left_padding
+                    padding = (min_for_crop - duration) / 2
+                    start -= padding
                     start = 0 if start < 0 else start
-                    end += right_padding
+                    end += padding
                 ns = signal[int(sample_rate*start/1000):int(sample_rate*end/1000)]
                 if len(ns) == 0:
-                    end -= right_padding
-                    ns = signal[int(sample_rate*start/1000):int(sample_rate*end/1000)]
-                    if len(ns) == 0:
-                        zeros[label] += 1
-                        continue
+                    zeros[label] += 1
+                    continue
                 if sample_rate!=dimex.IDEAL_SRATE:
                     duration = end - start
                     resampling = int(dimex.IDEAL_SRATE*duration/1000)
