@@ -985,7 +985,7 @@ def ams_process_samples(samples, ams, minimum, maximum, decode=False):
 
 def learn_new_data(domain, mem_size, fill_percent, es):
     model_prefix = constants.model_name(es)
-    confusion_matrix = np.array(
+    confusion_matrix = np.zeros(
         (constants.n_folds, constants.n_labels, constants.n_labels), dtype=float)
     for fold in range(constants.n_folds):
         print(f'Learning new data at stage {es.stage}')
