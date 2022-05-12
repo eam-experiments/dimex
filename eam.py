@@ -1030,7 +1030,7 @@ def learn_new_data(domain, mem_size, fill_percent, es):
         recognition_on_ciempiess(new_data, es, fold)
     confusion_matrix = np.sum(confusion_matrix, axis=0)
     confusion_matrix = confusion_matrix / np.sum(confusion_matrix, axis=1)[:, np.newaxis]
-    save_conf_matrix(confusion_matrix, constants.memories_name, es)
+    save_conf_matrix(confusion_matrix, constants.memories_name(es), es)
     print(f'Learning at stage {es.stage} completed!')
 
 
