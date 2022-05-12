@@ -28,7 +28,6 @@ memories_path = 'memories'
 data_prefix = 'data'
 labels_prefix = 'labels'
 features_prefix = 'features'
-matrix_prefix = 'confrix'
 memories_prefix = 'memories'
 model_prefix = 'model'
 recognition_prefix = 'recognition'
@@ -37,7 +36,7 @@ learn_params_prefix ='learn_params'
 
 balanced_data = 'balanced'
 seed_data = 'seed'
-learning_data_seed = 'seed'
+learning_data_seed = 'seed_balanced'
 learning_data_learned = 'learned'
 
 # Categories suffixes.
@@ -54,6 +53,7 @@ decoder_suffix = '-autoencoder'
 original_suffix = '-original'
 data_suffix = '_X'
 labels_suffix = '_Y'
+matrix_suffix = '-confrix'
 
 agreed_suffix = '-agr'
 original_suffix = '-ori'
@@ -64,7 +64,7 @@ learning_suffixes = [[original_suffix], [agreed_suffix], [amsystem_suffix],
 
 
 mfcc_numceps = 26
-n_folds = 1
+n_folds = 10
 domain = 32
 n_frames = 8
 phn_duration = n_frames*10 + 15
@@ -195,9 +195,6 @@ def get_full_name(prefix, es):
     return name
 
 # Currently, names include nothing about experiment settings.
-def matrix_name(es):
-    return matrix_prefix
-
 def model_name(es):
     return model_prefix
 

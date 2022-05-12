@@ -899,9 +899,9 @@ def load_learn_params(es):
     return (int)(lp[0]), (int)(lp[1])
 
 def save_conf_matrix(matrix, prefix, es):
-    name = constants.matrix_name(es)
+    name = prefix + constants.matrix_suffix
     plot_conf_matrix(matrix, dimex.phonemes, name, es)
-    filename = constants.data_filename(prefix, es)
+    filename = constants.data_filename(name, es)
     np.save(filename, matrix)
 
 
@@ -985,6 +985,8 @@ def ams_process_samples(samples, ams, minimum, maximum, decode=False):
 
 def learn_new_data(domain, mem_size, fill_percent, es):
     model_prefix = constants.model_name(es)
+    confusion_matrix = np.array(
+        (constants.n_folds, constants.n_labels, constants.n_labels), dtype=float)
     for fold in range(constants.n_folds):
         print(f'Learning new data at stage {es.stage}')
         suffix = constants.filling_suffix
@@ -1003,16 +1005,32 @@ def learn_new_data(domain, mem_size, fill_percent, es):
         minimum = filling_features.min()
         filling_features = msize_features(filling_features, mem_size, minimum, maximum)
 
+        suffix = constants.testing_suffix
+        testing_features_filename = constants.features_name(es) + suffix
+        testing_features_filename = constants.data_filename(testing_features_filename, es, fold)
+        testing_labels_filename = constants.labels_name(es) + suffix
+        testing_labels_filename = constants.data_filename(testing_labels_filename, es, fold)
+        testing_features = np.load(testing_features_filename)
+        testing_labels = np.load(testing_labels_filename)
+        testing_features = msize_features(testing_features, mem_size, minimum, maximum)
+
         ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size,
             es.tolerance, es.sigma, es.iota, es.kappa)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
+        for label, features in zip(testing_labels, testing_features):
+            l, _ = ams.recall(features)
+            if not (l is None):
+                confusion_matrix[fold, label, l] += 1
         nds = ciempiess.NextDataSet(es)
         new_data = nds.get_data()
         new_data = recnet.process_samples(new_data, model_prefix, es, fold, decode=True)
         new_data = ams_process_samples(new_data, ams, minimum, maximum, decode=True)
         new_data = recnet.reprocess_samples(new_data, model_prefix, es, fold)
         recognition_on_ciempiess(new_data, es, fold)
+    confusion_matrix = np.sum(confusion_matrix, axis=0)
+    confusion_matrix = confusion_matrix / np.sum(confusion_matrix, axis=1)[:, np.newaxis]
+    save_conf_matrix(confusion_matrix, constants.memories_name, es)
     print(f'Learning at stage {es.stage} completed!')
 
 
