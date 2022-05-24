@@ -3,12 +3,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import constants
 
-stages = 10
+stages = 6
 tolerance = 0
-learned = 0
-sigma = 0.10
-iota = 0.30
-kappa = 1.50
+learned = 4
+sigma = 0.50
+iota = 0.3
+kappa = 0.0
 extended = True
 runpath = f'runs-d{learned}-t{tolerance}-i{iota:.1f}-k{kappa:.1f}-s{sigma:.2f}'
 constants.run_path = runpath
@@ -26,8 +26,8 @@ def plot_recognition_graph(data, errs, es):
     plt.autoscale(True)
     plt.errorbar(x, means[:,0], fmt='r-o', yerr=errs[:,0], label='Correct to network')
     plt.errorbar(x, means[:,1], fmt='b-s', yerr=errs[:,1], label='Correct to memory')
-    plt.errorbar(x, means[:,2], fmt='g-D', yerr=errs[:,1], label='Correct to memory')
-    plt.errorbar(x, means[:,3], fmt='m-*', yerr=errs[:,1], label='Correct to memory')
+    plt.errorbar(x, means[:,2], fmt='g-D', yerr=errs[:,2], label='Correct to network (simplified)')
+    plt.errorbar(x, means[:,3], fmt='m-*', yerr=errs[:,3], label='Correct to memory (simplified)')
 
     plt.ylabel('Normalized distance')
     plt.xlabel('Stages')
