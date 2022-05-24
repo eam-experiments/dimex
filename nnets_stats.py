@@ -53,6 +53,8 @@ ytitles = {
     AUTO_MEASURE: 'Root Mean Squared Error',
     CLASS_MEASURE: 'Accuracy'}
 
+STAGES = 6
+
 def trplot(a_measure, b_measure, a_label, b_label, epoch, nn):
     fig = plt.figure()
     end = min(len(a_measure), epoch)
@@ -187,7 +189,7 @@ def get_data(es: constants.ExperimentSettings):
         constants.model_prefix + constants.decoder_suffix
     classifier_prefix = \
         constants.model_prefix + constants.classifier_suffix
-    for stage in range(10):
+    for stage in range(STAGES):
         es.stage = stage
         autoencoder_fname = constants.json_filename(autoencoder_prefix, es)
         classifier_fname = constants.json_filename(classifier_prefix, es)
