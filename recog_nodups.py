@@ -1,3 +1,4 @@
+from joblib import Parallel, delayed
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -5,13 +6,17 @@ import dimex
 import eam
 import constants
 
-stages = 10
+stages = 5
 tolerance = 0
 learned = 4
-sigma = 0.10
-iota = 0.30
-kappa = 1.50
+sigma = 0.1
+iota = 0.3
+kappa = 1.5
 extended = True
+threshold = 1.0 /constants.n_labels
+p_weight = 2.0/3.0
+none = constants.n_labels
+
 runpath = f'runs-d{learned}-t{tolerance}-i{iota:.1f}-k{kappa:.1f}-s{sigma:.2f}'
 constants.run_path = runpath
 es = constants.ExperimentSettings(learned=learned, tolerance = tolerance, extended=extended,
@@ -19,7 +24,7 @@ es = constants.ExperimentSettings(learned=learned, tolerance = tolerance, extend
 
 print(f'Getting data from {constants.run_path}')
 
-def remove_duplicates_fold(es, fold):
+def remove_errors_fold(es, fold):
     prefix = constants.recognition_prefix
     filename = constants.recog_filename(prefix, es, fold)
     print(f'Reading file: {filename}')
@@ -27,8 +32,8 @@ def remove_duplicates_fold(es, fold):
     correct_labels = phtolab(df['Correct'].values)
     network_labels = phtolab(df['Network'].values)
     memories_labels = phtolab(df['Memories'].values)
-    network_labels = remove_duplicates(network_labels)
-    memories_labels = remove_duplicates(memories_labels)
+    network_labels = remove_errors(network_labels)
+    memories_labels = remove_errors(memories_labels)
     stats = stats_per_label(correct_labels)
     print(stats)
     stats = stats_per_label(memories_labels)
@@ -40,13 +45,13 @@ def remove_duplicates_fold(es, fold):
     memories_to_network = distances(memories_labels, network_labels)
     network_labels = labtoph(network_labels)
     memories_labels = labtoph(memories_labels)
-    df['Network'] = network_labels
-    df['Memories'] = memories_labels
-    df['NetSize'] = network_sizes
-    df['MemSize'] = memories_sizes
-    df['Cor2Net'] = correct_to_network
-    df['Cor2Mem'] = correct_to_memories
-    df['Net2Mem'] = memories_to_network
+    df['NetworkND'] = network_labels
+    df['NetSizeND'] = network_sizes
+    df['MemoriesND'] = memories_labels
+    df['MemSizeND'] = memories_sizes
+    df['Cor2NetND'] = correct_to_network
+    df['Cor2MemND'] = correct_to_memories
+    df['Net2MemND'] = memories_to_network
     filename = constants.recog_filename(prefix, es, fold)
     df.to_csv(filename, index=False)
 
@@ -58,24 +63,36 @@ def stats_per_label(labels):
 
 def distances(aes, bes):
     ds = []
-    for a, b in zip(aes, bes):
-        d = eam.levenshtein(a, b)
+    for d in \
+        Parallel(n_jobs=1, verbose=50)(
+            delayed(eam.levenshtein)(a, b) for a, b in zip(aes, bes)):
         ds.append(d)
     return ds
 
-def remove_duplicates(labels):
-    nodups = []
-    for l in labels:
-        nd = []
-        prev = -1
-        for v in l:
-            if v == prev:
-                continue
-            else:
-                nd.append(v)
-                prev = v
-        nodups.append(nd)
-    return nodups
+def remove_errors(sequences):
+    seqs_cleaned = []
+    for labels in sequences:
+        cleaned = []
+        n = len(labels)
+        previous = none
+        for i in range(n):
+            current = labels[i]
+            nexto = none if i == (n - 1) else labels[i+1]
+            p = current_prob(previous, current, nexto)
+            all_probs.append(p)
+            if p > threshold:
+                cleaned.append(current)
+                previous = current
+        seqs_cleaned.append(cleaned)
+    return seqs_cleaned
+
+def current_prob(previous, current,  nexto):
+    pCP = i_probs[current] if previous == none \
+        else c_probs[previous, current]
+    pCN = i_probs[current] if nexto == none \
+        else c_probs[current, nexto]*i_probs[current]/i_probs[nexto]
+    p = p_weight*pCP + (1.0 - p_weight)*pCN
+    return p
 
 def phtolab(phonemes):
     labels = []
@@ -91,7 +108,24 @@ def labtoph(labels):
         phonemes.append(s)
     return phonemes
 
-for stage in range(stages):
-    es.stage = stage
-    for fold in range(constants.n_folds):
-        remove_duplicates_fold(es, fold)
+def load_probs(prefix):
+    es = constants.ExperimentSettings()
+    filename = constants.data_filename(prefix, es)
+    probs = np.load(filename)
+    return probs
+
+if __name__== "__main__" :
+    _INDI_PROBS_PREFIX = 'frequencies'
+    _COND_PROBS_PREFIX = 'bigrams'
+    i_probs = load_probs(_INDI_PROBS_PREFIX)
+    c_probs = load_probs(_COND_PROBS_PREFIX)
+    all_probs = []
+    
+    for stage in range(stages):
+        es.stage = stage
+        for fold in range(constants.n_folds):
+            remove_errors_fold(es, fold)
+
+    mean = np.mean(all_probs)
+    stdv = np.std(all_probs)
+    print(f'Mean prob: {mean}, Mean stdev: {stdv}')
