@@ -6,17 +6,18 @@ import dimex
 import eam
 import constants
 
-stages = 5
+stages = 6
 tolerance = 0
 learned = 4
 sigma = 0.1
-iota = 0.3
-kappa = 1.5
+iota = 0.0
+kappa = 0.0
 extended = True
 threshold = 1.0 /constants.n_labels
 p_weight = 2.0/3.0
 none = constants.n_labels
-
+n_jobs=1
+split_size = 20
 runpath = f'runs-d{learned}-t{tolerance}-i{iota:.1f}-k{kappa:.1f}-s{sigma:.2f}'
 constants.run_path = runpath
 es = constants.ExperimentSettings(learned=learned, tolerance = tolerance, extended=extended,
@@ -64,8 +65,15 @@ def stats_per_label(labels):
 def distances(aes, bes):
     ds = []
     for d in \
-        Parallel(n_jobs=1, verbose=50)(
-            delayed(eam.levenshtein)(a, b) for a, b in zip(aes, bes)):
+        Parallel(n_jobs=n_jobs, verbose=50)(
+            delayed(distances_aux)(pairs) for pairs in eam.split_every(split_size, zip(aes, bes))):
+        ds += d
+    return ds
+
+def distances_aux(pairs):
+    ds = []
+    for a, b in pairs:
+        d = eam.levenshtein(a, b)
         ds.append(d)
     return ds
 
