@@ -1033,32 +1033,31 @@ def learn_new_data(domain, mem_size, fill_percent, es):
     save_conf_matrix(confusion_matrix, constants.memories_name(es), es)
     print(f'Learning at stage {es.stage} completed!')
 
-
-def lev(a, b, m):
-    if m[len(a), len(b)] >= 0:
-        return m[len(a),len(b)]
-    elif len(a) == 0:
-        return len(b)
-    elif len(b) == 0:
-        return len(a)
-    elif a[0] == b[0]:
-        d = lev(a[1:], b[1:], m)
-        m[len(a), len(b)] = d
-        return d
-    else:
-        insertion = lev(a[1:], b, m)
-        deletion = lev(a, b[1:], m)
-        replacement = lev(a[1:], b[1:], m)
-        d = min(deletion, insertion, replacement) + 1
-        m[len(a), len(b)] = d
-        return d
-
-
-def levenshtein(a: list, b: list):
-    m = np.full((len(a)+1, len(b)+1), -1, dtype=int)
-    d = lev(a, b, m)
-    return d
-
+def levenshtein(s, t):
+    # create two work vectors of integer distances
+    v0 = np.zeros((len(t)+1), dtype=int)
+    v1 = np.zeros((len(t)+1), dtype=int)
+    # initialize v0 (the previous row of distances)
+    # that distance is the number of characters to append to  s to make t.
+    for i in range(len(t)+1):
+        v0[i] = i
+    for i in range(len(s)):
+        # calculate v1 (current row distances) from the previous row v0
+        v1[0] = i + 1
+        # use formula to fill in the rest of the row
+        for j in range(len(t)):
+            deletionCost = v0[j + 1] + 1
+            insertionCost = v1[j] + 1
+            if s[i] == t[j]:
+                substitutionCost = v0[j]
+            else:
+                substitutionCost = v0[j] + 1
+            v1[j + 1] = min(deletionCost, insertionCost, substitutionCost)
+        # copy v1 (current row) to v0 (previous row) for next iteration
+        # since data in v1 is always invalidated, a swap without copy could be more efficient
+        v0, v1 = v1, v0
+    # after the last swap, the results of v1 are now in v0
+    return v0[len(t)]
 
 def save_recognitions(samples, dp, fold, es):
     filename = constants.recog_filename(constants.recognition_prefix, es, fold)
