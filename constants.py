@@ -122,7 +122,7 @@ MAX_EXPERIMENT = 10
 
 class ExperimentSettings:
     def __init__(self, stage = 0, learned = 0, extended = False,
-        tolerance = 0, sigma = 0.25, iota = 1.0, kappa = 1.0):
+        tolerance = 0, sigma = 0.5, iota = 0.0, kappa = 0.0):
         self.stage = stage
         self.learned = learned
         self.extended = extended
