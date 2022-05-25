@@ -24,7 +24,7 @@ Options:
   -s                        Whether to generate a simple (-s) or detailed graph.
   --json_file=<json_file>   Analyse a single given JSON file. Ignores all following options.
   --dir=<dir>               Base directory for finding JSON files. [default: runs].
-  --learned=<learned>       Index of data learned (original, agreed, ...) [default: 0].
+  --learned=<learned>       Index of data learned (original, agreed, ...) [default: 4].
   --tolerance=<tolerance>   Differences allowed between memory and cue. [default: 0].
   --lang=<language>         Chooses Language for graphs [default: en].
 
@@ -42,7 +42,7 @@ from matplotlib import pyplot as plt
 import constants
 
 # Translation
-gettext.install('ame', localedir=None, codeset=None, names=None)
+gettext.install('eam', localedir=None, codeset=None, names=None)
 
 # Keys for data
 LOSS = 'loss'
@@ -253,7 +253,8 @@ if __name__== "__main__" :
         exit(1)
 
     # Processing base dir.
-    constants.run_path = args['--dir']
+    runpath=args['--dir']
+    constants.run_path = runpath
 
     # Processing learned data.
     learned = 0

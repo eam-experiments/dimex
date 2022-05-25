@@ -9,7 +9,7 @@ import constants
 stages = 6
 tolerance = 0
 learned = 4
-sigma = 0.1
+sigma = 0.5
 iota = 0.0
 kappa = 0.0
 extended = True

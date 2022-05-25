@@ -1,23 +1,56 @@
+# Copyright [2021] Luis Alberto Pineda Cortés,
+# Rafael Morales Gamboa.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Nnets-stats: Generate graph of neural networks improvements.
+
+Usage:
+  recog_stats -h | --help
+  recog_stats [--dir=<dir>] [--stages=<stages>] [--learned=<learned>] [--tolerance=<tolerance>] [--lang=<lang>]
+
+Options:
+  -h                        Show this screen.
+  --dir=<dir>               Directory where data is [default: runs]
+  --stages=<stages>         How many stages to consider [default: 6]
+  --learned=<learned>       Index of data learned (original, agreed, ...) [default: 4].
+  --tolerance=<tolerance>   Differences allowed between memory and cue. [default: 0].
+  --lang=<language>         Chooses Language for graphs [default: en].
+
+Arguments:
+  language: en - English
+  language: es - Spanish
+"""
+
+from docopt import docopt
+import gettext
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import constants
 
+# Translation
+gettext.install('eam', localedir=None, codeset=None, names=None)
+
 stages = 6
 tolerance = 0
 learned = 4
-sigma = 0.50
-iota = 0.3
-kappa = 0.0
 extended = True
-runpath = f'runs-d{learned}-t{tolerance}-i{iota:.1f}-k{kappa:.1f}-s{sigma:.2f}'
-constants.run_path = runpath
-es = constants.ExperimentSettings(learned=learned, tolerance = tolerance, extended=extended,
-        iota=iota, kappa=kappa, sigma=sigma)
+runpath = 'runs'
 
 print(f'Getting data from {constants.run_path}')
 
-def plot_recognition_graph(data, errs, es):
+def plot_recognition_graph(means, errs, es):
     plt.clf()
     fig = plt.figure()
     x = range(stages)
@@ -51,7 +84,7 @@ def get_fold_stats(es, fold):
     data[:, 4] = data[:,4] / (data[:,4] + data[:,0])
     return data[:,1:]
 
-if __name__== "__main__" :
+def main(es):
     stats = []
     for stage in range(stages):
         es.stage = stage
@@ -70,3 +103,54 @@ if __name__== "__main__" :
     stdvs = np.std(means, axis=1)
     means = np.mean(means, axis=1)
     plot_recognition_graph(means, stdvs, es)
+
+if __name__== "__main__" :
+    args = docopt(__doc__)
+
+    # Processing language
+    languages = ['en', 'es']
+    valid = False
+    for lang in languages:
+        if lang == args['--lang']:
+            valid = True
+            break
+    if valid:
+        lang = args['--lang']
+        if lang != 'en':
+            lang = gettext.translation('eam', localedir='locale', languages=[lang])
+            lang.install()
+    else:
+        print(__doc__)
+        exit(1)
+
+    # Processing base dir.
+    runpath = args['--dir']
+
+    # Processing learned data.
+    if args['--learned']:
+        try:
+            learned = int(args['--learned'])
+            if (learned < 0) or (learned >= constants.learned_data_groups):
+                raise Exception('Number out of range.')
+        except:
+            constants.print_error(
+                f'<learned> must be an integer between 0 and {constants.learned_data_groups}.')
+            exit(1)
+    
+    # Processing tolerance.
+    if args['--tolerance']:
+        try:
+            tolerance = int(args['--tolerance'])
+            if (tolerance < 0) or (tolerance >= constants.domain):
+                raise Exception('Number out of range.')
+        except:
+            constants.print_error(
+                f'<tolerance> must be an integer between 0 and {constants.domain}.')
+            exit(1)
+
+    es = constants.ExperimentSettings(
+        learned=learned, tolerance = tolerance, extended=extended)
+    constants.run_path = runpath
+
+    main(es)
+
