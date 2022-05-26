@@ -65,7 +65,7 @@ learning_suffixes = [[original_suffix], [agreed_suffix], [amsystem_suffix],
 
 
 mfcc_numceps = 26
-n_folds = 10
+n_folds = 1
 domain = 32
 n_frames = 8
 phn_duration = n_frames*10 + 15
