@@ -762,7 +762,35 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
         total_precisions.append(step_precision)
         mismatches.append(mis_count)
         start = end
-    print('Filling evaluation completed!')
+    fold_entropies = np.array(fold_entropies)
+    fold_precision = np.array(fold_precision)
+    fold_recall = np.array(fold_recall)
+    fold_accuracy = np.array(fold_accuracy)
+    total_precisions = np.array(total_precisions)
+    total_recalls = np.array(total_recalls)
+    mismatches = np.array(mismatches)
+    return fold, fold_entropies, fold_precision, \
+        fold_recall, fold_accuracy, total_precisions, total_recalls, mismatches
+
+def test_recalling(domain, mem_size, es):
+    n_memories = constants.n_labels
+    memory_fills = constants.memory_fills
+    testing_folds = constants.n_folds
+    # All recalls, per memory fill and fold.
+    # all_memories = {}
+    # All entropies, precision, and recall, per fold, and fill.
+    total_entropies = np.zeros((testing_folds, len(memory_fills)))
+    total_precisions = np.zeros((testing_folds, len(memory_fills)))
+    total_recalls = np.zeros((testing_folds, len(memory_fills)))
+    total_accuracies = np.zeros((testing_folds, len(memory_fills)))
+    sys_precisions = np.zeros((testing_folds, len(memory_fills)))
+    sys_recalls = np.zeros((testing_folds, len(memory_fills)))
+    total_mismatches = np.zeros((testing_folds, len(memory_fills)))
+
+    list_results = []
+    for fold in range(testing_folds):
+        results = test_recalling_fold(n_memories, mem_size, domain, es, fold)
+        list_results.append(results)
     return 0
 
 
