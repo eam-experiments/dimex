@@ -203,12 +203,14 @@ class AssociativeMemory(object):
         return self._normalize(self.relation[:, j], v, self._sigma, self._scale)
 
     # Choose a value for feature i.
-    def choose(self, j, v):
+    def choose(self, j, v, relation = False):
         if self.is_undefined(v):
             column = self.relation[:,j]
         else:
             column = self._normalize(
                 self.relation[:,j], v, self._sigma, self._scale)
+        if relation:
+            return column
         sum = column.sum()
         n = sum*random.random()
         for i in range(self.m):
@@ -240,7 +242,9 @@ class AssociativeMemory(object):
     # Reduces a relation to a function
     def lreduce(self, vector):
         v = np.array([self.choose(i, vector[i]) for i in range(self.n)])
-        return v
+        adjusted = np.array([self.choose(i, vector[i], relation=True)
+            for i in range(self.n)])
+        return v, np.transpose(adjusted)
 
     def validate(self, vector):
         """ It asumes vector is an array of floats, and np.nan
@@ -278,13 +282,25 @@ class AssociativeMemory(object):
         r_io = self.containment(r_io)
         return np.count_nonzero(r_io[:self.m,:self.n] == False)
 
-    def recall(self, vector):
+    def recall(self, vector, dump=False):
         vector = self.validate(vector)
         accept = self.mismatches(vector) <= self._t
         weight = self._weight(vector)
         accept = accept and (self.mean*self._kappa <= weight)
         if accept:
-            r_io = self.lreduce(vector)
+            dump = dump and (random.random() < 0.005)
+            if dump:
+                r_io = self.vector_to_relation(vector)
+                print('\nQueue:')
+                constants.print_csv(vector)
+                print('Queue as relation:')
+                constants.print_csv(r_io.astype(int))
+                print('Memory:')
+                constants.print_csv(self.relation)
+            r_io, adjusted = self.lreduce(vector)
+            if dump:
+                print('Adjusted memory:')
+                constants.print_csv(adjusted)
         else:
             r_io = np.full(self.n, self.undefined)
         r_io = self.revalidate(r_io)

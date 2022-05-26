@@ -14,8 +14,9 @@
 # limitations under the License.
 
 import os
-from signal import Sigmasks
 import sys
+import csv
+from signal import Sigmasks
 import numpy as np
 
 # Directory where all results are stored.
@@ -297,3 +298,10 @@ def get_data_in_range(data, i, j):
         return data[i:j]
     else:
         return np.concatenate((data[i:], data[:j]), axis=0)
+
+def print_csv(data):
+    writer = csv.writer(sys.stdout)
+    if np.ndim(data) == 1:
+        writer.writerow(data)
+    else:
+        writer.writerows(data)
