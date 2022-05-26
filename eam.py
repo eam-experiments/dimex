@@ -607,6 +607,7 @@ def remember_by_memory(fl_pairs, ams, entropy):
         for k in ams:
             recognized, weight = ams[k].recognize(features)
             if recognized:
+                ams[k].recall(features, dump = True)
                 memories.append(k)
                 weights[k] = weight
             # For calculation of per memory precision and recall
