@@ -52,7 +52,9 @@ def remove_errors_fold(es, fold):
     df['MemSizeND'] = memories_sizes
     df['Cor2NetND'] = correct_to_network
     df['Cor2MemND'] = correct_to_memories
-    df['Net2MemND'] = memories_to_network
+    df['Mem2NetND'] = memories_to_network
+    if 'Net2MemND' in df.columns:
+        df.drop(columns='Net2MemND', inplace=True)
     filename = constants.recog_filename(prefix, es, fold)
     df.to_csv(filename, index=False)
 
@@ -88,7 +90,7 @@ def remove_errors(sequences):
             nexto = none if i == (n - 1) else labels[i+1]
             p = current_prob(previous, current, nexto)
             all_probs.append(p)
-            if p > threshold:
+            if p > i_probs[current]:
                 cleaned.append(current)
                 previous = current
         seqs_cleaned.append(cleaned)
