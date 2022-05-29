@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import csv
 import os
 from signal import Sigmasks
 import sys
@@ -297,3 +298,10 @@ def get_data_in_range(data, i, j):
         return data[i:j]
     else:
         return np.concatenate((data[i:], data[:j]), axis=0)
+
+def print_csv(data):
+    writer = csv.writer(sys.stdout)
+    if np.ndim(data) == 1:
+        writer.writerow(data)
+    else:
+        writer.writerows(data)

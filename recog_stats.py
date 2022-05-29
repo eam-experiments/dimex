@@ -17,10 +17,11 @@
 
 Usage:
   recog_stats -h | --help
-  recog_stats [--dir=<dir>] [--stages=<stages>] [--learned=<learned>] [--tolerance=<tolerance>] [--lang=<lang>]
+  recog_stats [-n] [--dir=<dir>] [--stages=<stages>] [--learned=<learned>] [--tolerance=<tolerance>] [--lang=<lang>]
 
 Options:
   -h                        Show this screen.
+  -n                        Do not plot, only print results.
   --dir=<dir>               Directory where data is [default: runs]
   --stages=<stages>         How many stages to consider [default: 6]
   --learned=<learned>       Index of data learned (original, agreed, ...) [default: 4].
@@ -74,7 +75,6 @@ def plot_recognition_graph(means, errs, es):
 def get_fold_stats(es, fold):
     prefix = constants.recognition_prefix
     filename = constants.recog_filename(prefix, es, fold)
-    print(f'Reading file: {filename}')
     df = pd.read_csv(filename)
     df = df[['CorrSize', 'Cor2Net', 'Cor2Mem','Cor2NetND', 'Cor2MemND']]
     data = df.to_numpy(dtype=float)
@@ -84,7 +84,7 @@ def get_fold_stats(es, fold):
     data[:, 4] = data[:,4] / (data[:,4] + data[:,0])
     return data[:,1:]
 
-def main(es):
+def main(plotting, es):
     stats = []
     for stage in range(stages):
         es.stage = stage
@@ -96,13 +96,16 @@ def main(es):
         stats.append(stage_stats)
 
     stats = np.array(stats, dtype=float)    
-    print(stats.shape)
     # Reduce folds to their means.
     means = np.mean(stats, axis=1)
     # Means and standard deviations of measures per stage.
     stdvs = np.std(means, axis=1)
     means = np.mean(means, axis=1)
-    plot_recognition_graph(means, stdvs, es)
+    if plotting:
+        plot_recognition_graph(means, stdvs, es)
+    else:
+        constants.print_csv(means)
+        constants.print_csv(stdvs)
 
 if __name__== "__main__" :
     args = docopt(__doc__)
@@ -122,6 +125,8 @@ if __name__== "__main__" :
     else:
         print(__doc__)
         exit(1)
+
+    plotting = not args['-n']
 
     # Processing base dir.
     runpath = args['--dir']
@@ -148,9 +153,20 @@ if __name__== "__main__" :
                 f'<tolerance> must be an integer between 0 and {constants.domain}.')
             exit(1)
 
+    # Processing stages.
+    if args['--stages']:
+        try:
+            stages = int(args['--stages'])
+            if (stages < 0):
+                raise Exception('Number out of range.')
+        except:
+            constants.print_error(
+                f'<stages> must be an integer greater than zero')
+            exit(1)
+
     es = constants.ExperimentSettings(
         learned=learned, tolerance = tolerance, extended=extended)
     constants.run_path = runpath
 
-    main(es)
+    main(plotting, es)
 
