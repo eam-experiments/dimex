@@ -89,7 +89,7 @@ def plot_pre_graph (pre_mean, rec_mean, acc_mean, ent_mean, \
     ymax = full_length + 2
 
     # Replace undefined precision with 1.0.
-    pre_mean = np.nan_to_num(pre_mean, copy=False, nan=1.0)
+    pre_mean = np.nan_to_num(pre_mean, copy=False, nan=100.0)
 
     plt.errorbar(x, pre_mean, fmt='r-o', yerr=pre_std, label=_('Precision'))
     plt.errorbar(x, rec_mean, fmt='b--s', yerr=rec_std, label=_('Recall'))
