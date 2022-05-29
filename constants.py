@@ -241,8 +241,8 @@ def json_filename(name_prefix, es):
 def pickle_filename(name_prefix, es = None, fold = None):
     return filename(name_prefix, es, fold, '.pkl')
 
-def picture_filename(name_prefix, es):
-    return filename(name_prefix, es, extension='.svg')
+def picture_filename(name_prefix, es, fold = None):
+    return filename(name_prefix, es, fold, extension='.svg')
 
 def learned_data_filename(suffix, es, fold):
     prefix = learning_data_learned + suffix + data_suffix
