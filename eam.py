@@ -249,6 +249,10 @@ def plot_memory(memory: AssociativeMemory, prefix, es):
     filename = constants.picture_filename(prefix, es)
     plt.savefig(filename, dpi=600)
 
+def plot_memories(ams, es):
+    for label in ams:
+        prefix = f'memory-{label}-state'
+        plot_memory(ams[label], prefix, es)
 
 def get_label(memories, weights = None, entropies = None):
     if len(memories) == 1:
@@ -412,6 +416,8 @@ def get_ams_results(midx, msize, domain, trf, tef, trl, tel,
         delayed(register_in_memory)(ams[label], features_list) \
             for label, features_list in split_by_label(zip(trf_rounded, trl)))
     print(f'Filling of memories done for fold {fold}')
+
+    plot_memories(ams, es)
 
     # Calculate entropies
     means = []
