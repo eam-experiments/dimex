@@ -17,11 +17,12 @@
 
 Usage:
   nnets_stats -h | --help
-  nnets_stats [-s] [--json_file=<json_file>] [--dir=<dir>] [--learned=<learned>] [--tolerance=<tolerance>] [--lang=<lang>]
+  nnets_stats [-s] [-n] [--json_file=<json_file>] [--dir=<dir>] [--learned=<learned>] [--tolerance=<tolerance>] [--lang=<lang>]
 
 Options:
   -h                        Show this screen.
   -s                        Whether to generate a simple (-s) or detailed graph.
+  -n                        Do not plot, only print data.
   --json_file=<json_file>   Analyse a single given JSON file. Ignores all following options.
   --dir=<dir>               Base directory for finding JSON files. [default: runs].
   --learned=<learned>       Index of data learned (original, agreed, ...) [default: 4].
@@ -108,7 +109,7 @@ def testing_stats(data, simple):
         teplot(m[LOSS], LOSS)
         teplot(m[CLASS_MEASURE], CLASS_MEASURE, ymax=1.0)
 
-def process_single_json(filename, simple):
+def process_single_json(filename, simple, plotting):
     history = {}
     with open(filename) as json_file:
         history = json.load(json_file)
@@ -158,9 +159,8 @@ def plot_sequence_graph(data, error, y_title, prefix, label, es):
     plt.savefig(graph_filename, dpi=600)
 
 
-def process_json_sequence(es):
+def process_json_sequence(plotting,es):
     autoencoder_data, classifier_data = get_data(es)
-    print(autoencoder_data, classifier_data)
     if (len(autoencoder_data.shape) > 1):
         autoencoder_error = np.std(autoencoder_data, axis=1)
         autoencoder_data = np.mean(autoencoder_data, axis=1)
@@ -171,16 +171,22 @@ def process_json_sequence(es):
         classifier_data = np.mean(classifier_data, axis=1)
     else:
         classifier_error = np.zeros(classifier_data.shape, dtype=float)
-    print('Autoencoder mean: ' + str(autoencoder_data))
-    print('Autoencoder error: ' + str(autoencoder_error))
-    print('Classifier mean: ' + str(classifier_data))
-    print('Classifier error: ' + str(classifier_error))
-    plot_sequence_graph(
-        autoencoder_data, autoencoder_error, 
-        ytitles[AUTO_MEASURE], 'graph_autoencoder', 'Autoencoder', es)
-    plot_sequence_graph(
-        classifier_data, classifier_error, 
-        ytitles[CLASS_MEASURE], 'graph_classifier', 'Classifier', es)
+    if (plotting):
+        plot_sequence_graph(
+            autoencoder_data, autoencoder_error, 
+            ytitles[AUTO_MEASURE], 'graph_autoencoder', 'Autoencoder', es)
+        plot_sequence_graph(
+            classifier_data, classifier_error, 
+            ytitles[CLASS_MEASURE], 'graph_classifier', 'Classifier', es)
+    else:
+        print('Autoencoder mean: ')
+        constants.print_csv(autoencoder_data)
+        print('Autoencoder standard deviation: ')
+        constants.print_csv(autoencoder_error)
+        print('Classifier mean: ')
+        constants.print_csv(classifier_data)
+        print('Classifier standard deviation: ')
+        constants.print_csv(classifier_error)
 
 def get_data(es: constants.ExperimentSettings):
     autoencoder_data = []
@@ -204,7 +210,6 @@ def get_measure(fname, measure):
     return value
 
 def process_json(fname, measure):
-    print(f'Processing {fname} with measure {measure}')
     history = None
     with open(fname) as file:
         history = json.load(file)
@@ -279,6 +284,8 @@ if __name__== "__main__" :
             constants.print_error(
                 f'<tolerance> must be an integer between 0 and {constants.domain}.')
             exit(1)
+    
+    plotting = not args['-n']
 
     # Processing single JSON file
     json_file = args['--tolerance'] if args['--tolerance'] else ''
@@ -286,7 +293,7 @@ if __name__== "__main__" :
     exp_set = constants.ExperimentSettings(learned=learned, extended=True, tolerance=tolerance)
    
     if json_file == '':
-        process_single_json(json_file, simple)
+        process_single_json(json_file, simple, plotting)
     else:
-        process_json_sequence(exp_set)
+        process_json_sequence(plotting, exp_set)
        
