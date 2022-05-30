@@ -239,20 +239,20 @@ def plot_conf_matrix(matrix, tags, prefix, es):
     plt.savefig(filename, dpi=600)
 
 
-def plot_memory(memory: AssociativeMemory, prefix, es):
+def plot_memory(memory: AssociativeMemory, prefix, es, fold):
     plt.clf()
     plt.figure(figsize=(6.4, 4.8))
     seaborn.heatmap(memory.relation/memory.max_value, vmin=0.0, vmax=1.0,
                     annot=False, cmap='coolwarm')
     plt.xlabel(_('Characteristics'))
     plt.ylabel(_('Values'))
-    filename = constants.picture_filename(prefix, es)
+    filename = constants.picture_filename(prefix, es, fold)
     plt.savefig(filename, dpi=600)
 
-def plot_memories(ams, es):
+def plot_memories(ams, es, fold):
     for label in ams:
         prefix = f'memory-{label}-state'
-        plot_memory(ams[label], prefix, es)
+        plot_memory(ams[label], prefix, es, fold)
 
 def get_label(memories, weights = None, entropies = None):
     if len(memories) == 1:
@@ -416,8 +416,6 @@ def get_ams_results(midx, msize, domain, trf, tef, trl, tel,
         delayed(register_in_memory)(ams[label], features_list) \
             for label, features_list in split_by_label(zip(trf_rounded, trl)))
     print(f'Filling of memories done for fold {fold}')
-
-    plot_memories(ams, es)
 
     # Calculate entropies
     means = []
@@ -768,6 +766,7 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
         total_precisions.append(step_precision)
         mismatches.append(mis_count)
         start = end
+    plot_memories(ams, es, fold)
     fold_entropies = np.array(fold_entropies)
     fold_precision = np.array(fold_precision)
     fold_recall = np.array(fold_recall)
