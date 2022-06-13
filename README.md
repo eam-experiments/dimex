@@ -1,6 +1,6 @@
 # Weighted Entropic Associative Memories:  A Case
 Study on Phonetic Representation and Learning
-This repository contains the procedures to replicate the experiments presented in the paper 
+This repository contains the procedures to replicate the experiments presented in the paper
 
 Pineda, Luis A. & Rafael Morales (under review). “Weighted Entropic Associative Memory: A Case Study on Phonetic Representation and Learning”.
 
