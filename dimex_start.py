@@ -148,7 +148,7 @@ def create_data_and_labels(id_filename, prefix, crop_pad=True):
         means[i] = np.mean(durations[i])
         stdvs[i] = np.std(durations[i])
     print(f'Durations mean: {means}')
-    print(f'Duraitons stdevs: {stdvs}')
+    print(f'Durations stdevs: {stdvs}')
     filename = constants.data_filename(prefix + constants.labels_suffix)
     np.save(filename,labels)
     if crop_pad:
