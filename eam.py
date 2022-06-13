@@ -766,7 +766,9 @@ def test_recalling_fold(n_memories, mem_size, domain, es, fold):
         total_precisions.append(step_precision)
         mismatches.append(mis_count)
         start = end
-    plot_memories(ams, es, fold)
+    # Use this to plot current state of memories
+    # as heatmaps.
+    # plot_memories(ams, es, fold)
     fold_entropies = np.array(fold_entropies)
     fold_precision = np.array(fold_precision)
     fold_recall = np.array(fold_recall)
