@@ -162,16 +162,16 @@ def print_counter(n, every, step = 1, symbol = '.', prefix = ''):
     print(counter, end = '', flush=True)
 
 def extended_suffix(extended):
-    return '-ext' if extended else ''    
+    return '-ext' if extended else ''
 
 def fold_suffix(fold):
     return '' if fold is None else '-fld_' + str(fold).zfill(3)
 
 def learned_suffix(learned):
-    return '-lrn_' + str(learned).zfill(3)    
+    return '-lrn_' + str(learned).zfill(3)
 
 def stage_suffix(stage):
-    return '-stg_' + str(stage).zfill(3)    
+    return '-stg_' + str(stage).zfill(3)
 
 def tolerance_suffix(tolerance):
     return '-tol_' + str(tolerance).zfill(3)
@@ -184,7 +184,7 @@ def get_name_w_suffix(prefix, add_suffix, value, sf):
     suffix = ''
     if add_suffix:
         suffix = sf(value)
-    return prefix + suffix 
+    return prefix + suffix
 
 def get_full_name(prefix, es):
     if es is None:
@@ -227,7 +227,7 @@ def filename(name_prefix, es = None, fold = None, extension = ''):
     except FileExistsError:
         pass
     return run_path + '/' + get_full_name(name_prefix,es) \
-        + fold_suffix(fold) + extension 
+        + fold_suffix(fold) + extension
 
 def csv_filename(name_prefix, es = None, fold = None):
     return filename(name_prefix, es, fold, '.csv')
