@@ -696,7 +696,7 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, es
     total_recall = cmatrix[TP] / len(tel)
     mismatches /= len(tel)
     filename = constants.memory_conftrix_filename(percent, es, fold)
-    np.save(cms)
+    np.save(filename, cms)
     return measures, total_precision, total_recall, mismatches
 
 def test_recalling_fold(n_memories, mem_size, domain, es, fold):
