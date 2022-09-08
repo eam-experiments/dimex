@@ -121,7 +121,10 @@ class AssociativeMemory(object):
 
     @property
     def max_value(self):
-        return np.max(self.relation)
+        # max_value is used as normalizer by dividing, so it
+        # should not be zero.
+        maximum = np.max(self.relation)
+        return 1 if maximum == 0 else maximum
 
     @property
     def undefined(self):
