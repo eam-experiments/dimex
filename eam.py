@@ -17,7 +17,7 @@
 
 Usage:
   eam -h | --help
-  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [--learned=<learned_data>] [-x] [--tolerance=<tolerance>] [--sigma=<sigma>] [--iota=<iota>] [--kappa=<kappa>] [--runpath=<runpath>] [ -l (en | es) ]
+  eam (-n | -f | -a | -c | -e | -i | -r) <stage> [--learned=<learned_data>] [-x] [--runpath=<runpath>] [ -l (en | es) ]
 
 Options:
   -h        Show this screen.
@@ -30,15 +30,10 @@ Options:
   -r        Run the experiment 2 (Recognition).
   --learned=<learned_data>      Selects which learneD Data is used for evaluation, recognition or learning [default: 0].
   -x        Use the eXtended data set as testing data for memory.
-  --tolerance=<tolerance>       Allow Tolerance (unmatched features) in memory [default: 0].
-  --sigma=<sigma>   Scale of standard deviation of the distribution of influence of the cue [default: 0.25]
-  --iota=<iota>     Scale of the expectation (mean) required as minimum for the cue to be accepted by a memory [default: 0.0]
-  --kappa=<kappa>   Scale of the expectation (mean) rquiered as minimum for the cue to be accepted by the system of memories [default: 0.0]
   --runpath=<runpath>           Sets the path to the directory where everything will be saved [default: runs]
   -l        Chooses Language for graphs.            
 
 The parameter <stage> indicates the stage of learning from which data is used.
-Default is the last one.
 """
 from docopt import docopt
 import copy
@@ -408,9 +403,11 @@ def get_ams_results(midx, msize, domain, trf, tef, trl, tel,
 
     # Create the required associative memories.
     ams = dict.fromkeys(range(n_mems))
+    p = es.mem_params
     for m in ams:
-        ams[m] = AssociativeMemory(domain, msize, es.tolerance, 
-                    es.sigma, es.iota, es.kappa)
+        ams[m] = AssociativeMemory(domain, msize, p[m, constants.xi_idx], 
+                    p[m, constants.sigma_idx], p[m, constants.iota_idx], 
+                    p[m, constants.kappa_idx])
     # Registration in parallel, per label.
     Parallel(n_jobs=constants.n_jobs, require='sharedmem', verbose=50)(
         delayed(register_in_memory)(ams[label], features_list) \
@@ -1288,70 +1285,34 @@ if __name__== "__main__" :
     # Processing use of extended data as testing data for memory
     extended = args['-x']
 
-    # Processing tolerance.
-    tolerance = 0
-    if args['--tolerance']:
-        try:
-            tolerance = int(args['--tolerance'])
-            if (tolerance < 0) or (tolerance > constants.domain):
-                raise Exception('Number out of range.')
-        except:
-            constants.print_error('<tolerance> must be a positive integer.')
-            exit(1)
-
-    # Processing sigma.
-    sigma = 0.25
-    if args['--sigma']:
-        try:
-            sigma = float(args['--sigma'])
-            if (sigma < 0):
-                raise Exception('<sigma> must be positive.')
-        except:
-            constants.print_error('<sigma> must be a positive number.')
-            exit(1)
-
-    # Processing sigma.
-    iota = 0.0
-    if args['--iota']:
-        try:
-            iota = float(args['--iota'])
-            if (iota < 0):
-                raise Exception('<iota> must be positive.')
-        except:
-            constants.print_error('<iota> must be a positive number.')
-            exit(1)
-
-    # Processing sigma.
-    kappa = 0.0
-    if args['--kappa']:
-        try:
-            kappa = float(args['--kappa'])
-            if (kappa < 0):
-                raise Exception('<kappa> must be positive.')
-        except:
-            constants.print_error('<kappa> must be a positive number.')
-            exit(1)
-
     # Processing runpath.
     constants.run_path = args['--runpath']
-    exp_set = constants.ExperimentSettings(
-        stage, learned, extended, tolerance, sigma, iota, kappa)
+
+    prefix=constants.memory_parameters_prefix
+    filename=constants.csv_filename(prefix)
+    print(filename)
+    memory_parameters = \
+        np.genfromtxt(filename, dtype=float, delimiter=',', skip_header=1)
+
+    exp_settings = constants.ExperimentSettings(
+        stage, learned, extended, memory_parameters)
     print(f'Working directory: {constants.run_path}')
-    print(f'Experimental settings: {exp_set}')
+    print(f'Experimental settings: {exp_settings}')
+    exit(0)
 
     # PROCESSING OF MAIN OPTIONS.
 
     if args['-n']:
-        create_and_train_classifiers(exp_set)
+        create_and_train_classifiers(exp_settings)
     elif args['-f']:
-        produce_features_from_data(exp_set)
+        produce_features_from_data(exp_settings)
     elif args['-a']:
-        create_and_train_autoencoder(exp_set)
+        create_and_train_autoencoder(exp_settings)
     elif args['-c']:
-        characterize_features(exp_set)
+        characterize_features(exp_settings)
     elif args['-e']:
-        run_evaluation(exp_set)
+        run_evaluation(exp_settings)
     elif args['-i']:
-        extend_data(exp_set)
+        extend_data(exp_settings)
     elif args['-r']:
-        recognize_sequences(exp_set)
+        recognize_sequences(exp_settings)

@@ -35,6 +35,7 @@ model_prefix = 'model'
 recognition_prefix = 'recognition'
 stats_prefix = 'model_stats'
 learn_params_prefix ='learn_params'
+memory_parameters_prefix='mem_params'
 
 balanced_data = 'balanced'
 seed_data = 'seed'
@@ -71,6 +72,17 @@ domain = 32
 n_frames = 8
 phn_duration = n_frames*10 + 15
 n_jobs = 22
+
+iota_default = 0.0
+kappa_default = 0.0
+xi_default = 0.0
+sigma_default = 0.25
+params_defaults = [iota_default, kappa_default, xi_default, sigma_default]
+label_idx = 0
+iota_idx = 1
+kapp_idx = 2
+xi_idx = 3
+sigma_idx = 4
 
 nn_training_percent = 0.70
 am_filling_percent = 0.20
@@ -123,26 +135,26 @@ MIN_EXPERIMENT = 1
 MAX_EXPERIMENT = 10
 
 class ExperimentSettings:
-    def __init__(self, stage = 0, learned = 0, extended = False,
-        tolerance = 0, sigma = 0.5, iota = 0.0, kappa = 0.0):
+    def __init__(self, stage = 0, learned = 0, extended = False, mem_params = None):
         self.stage = stage
         self.learned = learned
         self.extended = extended
-        self.tolerance = tolerance
-        self.sigma = sigma
-        self.iota = iota
-        self.kappa = kappa
+        self.mem_params = default_mem_params() if mem_params is None else mem_params
 
     def __str__(self):
         s = '{Stage: ' + str(self.stage) + \
             ', Learned: ' + str(self.learned) + \
             ', Extended: ' + str(self.extended) + \
-            ', Tolerance: ' + str(self.tolerance) + \
-            ', Sigma: ' + str(self.sigma) + \
-            ', Iota: ' + str(self.iota) + \
-            ', Kappa: ' + str(self.kappa) + '}'
+            ', Parameters: ' + str(self.mem_params) + '}'
         return s
 
+def default_mem_params():
+    params = np.zeros(n_labels, 5, dtype=float)
+    # First column is for labels
+    params[:,0] = np.array([i for i in range(n_labels)])
+    for i in range(4):
+        params[:, i+1] = np.full(n_labels, default_mem_params[i])
+    return params
 
 def print_warning(*s):
     print('WARNING:', *s, file = sys.stderr)
@@ -174,9 +186,6 @@ def learned_suffix(learned):
 def stage_suffix(stage):
     return '-stg_' + str(stage).zfill(3)
 
-def tolerance_suffix(tolerance):
-    return '-tol_' + str(tolerance).zfill(3)
-
 def experiment_suffix(experiment):
     return '' if (experiment is None) or experiment < EXP_1 \
         else '-exp_' + str(experiment).zfill(3)
@@ -193,7 +202,6 @@ def get_full_name(prefix, es):
     name = get_name_w_suffix(prefix, True, es.stage, stage_suffix)
     name = get_name_w_suffix(name, True, es.learned, learned_suffix)
     name = get_name_w_suffix(name, True, es.extended, extended_suffix)
-    name = get_name_w_suffix(name, True, es.tolerance, tolerance_suffix)
     return name
 
 # Currently, names include nothing about experiment settings.
@@ -217,6 +225,9 @@ def memories_name(es):
 
 def learn_params_name(es):
     return learn_params_prefix
+
+def mem_params_name(es):
+    return memory_parameters_prefix
 
 def filename(name_prefix, es = None, fold = None, extension = ''):
     """ Returns a file name in run_path directory with a given extension and an index
@@ -269,16 +280,11 @@ def memory_conftrix_filename(fill, es, fold):
     prefix = mem_conf_prefix + '-fll_' + str(fill).zfill(3)
     return data_filename(prefix, es, fold)
 
-
-
-
-###### TO BE MODIFIED #####
+def recog_filename(name_prefix, es, fold):
+    return csv_filename(name_prefix, es, fold)
 
 def stats_name(experiment = -1):
     return get_name_w_suffix(stats_prefix, experiment >= EXP_1, experiment, experiment_suffix)
-
-def recog_filename(name_prefix, es, fold):
-    return csv_filename(name_prefix, es, fold)
 
 def mean_idx(m):
     return m
