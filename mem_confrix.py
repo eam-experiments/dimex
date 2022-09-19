@@ -84,6 +84,13 @@ def plot_distrib(distribution, prefix, es):
   plt.savefig(filename, dpi=600)
   plt.close()
 
+def export_table(means, stdvs, prefix, es):
+  filename = constants.csv_filename(prefix, es)
+  table = np.zeros((constants.n_labels, 8))
+  for i in range(constants.n_labels):
+    table[i, :4] = np.ravel(means[i], 'F')
+    table[i, 4:] = np.ravel(stdvs[i], 'F')
+  np.savetxt(filename, table, delimiter=',')  
 
 def normalized(cms):
   global category_sizes
@@ -109,6 +116,7 @@ def mem_confrix(es):
   means = np.mean(confrixs, axis=0)
   stdvs = np.std(confrixs, axis=0)
   prefix = "mem_confrix"
+  export_table(means, stdvs, prefix, es)
   plot_confrix(means, stdvs, prefix, es)
   prefix = "corpus_distrib"
   plot_distrib(category_sizes, prefix, es)
