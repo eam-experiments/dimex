@@ -291,7 +291,7 @@ class AssociativeMemory(object):
         else:
             r_io = np.full(self.n, self.undefined)
         r_io = self.revalidate(r_io)
-        return r_io, accept, weight
+        return r_io, accept, weight/self.mean
 
 
 class AssociativeMemorySystem:

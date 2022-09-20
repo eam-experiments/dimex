@@ -1298,7 +1298,6 @@ if __name__== "__main__" :
         stage, learned, extended, memory_parameters)
     print(f'Working directory: {constants.run_path}')
     print(f'Experimental settings: {exp_settings}')
-    exit(0)
 
     # PROCESSING OF MAIN OPTIONS.
 

@@ -80,7 +80,7 @@ sigma_default = 0.25
 params_defaults = [iota_default, kappa_default, xi_default, sigma_default]
 label_idx = 0
 iota_idx = 1
-kapp_idx = 2
+kappa_idx = 2
 xi_idx = 3
 sigma_idx = 4
 
