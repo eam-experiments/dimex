@@ -77,7 +77,7 @@ iota_default = 0.0
 kappa_default = 0.0
 xi_default = 0.0
 sigma_default = 0.25
-params_defaults = [iota_default, kappa_default, xi_default, sigma_default]
+params_defaults = [np.nan, iota_default, kappa_default, xi_default, sigma_default]
 label_idx = 0
 iota_idx = 1
 kappa_idx = 2
@@ -139,6 +139,8 @@ class ExperimentSettings:
         self.stage = stage
         self.learned = learned
         self.extended = extended
+        if mem_params is None:
+            print('Memory parameters not provided, so defaults are used.')
         self.mem_params = default_mem_params() if mem_params is None else mem_params
 
     def __str__(self):
@@ -153,7 +155,7 @@ def default_mem_params():
     # First column is for labels
     params[:,0] = np.array([i for i in range(n_labels)])
     for i in range(4):
-        params[:, i+1] = np.full(n_labels, default_mem_params[i])
+        params[:, i+1] = np.full(n_labels, default_mem_params[i+1])
     return params
 
 def print_warning(*s):

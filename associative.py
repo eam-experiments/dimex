@@ -35,7 +35,7 @@ class AssociativeMemoryError(Exception):
 
 
 class AssociativeMemory(object):
-    def __init__(self, n: int, m: int, tolerance = 0, sigma=0.25, iota = 0, kappa=0):
+    def __init__(self, n: int, m: int, xi = 0, sigma=0.25, iota = 0, kappa=0):
         """
         Parameters
         ----------
@@ -52,9 +52,10 @@ class AssociativeMemory(object):
             characteristics. Default: None, in which case
             half the number of characteristics is used.
         """
+        print(f'{{iota: {iota}, kappa: {kappa}, xi: {xi}, sigma: {sigma}}}')
         self._n = n
         self._m = m+1
-        self._t = tolerance
+        self._t = xi
         self._absolute_max = 1023
         self._sigma = sigma*m
         self._iota = iota
@@ -273,7 +274,7 @@ class AssociativeMemory(object):
         recognized = np.count_nonzero(r_io[:self.m,:self.n] == False) <= self._t
         weight = self._weight(vector)
         recognized = recognized and (self.mean*self._kappa <= weight)
-        return recognized, weight
+        return recognized, weight/self.mean
 
     def mismatches(self, vector):
         vector = self.validate(vector)
