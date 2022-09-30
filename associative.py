@@ -307,8 +307,8 @@ class AssociativeMemorySystem:
         if params is None:
             params = self.default_parameters(labels)
         elif len(params) != len(labels):
-            raise ValueError('Lenght of list of labels ('
-                len(labels) ') and lenght of parameters (', len(params)') differ.')
+            raise ValueError('Lenght of list of labels (',
+                len(labels), ') and lenght of parameters (', len(params), ') differ.')
         for label, p in zip(labels, params):
             self._memories[label] = AssociativeMemory(n, m, p[constants.xi_idx], 
                     p[constants.sigma_idx], p[constants.iota_idx], 
