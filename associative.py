@@ -33,9 +33,10 @@ def normpdf(x, mean, sd, scale = 1.0):
 class AssociativeMemoryError(Exception):
     pass
 
-
 class AssociativeMemory(object):
-    def __init__(self, n: int, m: int, xi = 0, sigma=0.25, iota = 0, kappa=0):
+    def __init__(self, n: int, m: int,
+        xi = constants.xi_default, sigma=constants.sigma_default,
+        iota = constants.iota_default, kappa=constants.kappa_default):
         """
         Parameters
         ----------
@@ -274,7 +275,7 @@ class AssociativeMemory(object):
         recognized = np.count_nonzero(r_io[:self.m,:self.n] == False) <= self._t
         weight = self._weight(vector)
         recognized = recognized and (self.mean*self._kappa <= weight)
-        return recognized, weight/self.mean
+        return recognized, weight
 
     def mismatches(self, vector):
         vector = self.validate(vector)
@@ -292,21 +293,27 @@ class AssociativeMemory(object):
         else:
             r_io = np.full(self.n, self.undefined)
         r_io = self.revalidate(r_io)
-        return r_io, accept, weight/self.mean
+        return r_io, accept, weight
 
 
 class AssociativeMemorySystem:
-    def __init__(self, labels: list, n: int, m: int, 
-        tolerance = 0, sigma = 0.25, iota = 0, kappa = 0):
+    def __init__(self, labels: list, n: int, m: int, params = None):
         self._memories = {}
         self.n = n
         self.m = m
-        self._kappa = kappa
         self._updated = True
         self._mean = 0.0
         self._labels = labels
-        for label in labels:
-            self._memories[label] = AssociativeMemory(n, m, tolerance, sigma, iota, kappa)
+        if params is None:
+            params = self.default_parameters(labels)
+        elif len(params) != len(labels):
+            raise ValueError('Lenght of list of labels ('
+                len(labels) ') and lenght of parameters (', len(params)') differ.')
+        for label, p in zip(labels, params):
+            self._memories[label] = AssociativeMemory(n, m, p[constants.xi_idx], 
+                    p[constants.sigma_idx], p[constants.iota_idx], 
+                    p[constants.kappa_idx])
+        self._params = params
 
     @property
     def num_mems(self):
@@ -330,6 +337,14 @@ class AssociativeMemorySystem:
             mean = m.mean
             means.append(mean)
         self._mean = np.mean(means)
+
+    def default_parameters(labels):
+        params = []
+        for label in labels:
+            p = [label, constants.iota_default, constants.kappa_default, 
+                constants.xi_default, constants.sigma_default]
+            params.append(p)
+        return np.array(params)
 
     def register(self, mem, vector):
         if not (mem in self._memories):

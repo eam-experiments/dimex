@@ -60,7 +60,7 @@ import dimex
 import recnet
 
 # Translation
-gettext.install('ame', localedir=None, codeset=None, names=None)
+gettext.install('eam', localedir=None, codeset=None, names=None)
 
 
 def plot_pre_graph (pre_mean, rec_mean, acc_mean, ent_mean, \
@@ -376,6 +376,18 @@ def split_every(n, iterable):
         yield piece
         piece = list(islice(i, n))
 
+def optimum_memory_size(precisions, recalls):
+    average = 0.0
+    ops_idx = 0
+    i = 0
+    for p, r in zip(precisions, recalls):
+        new_avg = (r + p)/2
+        if new_avg - average > 1.0:
+            average = new_avg
+            ops_idx = i
+        i += 1
+    return constants.memory_sizes[ops_idx]
+
 def get_ams_results(midx, msize, domain, trf, tef, trl, tel, 
     es: constants.ExperimentSettings, fold):
     # Round the values
@@ -572,8 +584,7 @@ def test_memories(domain, es):
     main_response_size = np.mean(response_size, axis=0)
     main_response_size_stdev = np.std(response_size, axis=0)
 
-    best_memory_size = constants.memory_sizes[
-        np.argmax(main_correct_chosen)]
+    best_memory_size = optimum_memory_size(all_precision_average, all_recall_average)
     main_behaviours = [main_no_response, main_no_correct_response, \
         main_no_correct_chosen, main_correct_chosen, main_response_size]
 
@@ -699,9 +710,11 @@ def get_recalls(ams, msize, domain, min_value, max_value, trf, trl, tef, tel, es
 def test_recalling_fold(n_memories, mem_size, domain, es, fold):
     # Create the required associative memories.
     ams = dict.fromkeys(range(n_memories))
-    for j in ams:
-        ams[j] = AssociativeMemory(domain, mem_size, es.tolerance,
-                    es.sigma, es.iota, es.kappa)
+    p = es.mem_params
+    for m in ams:
+        ams[m] = AssociativeMemory(domain, mem_size, p[m, constants.xi_idx], 
+                    p[m, constants.sigma_idx], p[m, constants.iota_idx], 
+                    p[m, constants.kappa_idx])
 
     suffix = constants.filling_suffix
     filling_features_filename = constants.features_name(es) + suffix        
@@ -992,7 +1005,7 @@ def ams_process_samples(samples, ams, minimum, maximum, decode=False):
         processed.append(p)
     return [sample for chunk in processed for sample in chunk]
 
-def learn_new_data(domain, mem_size, fill_percent, es):
+def learn_new_data(domain, mem_size, fill_percent, es: constants.ExperimentSettings):
     model_prefix = constants.model_name(es)
     confusion_matrix = np.zeros(
         (constants.n_folds, constants.n_labels, constants.n_labels), dtype=float)
@@ -1023,8 +1036,7 @@ def learn_new_data(domain, mem_size, fill_percent, es):
         testing_labels = np.load(testing_labels_filename)
         testing_features = msize_features(testing_features, mem_size, minimum, maximum)
 
-        ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size,
-            es.tolerance, es.sigma, es.iota, es.kappa)
+        ams = AssociativeMemorySystem(constants.all_labels, domain, mem_size, es.mem_params)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
         for label, features in zip(testing_labels, testing_features):
@@ -1160,7 +1172,7 @@ def test_recognition(domain, mem_size, filling_percent, es: constants.Experiment
         now = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         print(f'{now} Filling memories...', end=" ")
         ams = AssociativeMemorySystem(constants.all_labels,domain,mem_size,
-            es.tolerance, es.sigma, es.iota, es.kappa)
+            es.mem_params)
         for label, features in zip(filling_labels, filling_features):
             ams.register(label,features)
         print('done!')
