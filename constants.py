@@ -151,11 +151,11 @@ class ExperimentSettings:
         return s
 
 def default_mem_params():
-    params = np.zeros(n_labels, 5, dtype=float)
+    params = np.zeros((n_labels, 5), dtype=float)
     # First column is for labels
     params[:,0] = np.array([i for i in range(n_labels)])
     for i in range(4):
-        params[:, i+1] = np.full(n_labels, default_mem_params[i+1])
+        params[:, i+1] = np.full(n_labels, params_defaults[i+1])
     return params
 
 def print_warning(*s):
