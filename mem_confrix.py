@@ -16,15 +16,11 @@
 
 Usage:
   mem_confrix -h | --help
-  mem_confrix [<stage>] [--learned=<learned_data>] [-x] [--tolerance=<tolerance>] [--sigma=<sigma>] [--iota=<iota>] [--kappa=<kappa>] [--runpath=<runpath>] [ -l (en | es) ]
+  mem_confrix [<stage>] [--learned=<learned_data>] [-x] [--runpath=<runpath>] [ -l (en | es) ]
 
 Options:
   --learned=<learned_data>      Selects which learneD Data is used for evaluation, recognition or learning [default: 0].
   -x                            Use the eXtended data set as testing data for memory.
-  --tolerance=<tolerance>       Allow Tolerance (unmatched features) in memory [default: 0].
-  --sigma=<sigma>               Scale of standard deviation of the distribution of influence of the cue [default: 0.25]
-  --iota=<iota>                 Scale of the expectation (mean) required as minimum for the cue to be accepted by a memory [default: 0.0]
-  --kappa=<kappa>               Scale of the expectation (mean) rquiered as minimum for the cue to be accepted by the system of memories [default: 0.0]
   --runpath=<runpath>           Sets the path to the directory where everything will be saved [default: runs]
   -l                            Chooses Language for graphs.            
 
@@ -49,14 +45,12 @@ FP = (0,1)
 FN = (1,0)
 TN = (1,1)
 
-category_sizes = None
-
-def plot_graph(label, tags, values, errors, prefix, es):
+def plot_graph(label, tags, values, errors, ymax, prefix, es):
   fig = plt.figure(figsize=(6.4, 4.8))
   title = dimex.labels_to_phns[label]
   width = 0.75
   plt.bar(tags, values, width, yerr=errors, capsize=2)
-  plt.ylim(0.0, 1.0)
+  plt.ylim(0.0, ymax)
   plt.ylabel('Percentage')
   plt.title(title)
   label_prefix = prefix + '-lbl_' + str(label).zfill(3)
@@ -65,14 +59,14 @@ def plot_graph(label, tags, values, errors, prefix, es):
   plt.close()
 
 
-def plot_confrix(means, stdvs, prefix, es):
+def plot_confrix(means, stdvs, ymax, prefix, es):
   xtags = [_('TP'), _('FN'), _('FP'), _('TN')]
   for label in range(constants.n_labels):
     m = means[label]
     s = stdvs[label]
     lmeans = [m[TP], m[FN], m[FP], m[TN]]
     lstdvs = [s[TP], s[FN], s[FP], s[TN]]
-    plot_graph(label, xtags, lmeans, lstdvs, prefix, es)
+    plot_graph(label, xtags, lmeans, lstdvs, ymax, prefix, es)
 
 def plot_distrib(distribution, prefix, es):
   xtags = dimex.labels_to_phns
@@ -112,12 +106,16 @@ def mem_confrix(es):
   for fold in range(constants.n_folds):
     filename = constants.memory_conftrix_filename(fill, es, fold)
     cms = np.load(filename)
-    confrixs[fold] = normalized(cms)
+    confrixs[fold] = cms
   means = np.mean(confrixs, axis=0)
   stdvs = np.std(confrixs, axis=0)
   prefix = "mem_confrix"
+  ymax = np.max(means)
+  ymax += np.max(stdvs)
   export_table(means, stdvs, prefix, es)
-  plot_confrix(means, stdvs, prefix, es)
+  plot_confrix(means, stdvs, ymax, prefix, es)
+  totals = np.sum(cms, axis=1)
+  category_sizes = totals[:,0]
   prefix = "corpus_distrib"
   plot_distrib(category_sizes, prefix, es)
 
@@ -156,54 +154,9 @@ if __name__== "__main__" :
     # Processing use of extended data as testing data for memory
     extended = args['-x']
 
-    # Processing tolerance.
-    tolerance = 0
-    if args['--tolerance']:
-        try:
-            tolerance = int(args['--tolerance'])
-            if (tolerance < 0) or (tolerance > constants.domain):
-                raise Exception('Number out of range.')
-        except:
-            constants.print_error('<tolerance> must be a positive integer.')
-            exit(1)
-
-    # Processing sigma.
-    sigma = 0.25
-    if args['--sigma']:
-        try:
-            sigma = float(args['--sigma'])
-            if (sigma < 0):
-                raise Exception('<sigma> must be positive.')
-        except:
-            constants.print_error('<sigma> must be a positive number.')
-            exit(1)
-
-    # Processing sigma.
-    iota = 0.0
-    if args['--iota']:
-        try:
-            iota = float(args['--iota'])
-            if (iota < 0):
-                raise Exception('<iota> must be positive.')
-        except:
-            constants.print_error('<iota> must be a positive number.')
-            exit(1)
-
-    # Processing sigma.
-    kappa = 0.0
-    if args['--kappa']:
-        try:
-            kappa = float(args['--kappa'])
-            if (kappa < 0):
-                raise Exception('<kappa> must be positive.')
-        except:
-            constants.print_error('<kappa> must be a positive number.')
-            exit(1)
-
     # Processing runpath.
     constants.run_path = args['--runpath']
-    exp_set = constants.ExperimentSettings(
-        stage, learned, extended, tolerance, sigma, iota, kappa)
+    exp_set = constants.ExperimentSettings(stage, learned, extended)
     print(f'Working directory: {constants.run_path}')
     print(f'Experimental settings: {exp_set}')
 
