@@ -1302,12 +1302,10 @@ if __name__== "__main__" :
 
     prefix=constants.memory_parameters_prefix
     filename=constants.csv_filename(prefix)
-    print(filename)
-    memory_parameters = \
+    parameters = \
         np.genfromtxt(filename, dtype=float, delimiter=',', skip_header=1)
-
     exp_settings = constants.ExperimentSettings(
-        stage, learned, extended, memory_parameters)
+        stage, learned, extended, parameters)
     print(f'Working directory: {constants.run_path}')
     print(f'Experimental settings: {exp_settings}')
 

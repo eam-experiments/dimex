@@ -67,7 +67,7 @@ learning_suffixes = [[original_suffix], [agreed_suffix], [amsystem_suffix],
 
 
 mfcc_numceps = 26
-n_folds = 10
+n_folds = 1
 domain = 32
 n_frames = 8
 phn_duration = n_frames*10 + 15
@@ -135,13 +135,29 @@ MIN_EXPERIMENT = 1
 MAX_EXPERIMENT = 10
 
 class ExperimentSettings:
-    def __init__(self, stage = 0, learned = 0, extended = False, mem_params = None):
+    def __init__(self, stage = 0, learned = 0, extended = False, params = None):
         self.stage = stage
         self.learned = learned
         self.extended = extended
-        if mem_params is None:
-            print('Memory parameters not provided, so defaults are used.')
-        self.mem_params = default_mem_params() if mem_params is None else mem_params
+        if params is None:
+            print('Memory parameters not provided, ' 
+                + 'so defaults are used for all memories.')
+            self.mem_params = mem_params(params_defaults)
+
+        # If not None, it must be a one or two dimensional array.
+        assert(isinstance(params,np.ndarray))
+        assert(params.ndim < 3)
+        # The “second” dimension must have five elements
+        # label, iota, kappa, xi, sigma
+        n = 0 if params.ndim == 1 else 1
+        shape = params.shape
+        assert(shape[n] == 5)
+
+        if params.ndim == 1:
+            print('Same parameters for all memories.')
+            self.mem_params = mem_params(params)
+        else:
+            self.mem_params = params
 
     def __str__(self):
         s = '{Stage: ' + str(self.stage) + \
@@ -150,13 +166,14 @@ class ExperimentSettings:
             ', Parameters: ' + str(self.mem_params) + '}'
         return s
 
-def default_mem_params():
+def mem_params(p):
     params = np.zeros((n_labels, 5), dtype=float)
     # First column is for labels
     params[:,0] = np.array([i for i in range(n_labels)])
     for i in range(4):
-        params[:, i+1] = np.full(n_labels, params_defaults[i+1])
+        params[:, i+1] = np.full(n_labels, p[i+1])
     return params
+
 
 def print_warning(*s):
     print('WARNING:', *s, file = sys.stderr)
