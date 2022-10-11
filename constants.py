@@ -143,21 +143,20 @@ class ExperimentSettings:
             print('Memory parameters not provided, ' 
                 + 'so defaults are used for all memories.')
             self.mem_params = mem_params(params_defaults)
-
-        # If not None, it must be a one or two dimensional array.
-        assert(isinstance(params,np.ndarray))
-        assert(params.ndim < 3)
-        # The “second” dimension must have five elements
-        # label, iota, kappa, xi, sigma
-        n = 0 if params.ndim == 1 else 1
-        shape = params.shape
-        assert(shape[n] == 5)
-
-        if params.ndim == 1:
-            print('Same parameters for all memories.')
-            self.mem_params = mem_params(params)
         else:
-            self.mem_params = params
+            # If not None, it must be a one or two dimensional array.
+            assert(isinstance(params,np.ndarray))
+            assert(params.ndim < 3)
+            # The “second” dimension must have five elements
+            # label, iota, kappa, xi, sigma
+            n = 0 if params.ndim == 1 else 1
+            shape = params.shape
+            assert(shape[n] == 5)
+            if params.ndim == 1:
+                print('Same parameters for all memories.')
+                self.mem_params = mem_params(params)
+            else:
+                self.mem_params = params
 
     def __str__(self):
         s = '{Stage: ' + str(self.stage) + \
